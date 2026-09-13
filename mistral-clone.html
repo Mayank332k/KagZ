@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mistral AI — Frontier AI in your hands</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: #131b2e;
+            --surface-border: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-orange: #ff5500;
+            --accent-orange-hover: #ff7733;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* Navigation Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-orange);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-outline:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .btn-primary {
+            background: var(--accent-orange);
+            color: white;
+            border: 1px solid var(--accent-orange);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 180px 40px 100px;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 85, 0, 0.15) 0%, rgba(11, 15, 25, 0) 70%);
+            z-index: -1;
+            filter: blur(60px);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(255, 85, 0, 0.1);
+            border: 1px solid rgba(255, 85, 0, 0.3);
+            border-radius: 20px;
+            color: var(--accent-orange);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            margin-bottom: 24px;
+            color: #ffffff;
+        }
+
+        .hero p {
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+        }
+
+        .hero-btns {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 80px;
+        }
+
+        /* Bento Grid Showcase */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .bento-card {
+            background: var(--surface-color);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .bento-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .bento-card.col-8 {
+            grid-column: span 8;
+        }
+
+        .bento-card.col-4 {
+            grid-column: span 4;
+        }
+
+        .bento-card.col-6 {
+            grid-column: span 6;
+        }
+
+        .bento-card h3 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .bento-card p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .bento-tag {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-orange);
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* Trusted By Section */
+        .trusted-section {
+            padding: 120px 40px 80px;
+            text-align: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .trusted-section h2 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            font-weight: 600;
+        }
+
+        .logos-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px 60px;
+            align-items: center;
+            opacity: 0.7;
+        }
+
+        .logo-item {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            letter-spacing: -0.02em;
+            transition: color 0.2s;
+        }
+
+        .logo-item:hover {
+            color: var(--text-primary);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--surface-border);
+            margin-top: 120px;
+            padding: 80px 40px 40px;
+            background: #080b13;
+        }
+
+        .footer-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr repeat(4, 1fr);
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        .footer-col h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .footer-col ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .footer-col ul a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-col ul a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        @media(max-width: 1024px) {
+            .bento-card.col-8, .bento-card.col-4, .bento-card.col-6 {
+                grid-column: span 12;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="nav-container">
+            <a href="#" class="logo-area">
+                <div class="logo-icon">M</div>
+                Mistral AI
+            </a>
+            <ul class="nav-links">
+                <li><a href="#">Models</a></li>
+                <li><a href="#">Platform</a></li>
+                <li><a href="#">Solutions</a></li>
+                <li><a href="#">Developers</a></li>
+                <li><a href="#">Company</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="#" class="btn btn-outline">Contact Sales</a>
+                <a href="#" class="btn btn-primary">Start Building</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="badge">🚀 Introducing Le Chat & Codestral</div>
+        <h1>Frontier AI.<br>In your hands.</h1>
+        <p>We engineer frontier models that offer unprecedented performance, efficiency, and flexibility for enterprises and developers worldwide.</p>
+        <div class="hero-btns">
+            <a href="#" class="btn btn-primary" style="padding: 14px 28px; font-size: 1rem;">Explore API Platform</a>
+            <a href="#" class="btn btn-outline" style="padding: 14px 28px; font-size: 1rem;">Read Research</a>
+        </div>
+    </section>
+
+    <!-- Bento Grid Ecosystem -->
+    <div class="bento-grid">
+        <div class="bento-card col-8">
+            <span class="bento-tag">Flagship Models</span>
+            <h3>Uncompromising intelligence at every scale</h3>
+            <p>From ultra-efficient edge deployment with Mistral 7B & Mixtral to state-of-the-art reasoning models like Mistral Large 2, our models excel across multilingual benchmarks, coding, and mathematical reasoning.</p>
+        </div>
+        <div class="bento-card col-4">
+            <span class="bento-tag">Developer First</span>
+            <h3>Simple API & SDKs</h3>
+            <p>Integrate robust AI pipelines with standard-compliant endpoints and ultra-low latency inference globally.</p>
+        </div>
+        <div class="bento-card col-4">
+            <span class="bento-tag">Sovereign & Secure</span>
+            <h3>Enterprise Privacy</h3>
+            <p>Deploy securely on-premises, in virtual private clouds, or via certified EU-hosted cloud providers.</p>
+        </div>
+        <div class="bento-card col-8">
+            <span class="bento-tag">Le Chat & Custom Agents</span>
+            <h3>AI designed for real workforces</h3>
+            <p>Empower teams with conversational intelligence connected directly to internal knowledge bases, document repositories, and custom web applications.</p>
+        </div>
+    </div>
+
+    <!-- Trusted By -->
+    <section class="trusted-section">
+        <h2>Trusted by world-class organizations and innovators</h2>
+        <div class="logos-row">
+            <div class="logo-item">BNP PARIBAS</div>
+            <div class="logo-item">AXA</div>
+            <div class="logo-item">CMA CGM</div>
+            <div class="logo-item">IBM</div>
+            <div class="logo-item">SAP</div>
+            <div class="logo-item">ORANGE</div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="logo-area" style="margin-bottom: 20px;">
+                    <div class="logo-icon">M</div>
+                    Mistral AI
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 300px;">
+                    Accelerating the AI revolution with open, efficient, and sovereign frontier technology.
+                </p>
+            </div>
+            <div class="footer-col">
+                <h4>Models</h4>
+                <ul>
+                    <li><a href="#">Mistral Large</a></li>
+                    <li><a href="#">Codestral</a></li>
+                    <li><a href="#">Mixtral 8x22B</a></li>
+                    <li><a href="#">Embed & Moderation</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Platform</h4>
+                <ul>
+                    <li><a href="#">La Plateforme</a></li>
+                    <li><a href="#">Le Chat</a></li>
+                    <li><a href="#">Cloud Partners</a></li>
+                    <li><a href="#">Pricing</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <ul>
+                    <li><a href="#">Documentation</a></li>
+                    <li><a href="#">API Reference</a></li>
+                    <li><a href="#">Research Papers</a></li>
+                    <li><a href="#">System Status</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Press & News</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>&copy; 2026 Mistral AI. All rights reserved.</div>
+            <div style="display: flex; gap: 24px;">
+                <a href="#" style="color: var(--text-secondary); text-decoration: none;">Privacy Policy</a>
+                <a href="#" style="color: var(--text-secondary); text-decoration: none;">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

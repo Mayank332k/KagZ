@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+@plugin 'lightswind/plugin';
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: system-ui, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --color-accent: #aa3bff;
+  --color-accent-bg: rgba(170, 59, 255, 0.1);
+  --color-noema-bg: #ffffff;
+  --color-sidebar-bg: #f7f6f5;
+  --color-active-tab: #ebebea;
+  
+  /* Dark Mode Colors */
+  --color-dark-bg: #191919;
+  --color-dark-surface: #232323;
+  --color-dark-sidebar: #242424;
+  --color-dark-title: #424242;
+  --color-dark-muted: rgb(174, 172, 167);
+  --color-dark-border: #333333;
+  --color-dark-border-hover: #404040;
+}
+
+html {
+  font-size: var(--noema-font-size, 16px);
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-800 dark:bg-[#16171d] dark:text-gray-300;
+    transition: font-size 0.15s ease;
+  }
+}
+
+/* High Contrast Mode */
+html.noema-high-contrast body {
+  color: #000000;
+}
+html.noema-high-contrast.dark body,
+html.noema-high-contrast :where(.dark, .dark *) body {
+  color: #ffffff;
+}
+html.noema-high-contrast * {
+  border-color: rgba(0, 0, 0, 0.25) !important;
+}
+html.noema-high-contrast.dark *,
+html.noema-high-contrast :where(.dark, .dark *) * {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+html.noema-high-contrast .text-gray-500,
+html.noema-high-contrast .text-gray-400 {
+  color: #374151 !important;
+}
+html.noema-high-contrast.dark .text-gray-500,
+html.noema-high-contrast.dark .text-gray-400,
+html.noema-high-contrast :where(.dark, .dark *) .text-gray-500,
+html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
+  color: #d1d5db !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Notion-style text selection */
+::selection {
+  background: rgba(35, 131, 226, 0.28);
+}
+::-moz-selection {
+  background: rgba(35, 131, 226, 0.28);
+}
+
+.dark ::selection, :where(.dark, .dark *) ::selection {
+  background: rgba(35, 131, 226, 0.4);
+}
+.dark ::-moz-selection, :where(.dark, .dark *) ::-moz-selection {
+  background: rgba(35, 131, 226, 0.4);
+}
+
+/* TipTap Editor Styles */
+.ProseMirror h1 {
+  font-size: 2.25em !important;
+  font-weight: 800 !important;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+  line-height: 1.1;
+  color: inherit;
+}
+
+.ProseMirror h2 {
+  font-size: 1.75em !important;
+  font-weight: 700 !important;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.ProseMirror h3 {
+  font-size: 1.35em !important;
+  font-weight: 600 !important;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.ProseMirror p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--color-dark-border);
+  padding-left: 1rem;
+  font-style: italic;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  opacity: 0.8;
+}
+
+.ProseMirror pre {
+  background: var(--color-dark-surface);
+  color: inherit;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-family: monospace;
+  overflow-x: auto;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.ProseMirror code {
+  background: rgba(128, 128, 128, 0.2);
+  padding: 0.15em 0.3em;
+  border-radius: 0.25em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.85em;
+}
+
+@keyframes shimmer-move {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-shimmer-move {
+  animation: shimmer-move 2s infinite linear;
+}
+
+@keyframes text-wave {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+.animate-text-wave {
+  animation: text-wave 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer-text {
+  to { background-position: -200% center; }
+}
+.animate-shimmer-text {
+  animation: shimmer-text 2.5s linear infinite;
+}
