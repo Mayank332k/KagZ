@@ -9,6 +9,8 @@
   --color-noema-bg: #ffffff;
   --color-sidebar-bg: #f7f6f5;
   --color-active-tab: #ebebea;
+  --color-shiny-base: #9ca3af;
+  --color-shiny-shine: #111827;
   
   /* Dark Mode Colors */
   --color-dark-bg: #191919;
@@ -18,6 +20,8 @@
   --color-dark-muted: rgb(174, 172, 167);
   --color-dark-border: #333333;
   --color-dark-border-hover: #404040;
+  --color-dark-shiny-base: #4b5563;
+  --color-dark-shiny-shine: #f9fafb;
 }
 
 html {

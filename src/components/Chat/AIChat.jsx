@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useCallback } from 'react';
-import { ArrowUp, Plus, X, FileText, Maximize2, Mic, ChevronDown, PlusCircle, Loader, Copy, Check, MoreVertical, ArrowLeft } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, X, FileText, Maximize2, Mic, ChevronDown, PlusCircle, Loader, Copy, Check, MoreVertical, ArrowLeft } from 'lucide-react';
 import { ResourcesAddIcon, FolderLibraryIcon, Brain03Icon, ChatGptIcon, MetaIcon, ClaudeIcon, File01Icon, SidebarLeft01Icon, Loading03Icon, MaximizeScreenIcon, Edit02Icon } from 'hugeicons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,7 @@ import { ChatContext } from '../../context/ChatContext';
 import { EditorContext } from '../../context/EditorContext';
 import { AiCodeBlock } from '@/components/lightswind/ai-code-block';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
+import { ShinyText } from '@/components/lightswind/shiny-text';
 import './AIChat.css';
 
 // Time ago utility
@@ -211,7 +212,14 @@ const ThinkingAnimation = () => {
   return (
     <div className="flex items-center text-[var(--text-secondary)] font-medium py-1">
       <span className="w-6 text-xl text-center mr-2 opacity-80">{frames[frame]}</span>
-      <span className="shimmer-text">Thinking...</span>
+      <ShinyText 
+        className="text-[15px]"
+        baseColor="var(--color-shiny-base)"
+        shineColor="var(--color-shiny-shine)"
+        speed={2}
+      >
+        Thinking...
+      </ShinyText>
     </div>
   );
 };
@@ -382,6 +390,7 @@ const AIChat = ({ isRightPanel = false }) => {
     "Summarize your recent notes"
   ];
   const [greetingIndex, setGreetingIndex] = useState(0);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -406,10 +415,28 @@ const AIChat = ({ isRightPanel = false }) => {
   const wasLoadingMoreRef = useRef(false);
 
   const handleScroll = (e) => {
-    if (e.target.scrollTop === 0 && !isLoadingMore && hasMore) {
-      prevScrollHeightRef.current = e.target.scrollHeight;
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    
+    // Show scroll button if scrolled up more than 150px
+    if (scrollHeight - scrollTop - clientHeight > 150) {
+      setShowScrollButton(true);
+    } else {
+      setShowScrollButton(false);
+    }
+
+    if (scrollTop === 0 && !isLoadingMore && hasMore) {
+      prevScrollHeightRef.current = scrollHeight;
       wasLoadingMoreRef.current = true;
       fetchMoreMessages();
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({
+        top: chatScrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -526,7 +553,21 @@ const AIChat = ({ isRightPanel = false }) => {
         </div>
 
         {/* Input Composer */}
-        <div className="p-4 bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-10">
+        <div className="p-4 bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-10 relative">
+          <AnimatePresence>
+            {showScrollButton && (
+              <motion.button
+                initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
+                animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+                exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
+                onClick={scrollToBottom}
+                className="absolute -top-12 left-1/2 z-50 p-2 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
+                title="Scroll to bottom"
+              >
+                <ArrowDown className="w-5 h-5" />
+              </motion.button>
+            )}
+          </AnimatePresence>
           <ChatComposer 
             textareaRef={textareaRef}
             query={query}
@@ -670,6 +711,20 @@ const AIChat = ({ isRightPanel = false }) => {
               <div className="footer-blur-layer-3" />
               
               <div className="w-full max-w-[770px] mx-auto px-4 relative z-20">
+                <AnimatePresence>
+                  {showScrollButton && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
+                      animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+                      exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
+                      onClick={scrollToBottom}
+                      className="absolute -top-16 left-1/2 z-50 p-2.5 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
+                      title="Scroll to bottom"
+                    >
+                      <ArrowDown className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
                 <ChatComposer 
                   textareaRef={textareaRef}
                   query={query}
