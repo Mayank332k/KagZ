@@ -11,9 +11,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { handleApiSizeError } from '../utils/aiValidation';
 
-const API_BASE_URL = import.meta.env.PROD
-  ? '/api'
-  : (import.meta.env.Config_API_URL || 'http://localhost:5001/api');
+const API_BASE_URL = import.meta.env.Config_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5001/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
