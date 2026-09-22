@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { ChevronRight, Plus } from "lucide-react";
-import { DeskIcon, Folder01Icon, BookOpen01Icon, ArrowDown01Icon } from "hugeicons-react";
+import { ArtboardToolIcon, Folder01Icon, NotebookIcon, ArrowDown01Icon } from "hugeicons-react";
 
 
 
 const NodeIcon = ({ type, className = "w-3.5 h-3.5 shrink-0 text-gray-500" }) => {
-  if (type === "workspace") return <DeskIcon className={className} />;
+  if (type === "workspace") return <ArtboardToolIcon className={className} />;
   if (type === "folder") return <Folder01Icon className={className} />;
-  return <BookOpen01Icon className={className} />;
+  return <NotebookIcon className={className} />;
 };
 
 const PanelHeader = ({ breadcrumb }) => (

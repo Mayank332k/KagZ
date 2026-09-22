@@ -22,6 +22,7 @@ export const ChatProvider = ({ children }) => {
   // Model & Thinking States
   const [selectedModel, setSelectedModel] = useState('meta/llama-3.2-11b-vision-instruct');
   const [isThinking, setIsThinking] = useState(false);
+  const [chatError, setChatError] = useState(null); // { message: string, query: string }
   
   const hasAutoOpened = useRef(false);
   const userClosedSidebar = useRef(false);
@@ -44,6 +45,7 @@ export const ChatProvider = ({ children }) => {
       return;
     }
 
+    setChatError(null);
     setQuery('');
 
     // Capture history before appending new user message
@@ -52,7 +54,7 @@ export const ChatProvider = ({ children }) => {
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: userQuery },
-      { role: 'assistant', content: '', sources: [] },
+      { role: 'assistant', content: '', sources: [], status: 'Thinking...' },
     ]);
     setIsStreaming(true);
 
@@ -61,9 +63,38 @@ export const ChatProvider = ({ children }) => {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
+    let contentBuffer = '';
+    let rafId = null;
+
+    const flushContentBuffer = () => {
+      if (!contentBuffer) return;
+      const chunk = contentBuffer;
+      contentBuffer = '';
+      setMessages((prev) => {
+        const lastIndex = prev.length - 1;
+        if (lastIndex < 0) return prev;
+        const lastMsg = prev[lastIndex];
+        if (lastMsg.role !== 'assistant') return prev;
+        return [...prev.slice(0, lastIndex), { ...lastMsg, content: lastMsg.content + chunk }];
+      });
+    };
+
+    const scheduleContentFlush = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        flushContentBuffer();
+      });
+    };
+
     try {
       for await (const event of chatAPI.ask(userQuery, chatHistory, activeModel, sessionId, isThinking, signal)) {
         if (event.type === 'sources') {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          flushContentBuffer();
           setMessages((prev) => {
             const lastIndex = prev.length - 1;
             if (lastIndex < 0) return prev;
@@ -72,18 +103,32 @@ export const ChatProvider = ({ children }) => {
             return [...prev.slice(0, lastIndex), { ...lastMsg, sources: event.data }];
           });
           setCurrentSources(event.data);
-        } else if (event.type === 'content') {
+        } else if (event.type === 'state') {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          flushContentBuffer();
+          if (event.data && /connecting to ai/i.test(event.data)) {
+            // Ignore internal retry/connection state so it never displays on UI
+            return;
+          }
           setMessages((prev) => {
             const lastIndex = prev.length - 1;
             if (lastIndex < 0) return prev;
             const lastMsg = prev[lastIndex];
             if (lastMsg.role !== 'assistant') return prev;
-            return [...prev.slice(0, lastIndex), { ...lastMsg, content: lastMsg.content + event.data }];
+            return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data }];
           });
+        } else if (event.type === 'content') {
+          contentBuffer += event.data;
+          scheduleContentFlush();
         } else if (event.type === 'done') {
           break;
         } else if (event.type === 'error') {
-          showToast(event.error || event.data || "An error occurred.", "error");
+          const errText = event.error || event.data || "An error occurred.";
+          showToast(errText, "error");
+          setChatError({ message: errText, query: userQuery });
           break;
         }
       }
@@ -92,8 +137,14 @@ export const ChatProvider = ({ children }) => {
         console.log('Chat generation aborted by user.');
       } else {
         console.error('Chat error:', err);
+        setChatError({ message: err.message || "Failed to generate response.", query: userQuery });
       }
     } finally {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      flushContentBuffer();
       setIsStreaming(false);
       setMessages((prev) => {
         const msgs = [...prev];
@@ -103,14 +154,41 @@ export const ChatProvider = ({ children }) => {
           if (last.role === 'assistant' && !last.content.trim()) {
             msgs.pop(); // Remove the empty reply bubble
             // Give message to frontend
-            setTimeout(() => {
-              showToast("LLM failed to generate a response. Please try again.", "error");
-            }, 10);
+            if (!signal.aborted) {
+              setChatError({ message: "LLM failed to generate a response.", query: userQuery });
+              setTimeout(() => {
+                showToast("LLM failed to generate a response. Please try again.", "error");
+              }, 10);
+            }
           }
         }
         return msgs;
       });
     }
+  };
+
+  const clearChatError = () => {
+    setChatError(null);
+  };
+
+  const retryLastMessage = () => {
+    if (!chatError?.query || isStreaming) return;
+    const failedQuery = chatError.query;
+    setChatError(null);
+
+    // Clean up trailing unfulfilled user message or empty assistant message so history stays clean
+    setMessages((prev) => {
+      let clean = [...prev];
+      if (clean.length > 0 && clean[clean.length - 1].role === 'assistant' && !clean[clean.length - 1].content.trim()) {
+        clean.pop();
+      }
+      if (clean.length > 0 && clean[clean.length - 1].role === 'user' && clean[clean.length - 1].content === failedQuery) {
+        clean.pop();
+      }
+      return clean;
+    });
+
+    sendMessage(failedQuery);
   };
 
   const loadSession = async (id) => {
@@ -123,6 +201,7 @@ export const ChatProvider = ({ children }) => {
         setHasMore(!!res.data.nextCursor);
         setQuery('');
         setCurrentSources([]);
+        setChatError(null);
       }
     } catch (err) {
       console.error('Failed to load session:', err);
@@ -153,6 +232,7 @@ export const ChatProvider = ({ children }) => {
     setSessionId(uuidv4());
     setNextCursor(null);
     setHasMore(false);
+    setChatError(null);
   };
 
   return (
@@ -182,7 +262,10 @@ export const ChatProvider = ({ children }) => {
         sessionId,
         setSessionId,
         hasAutoOpened,
-        userClosedSidebar
+        userClosedSidebar,
+        chatError,
+        clearChatError,
+        retryLastMessage
       }}
     >
       {children}

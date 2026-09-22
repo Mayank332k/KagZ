@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search01Icon, 
-  DeskIcon, 
+  ArtboardToolIcon, 
   Folder01Icon, 
   TextIcon, 
   FilterIcon,
-  File01Icon
+  NotebookIcon
 } from 'hugeicons-react';
 import { EditorContext } from '../../context/EditorContext';
 
@@ -22,9 +22,9 @@ const springConfig = {
 };
 
 const circlesData = [
-  { id: 'workspace', icon: DeskIcon, label: 'Workspace' },
+  { id: 'workspace', icon: ArtboardToolIcon, label: 'Workspace' },
   { id: 'folder', icon: Folder01Icon, label: 'Folder' },
-  { id: 'page', icon: File01Icon, label: 'Page' }
+  { id: 'page', icon: NotebookIcon, label: 'Page' }
 ];
 
 const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
@@ -260,9 +260,9 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
                 >
-                  {selectedCircle === 'workspace' && <DeskIcon className="w-6 h-6 text-blue-500 shrink-0" />}
+                  {selectedCircle === 'workspace' && <ArtboardToolIcon className="w-6 h-6 text-blue-500 shrink-0" />}
                   {selectedCircle === 'folder' && <Folder01Icon className="w-6 h-6 text-blue-500 shrink-0" />}
-                  {selectedCircle === 'page' && <File01Icon className="w-6 h-6 text-blue-500 shrink-0" />}
+                  {selectedCircle === 'page' && <NotebookIcon className="w-6 h-6 text-blue-500 shrink-0" />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -376,7 +376,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             }`}
                           >
                             <div className={`mr-4 flex items-center justify-center ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                              <DeskIcon className="w-6 h-6" />
+                              <ArtboardToolIcon className="w-6 h-6" />
                             </div>
                             <div className="flex flex-col">
                               <span className={`truncate text-[15px] font-medium ${isWsSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{ws.name}</span>
@@ -388,7 +388,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}
                             className="relative z-10 flex items-center px-4 py-2 text-gray-500 dark:text-gray-400 bg-white/40 dark:bg-black/40 rounded-lg"
                           >
-                            {ws.id === 'recent_pages' ? <File01Icon className="w-4 h-4 mr-2 opacity-70" /> : <DeskIcon className="w-4 h-4 mr-2 opacity-70" />}
+                            {ws.id === 'recent_pages' ? <NotebookIcon className="w-4 h-4 mr-2 opacity-70" /> : <ArtboardToolIcon className="w-4 h-4 mr-2 opacity-70" />}
                             <span className="text-[13px] font-medium tracking-wide">{ws.name}</span>
                             <span className="ml-2 text-[11px] uppercase tracking-wider opacity-50">Context</span>
                           </motion.div>
@@ -424,7 +424,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                 >
                                   <div className={`mr-4 flex items-center justify-center ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {item.type === 'folder' && <Folder01Icon className="w-5 h-5" />}
-                                    {(item.type === 'page' || item.type === 'document') && <File01Icon className="w-5 h-5" />}
+                                    {(item.type === 'page' || item.type === 'document') && <NotebookIcon className="w-5 h-5" />}
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>

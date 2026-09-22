@@ -87,10 +87,21 @@
   --radius-bubble: 12px;
   --radius-code: 25px;
   --radius-xl: 32px;
+
+  /* --- Sources Popover & Pill Variables (Light Mode) --- */
+  --sources-bg: rgba(255, 255, 255, 0.72);
+  --sources-border: rgba(0, 0, 0, 0.08);
+  --sources-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.04);
+  --sources-arrow-fill: rgba(255, 255, 255, 0.72);
+  --sources-arrow-stroke: rgba(0, 0, 0, 0.08);
+  --sources-pill-bg: rgba(0, 0, 0, 0.06);
+  --sources-pill-hover: rgba(0, 0, 0, 0.1);
+  --sources-pill-text: #1f2937;
+  --sources-pill-count: #6b7280;
 }
 
 .dark {
-  --bg-base: #000000;
+  --bg-base: rgb(19, 19, 19);
   --bg-surface: #111111;
   --bg-hover: rgb(32, 32, 32);
   --border: rgba(255, 255, 255, 0.1);
@@ -140,6 +151,17 @@
   --avatar-glow-base: rgba(100, 150, 255, 0.5);
   --avatar-glow-pulse: rgba(100, 150, 255, 0.9);
   --avatar-glow-min: rgba(100, 150, 255, 0.3);
+
+  /* --- Sources Popover & Pill Variables (Dark Mode) --- */
+  --sources-bg: rgba(26, 26, 28, 0.75);
+  --sources-border: rgba(255, 255, 255, 0.12);
+  --sources-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.06);
+  --sources-arrow-fill: rgba(26, 26, 28, 0.75);
+  --sources-arrow-stroke: rgba(255, 255, 255, 0.12);
+  --sources-pill-bg: rgba(255, 255, 255, 0.08);
+  --sources-pill-hover: rgba(255, 255, 255, 0.14);
+  --sources-pill-text: #e0e0e0;
+  --sources-pill-count: #a0a0a5;
 }
 
 /* --- Layout Blueprint --- */
@@ -300,14 +322,14 @@
 }
 
 .message-bubble-user {
-  max-width: 60%;
-  padding: 12px 20px;
-  border-radius: var(--radius-xl);
+  max-width: 75%;
+  padding: 10px 16px;
+  border-radius: 20px;
   background-color: var(--user-bubble-bg);
   color: var(--user-bubble-text);
-  font-size: 18.5px;
-  line-height: 1.4;
-  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .message-bubble-assistant {
@@ -528,15 +550,76 @@
 }
 
 @keyframes shimmer-text {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .shimmer-text {
-  background: linear-gradient(90deg, var(--text-muted) 25%, var(--text-primary) 50%, var(--text-muted) 75%);
-  background-size: 200% auto;
+  background: linear-gradient(
+    90deg,
+    #9ca3af 0%,
+    #111827 50%,
+    #9ca3af 100%
+  );
+  background-size: 200% 100%;
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: shimmer-text 2s linear infinite;
+  display: inline-block;
+  animation: shimmer-text 2.5s linear infinite;
+}
+
+.dark .shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #6b7280 0%,
+    #ffffff 50%,
+    #6b7280 100%
+  );
+  background-size: 200% 100%;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: inline-block;
+  animation: shimmer-text 2.5s linear infinite;
+}
+
+/* --- Sources Peanut Capsule Pill & Popover --- */
+.sources-peanut-btn {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 9999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.06));
+  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease;
+}
+
+.dark .sources-peanut-btn {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.sources-peanut-btn:hover {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+  transform: translateY(-0.5px);
+}
+
+.dark .sources-peanut-btn:hover {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.sources-popover-card {
+  background: var(--sources-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--sources-border);
+  box-shadow: var(--sources-shadow);
+  border-radius: 30px;
 }

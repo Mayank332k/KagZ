@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, Plus, ChevronRight, Edit2, Trash2 } from 'lucide-react';
-import { DeskIcon, BookOpen01Icon, AppleReminderIcon, Time02Icon, Folder01Icon, DashboardSquare02Icon } from 'hugeicons-react';
+import { ArtboardToolIcon, NotebookIcon, AppleReminderIcon, Time02Icon, Folder01Icon, DashboardSquare02Icon } from 'hugeicons-react';
 import ActionModal from '../../components/UI/ActionModal';
 import { workspacesAPI, pagesAPI, tasksAPI, foldersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
@@ -10,10 +10,10 @@ import KanbanBoard from '../../components/Tasks/KanbanBoard';
 
 
 const getIcon = (type) => {
-  if (type === 'workspace') return DeskIcon;
+  if (type === 'workspace') return ArtboardToolIcon;
   if (type === 'code') return AppleReminderIcon;
   if (type === 'todo') return AppleReminderIcon;
-  return BookOpen01Icon;
+  return NotebookIcon;
 };
 
 
@@ -360,7 +360,7 @@ const Home = () => {
                       {/* Top: Icon + Name */}
                       <div className="flex items-center gap-3.5 mb-4">
                         <div className={`flex items-center justify-center ${colorClass}`}>
-                          <DeskIcon className="w-[26px] h-[26px] stroke-[2.5]" />
+                          <ArtboardToolIcon className="w-[26px] h-[26px] stroke-[2.5]" />
                         </div>
                         <h3 className="text-[20px] font-bold text-gray-900 dark:text-gray-100 tracking-tight truncate pr-8">
                           {workspace.name}
@@ -370,7 +370,7 @@ const Home = () => {
                       {/* Tags: Pages + Date */}
                       <div className="flex items-center gap-2.5 mb-6">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
-                          <BookOpen01Icon className="w-4 h-4" />
+                          <NotebookIcon className="w-4 h-4" />
                           <span>{workspace.pagesCount === 1 ? '1 page' : `${workspace.pagesCount} pages`}</span>
                         </div>
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 text-[13px] font-medium">

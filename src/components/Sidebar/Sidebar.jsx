@@ -29,12 +29,12 @@ import {
 import {
   FolderFavouriteIcon,
   FolderClockIcon,
-  DeskIcon,
+  ArtboardToolIcon,
   Folder01Icon,
   Folder02Icon,
-  File01Icon,
+  NotebookIcon,
   Delete01Icon,
-  BubbleChatIcon,
+  ChatFeedback01Icon,
   Search01Icon,
   Quiz04Icon,
   Home01Icon,
@@ -258,7 +258,7 @@ const Sidebar = () => {
       id: "chat",
       label: "Chat",
       path: "/dashboard/chat",
-      icon: BubbleChatIcon,
+      icon: ChatFeedback01Icon,
     },
     {
       id: "tasks",
@@ -862,7 +862,7 @@ const Sidebar = () => {
                 });
               }}
             >
-              <File01Icon className="w-[18px] h-[18px] mr-2" /> New Page
+              <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
             </button>
             <button
               className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
@@ -934,7 +934,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <File01Icon className="w-[18px] h-[18px] mr-2" /> New Page
+          <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
         </button>
         <button
           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
@@ -1380,8 +1380,8 @@ const Sidebar = () => {
 
   const renderTree = (nodes, level = 0) => {
     return nodes.map((node) => {
-      // Base padding 8px for closer to left, smaller indent per level
-      const paddingLeft = `${8 + level * 16}px`;
+      // Minimal distance from left corner, tight 10px indent per level
+      const paddingLeft = `${4 + level * 10}px`;
       const isExpanded = debouncedSearchQuery ? true : expandedFolders[node.id];
 
       if (node.type === "page") {
@@ -1393,15 +1393,18 @@ const Sidebar = () => {
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `group flex items-center justify-between w-full py-1 pr-3 text-[15px] rounded-[5px] mb-0.5 transition-colors ${isActive ? "bg-[#ecebe9] dark:bg-[#333333] font-medium text-black dark:text-white" : "text-gray-700 dark:text-[var(--color-dark-muted)] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[var(--color-active-tab)] dark:hover:bg-gray-800"}`
+                `group flex items-center justify-between w-full py-1 pr-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                  isActive
+                    ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
+                    : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                }`
               }
               style={{ paddingLeft }}
             >
               <div className="flex items-center overflow-hidden">
-                <div className="w-[20px] h-[20px] mr-1 shrink-0"></div>
-                <File01Icon
-                  className="w-4 h-4 mr-2 text-current shrink-0"
-                  strokeWidth={2.5}
+                <NotebookIcon
+                  className="w-[18px] h-[18px] mr-2 text-current shrink-0"
+                  strokeWidth={2}
                 />
                 <span className="truncate">{node.name}</span>
               </div>
@@ -1424,42 +1427,33 @@ const Sidebar = () => {
           {(() => {
             return (
               <div
-                className="group flex items-center justify-between w-full py-1 pr-2 text-[15px] text-gray-700 dark:text-[var(--color-dark-muted)] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[var(--color-active-tab)] dark:hover:bg-gray-800 rounded-[5px] mb-0.5 transition-colors cursor-pointer"
+                className="group flex items-center justify-between w-full py-1 pr-2 text-[13.5px] font-medium text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] mb-0.5 transition-colors cursor-pointer"
                 style={{ paddingLeft }}
                 onClick={() => toggleFolder(node.id)}
               >
-                <div className="flex items-center overflow-hidden">
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFolder(node.id);
-                    }}
-                    className={`w-[20px] h-[20px] flex items-center justify-center mr-1 shrink-0 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all ${isExpanded ? "opacity-100" : ""}`}
-                  >
-                    <ArrowRight01Icon
-                      className={`w-[16px] h-[16px] transition-transform duration-300 ${isExpanded ? "rotate-90" : ""} text-current opacity-70`}
-                      strokeWidth={3}
-                    />
-                  </div>
+                <div className="flex items-center overflow-hidden min-w-0">
                   {node.type === "workspace" ? (
-                    <DeskIcon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={2.5}
+                    <ArtboardToolIcon
+                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
+                      strokeWidth={2}
                     />
                   ) : isExpanded ? (
                     <Folder02Icon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={2.5}
+                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
+                      strokeWidth={2}
                     />
                   ) : (
                     <Folder01Icon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={2.5}
+                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
+                      strokeWidth={2}
                     />
                   )}
-                  <span className="font-medium truncate select-none">
+                  <span className="truncate select-none mr-1.5">
                     {node.name}
                   </span>
+                  <ChevronRight
+                    className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${isExpanded ? "rotate-90 opacity-70" : ""}`}
+                  />
                 </div>
                 <div className="flex items-center">
                   <button
@@ -1678,190 +1672,205 @@ const Sidebar = () => {
       </div>
 
       {/* Tree Navigation */}
-      <div className="flex-1 flex flex-col overflow-hidden px-2 py-3">
-        {/* Top pane: Recents, Workspaces, Favorites */}
-        <div
-          className="overflow-y-auto custom-scrollbar flex flex-col shrink-0"
-          style={{ maxHeight: "60%" }}
-        >
-
-          {/* Recent Section */}
-          <div className="mb-2">
-            <div className="group flex items-center justify-between w-full pt-0 px-2 pb-3">
-              <div
-                onClick={() => toggleFolder("recent-section")}
-                className="flex items-center gap-1 select-none cursor-pointer text-[12px] text-[#7d7a75] dark:text-[#9e9c97] hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-              >
-                <span>Recents</span>
-                <ChevronRight
-                  className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
-                />
-              </div>
-            </div>
+      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-2 py-2 min-h-0">
+        {/* Recent Section */}
+        <div className="flex flex-col mb-3.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
-              className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["recent-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+              onClick={() => toggleFolder("recent-section")}
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-purple-500/5 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 transition-colors"
             >
-              <div className="overflow-hidden w-full flex flex-col px-2">
-                <button
-                  onClick={handleCreateRootPage}
-                  className="group flex items-center gap-2 w-full py-1 pr-3 pl-4 mb-0.5 text-[15px] font-medium text-[#8a817c] dark:text-[#aeaca7] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[#ecebe9] dark:hover:bg-gray-800 rounded-[5px] transition-colors bg-transparent border-none outline-none cursor-pointer"
-                >
-                  <File02Icon className="w-4 h-4 shrink-0" strokeWidth={2.5} />
-                  New Page
-                </button>
-
-                {treeLoading ? (
-                  <>
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                  </>
-                ) : (
-                  filterTree(mockRecent, debouncedSearchQuery).map((recent) => (
-                    <div
-                      key={recent.id}
-                      className={`w-full relative ${activeMenu === recent.id ? "z-50" : "z-auto"}`}
-                    >
-                      <NavLink
-                        to={recent.path}
-                        className={({ isActive }) =>
-                          `group flex items-center justify-between w-full py-1 pr-3 pl-4 text-[15px] rounded-[5px] mb-0.5 transition-colors ${isActive ? "bg-[#ecebe9] dark:bg-[#333333] font-medium text-black dark:text-white" : "text-gray-700 dark:text-[var(--color-dark-muted)] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[var(--color-active-tab)] dark:hover:bg-gray-800"}`
-                        }
-                      >
-                        <div className="flex items-center overflow-hidden">
-                          <File01Icon
-                            className="w-4 h-4 mr-2 text-current shrink-0"
-                            strokeWidth={2.5}
-                          />
-                          <span className="truncate">{recent.name}</span>
-                        </div>
-                        <button
-                          onClick={(e) => handleMenuClick(e, recent.id)}
-                          className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </NavLink>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-2">
-            <div className="group flex items-center justify-between w-full pt-0 px-2 pb-3">
-              <div
-                className="flex items-center gap-1 select-none cursor-pointer text-[12px] text-[#7d7a75] dark:text-[#9e9c97] hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-                onClick={() => toggleFolder("workspaces-section")}
-              >
-                <span>Workspaces</span>
-                <ChevronRight
-                  className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
-                />
-              </div>
-              <button
-                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-                title="Create new workspace"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  // Position popover below the button
-                  setNewWorkspacePos({ top: rect.bottom + 8, left: rect.left });
-                  setShowNewWorkspaceModal(true);
-                }}
-              >
-                <Add01Icon className="w-4 h-4" />
-              </button>
-            </div>
-            <div
-              className={`grid transition-all duration-300 ease-in-out ${expandedFolders["workspaces-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-            >
-              <div className="overflow-hidden w-full flex flex-col px-2">
-                {treeLoading ? (
-                  <>
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                  </>
-                ) : (
-                  renderTree(filterTree(mockTree, debouncedSearchQuery))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Favorites Section */}
-          <div className="mb-4">
-            <div
-              onClick={() => toggleFolder("favorites-section")}
-              className="group flex items-center gap-1 w-full pt-0 px-2 pb-3 text-[12px] select-none cursor-pointer text-[#7d7a75] dark:text-[#9e9c97] hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-            >
-              <span>Favorites</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+              <span className="text-[11.5px] font-semibold tracking-wide">Recents</span>
               <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
+                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
               />
             </div>
-            <div
-              className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-            >
-              <div className="overflow-hidden w-full flex flex-col px-2">
-                {treeLoading ? (
-                  <>
-                    <SidebarSkeletonItem />
-                    <SidebarSkeletonItem />
-                  </>
-                ) : (
-                  filterTree(mockFavorites, debouncedSearchQuery).map((fav) => (
-                    <div
-                      key={fav.id}
-                      className={`w-full relative ${activeMenu === fav.id ? "z-50" : "z-auto"}`}
+          </div>
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["recent-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+          >
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+              <button
+                onClick={handleCreateRootPage}
+                className="group flex items-center gap-3 w-full py-1 px-2.5 mb-0.5 text-[13.5px] font-medium text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
+              >
+                <File02Icon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />
+                New Page
+              </button>
+
+              {treeLoading ? (
+                <>
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                </>
+              ) : (
+                filterTree(mockRecent, debouncedSearchQuery).map((recent) => (
+                  <div
+                    key={recent.id}
+                    className={`w-full relative ${activeMenu === recent.id ? "z-50" : "z-auto"}`}
+                  >
+                    <NavLink
+                      to={recent.path}
+                      className={({ isActive }) =>
+                        `group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                          isActive
+                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
+                            : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                        }`
+                      }
                     >
-                      <NavLink
-                        to={fav.path}
-                        className={({ isActive }) =>
-                          `group flex items-center justify-between w-full py-1 pr-3 pl-4 text-[15px] rounded-[5px] mb-0.5 transition-colors ${isActive ? "bg-[#ecebe9] dark:bg-[#333333] font-medium text-black dark:text-white" : "text-gray-700 dark:text-[var(--color-dark-muted)] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[var(--color-active-tab)] dark:hover:bg-gray-800"}`
-                        }
+                      <div className="flex items-center overflow-hidden gap-3">
+                        <NotebookIcon
+                          className="w-[18px] h-[18px] text-current shrink-0"
+                          strokeWidth={2}
+                        />
+                        <span className="truncate">{recent.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => handleMenuClick(e, recent.id)}
+                        className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                       >
-                        <div className="flex items-center overflow-hidden">
-                          {fav.type === "workspace" && <DeskIcon className="w-4 h-4 mr-2 shrink-0 text-current" strokeWidth={2.5} />}
-                          {fav.type === "folder" && <Folder01Icon className="w-4 h-4 mr-2 shrink-0 text-current" strokeWidth={2.5} />}
-                          {fav.type === "page" && <File01Icon className="w-4 h-4 mr-2 shrink-0 text-current" strokeWidth={2.5} />}
-                          <span className="truncate">{fav.name}</span>
-                        </div>
-                        <button
-                          onClick={(e) => handleMenuClick(e, fav.id)}
-                          className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === fav.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </NavLink>
-                    </div>
-                  ))
-                )}
-              </div>
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </NavLink>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Workspaces Section */}
+        <div className="flex flex-col mb-3.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+            <div
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-amber-500/5 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
+              onClick={() => toggleFolder("workspaces-section")}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <span className="text-[11.5px] font-semibold tracking-wide">Workspaces</span>
+              <ChevronRight
+                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
+              />
+            </div>
+            <button
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              title="Create new workspace"
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setNewWorkspacePos({ top: rect.bottom + 8, left: rect.left });
+                setShowNewWorkspaceModal(true);
+              }}
+            >
+              <Add01Icon className="w-4 h-4" />
+            </button>
+          </div>
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              debouncedSearchQuery || expandedFolders["workspaces-section"]
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0"
+            }`}
+          >
+            <div className="overflow-hidden w-full flex flex-col px-1 pt-1.5 max-h-[380px] overflow-y-auto custom-scrollbar pb-1">
+              {treeLoading ? (
+                <>
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                </>
+              ) : (
+                renderTree(filterTree(mockTree, debouncedSearchQuery))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Favorites Section */}
+        <div className="flex flex-col mb-3.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+            <div
+              onClick={() => toggleFolder("favorites-section")}
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-blue-500/5 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 transition-colors"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+              <span className="text-[11.5px] font-semibold tracking-wide">Favorites</span>
+              <ChevronRight
+                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
+              />
+            </div>
+          </div>
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+          >
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+              {treeLoading ? (
+                <>
+                  <SidebarSkeletonItem />
+                  <SidebarSkeletonItem />
+                </>
+              ) : (
+                filterTree(mockFavorites, debouncedSearchQuery).map((fav) => (
+                  <div
+                    key={fav.id}
+                    className={`w-full relative ${activeMenu === fav.id ? "z-50" : "z-auto"}`}
+                  >
+                    <NavLink
+                      to={fav.path}
+                      className={({ isActive }) =>
+                        `group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                          isActive
+                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
+                            : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                        }`
+                      }
+                    >
+                      <div className="flex items-center overflow-hidden gap-3">
+                        {fav.type === "workspace" && <ArtboardToolIcon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
+                        {fav.type === "folder" && <Folder01Icon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
+                        {fav.type === "page" && <NotebookIcon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
+                        <span className="truncate">{fav.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => handleMenuClick(e, fav.id)}
+                        className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === fav.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </NavLink>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
         {/* Chat History Section */}
-        <div
-          className={`flex flex-col mt-2 transition-all duration-300 ${expandedFolders["chat-history-section"] ? "flex-1 min-h-0" : "flex-none"}`}
-        >
-          <div
-            onClick={() => toggleFolder("chat-history-section")}
-            className="group flex items-center gap-1 w-full pt-0 px-2 pb-3 text-[12px] select-none cursor-pointer text-[#7d7a75] dark:text-[#9e9c97] hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-          >
-            <span>Chat History</span>
-            <ChevronRight
-              className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
-            />
+        <div className="flex flex-col mb-3.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+            <div
+              onClick={() => toggleFolder("chat-history-section")}
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/10 transition-colors"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+              <span className="text-[11.5px] font-semibold tracking-wide">Chat History</span>
+              <ChevronRight
+                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
+              />
+            </div>
           </div>
           <div
-            className={`flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "opacity-100" : "opacity-0 !flex-none !h-0"}`}
+            className={`grid transition-all duration-300 ease-in-out ${
+              debouncedSearchQuery || expandedFolders["chat-history-section"]
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0"
+            }`}
           >
-            <div className="overflow-y-auto overflow-x-hidden w-full h-full flex flex-col custom-scrollbar pb-2">
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[320px] overflow-y-auto custom-scrollbar pb-2">
               {chatLoading ? (
                 <>
                   <SidebarSkeletonItem />
@@ -1878,16 +1887,20 @@ const Sidebar = () => {
                       const isChatActive = sessionId === session.sessionId;
                       return (
                         <div
-                          className={`group flex items-center justify-between w-full py-1 pr-3 pl-4 text-[15px] rounded-[5px] mb-0.5 transition-colors cursor-pointer ${isChatActive ? "bg-[#ecebe9] dark:bg-[#333333] font-medium text-black dark:text-white" : "text-gray-700 dark:text-[var(--color-dark-muted)] hover:text-gray-900 dark:hover:text-gray-200 hover:bg-[var(--color-active-tab)] dark:hover:bg-gray-800"}`}
+                          className={`group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors cursor-pointer ${
+                            isChatActive
+                              ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
+                              : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                          }`}
                           onClick={() => {
                             loadSession(session.sessionId);
                             navigate("/dashboard/chat");
                           }}
                         >
-                          <div className="flex items-center overflow-hidden">
-                            <BubbleChatIcon
-                              className="w-4 h-4 mr-2 text-current shrink-0"
-                              strokeWidth={2.5}
+                          <div className="flex items-center overflow-hidden gap-3">
+                            <ChatFeedback01Icon
+                              className="w-[18px] h-[18px] text-current shrink-0"
+                              strokeWidth={2}
                             />
                             <span className="truncate">
                               {session.title || "Untitled Chat"}
