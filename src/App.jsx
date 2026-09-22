@@ -42,7 +42,7 @@ const router = createBrowserRouter([
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <GoogleOAuthProvider clientId={import.meta.env.Config_GOOGLE_CLIENT_ID}>
         <ToastProvider>
           <AuthProvider>
             <ChatProvider>

@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  envPrefix: 'Config_',
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
