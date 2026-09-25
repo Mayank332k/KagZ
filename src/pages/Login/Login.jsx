@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, X } from 'lucide-react';
 import landingImg from '../../assets/img.png';
@@ -16,8 +16,12 @@ const Login = () => {
     const [localError, setLocalError] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
 
-    const { loginWithGoogle, login, register, loading, error } = useAuth();
+    const { user, loginWithGoogle, login, register, loading, error } = useAuth();
     const navigate = useNavigate();
+
+    if (!loading && user) {
+        return <Navigate to="/dashboard" replace />;
+    }
 
     const handleUsernameChange = (e) => setUsername(e.target.value);
     const handlePasswordChange = (e) => setPassword(e.target.value);
@@ -54,7 +58,7 @@ const Login = () => {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             await loginWithGoogle(credentialResponse.credential);
-            navigate('/dashboard');
+            navigate('/dashboard', { replace: true });
         } catch (err) {
             console.error(err);
         }
@@ -88,10 +92,10 @@ const Login = () => {
                     return;
                 }
                 await register(username, password);
-                navigate('/dashboard');
+                navigate('/dashboard', { replace: true });
             } else {
                 await login(username, password);
-                navigate('/dashboard');
+                navigate('/dashboard', { replace: true });
             }
         } catch (error) {
             console.error(error);

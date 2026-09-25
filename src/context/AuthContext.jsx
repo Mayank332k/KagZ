@@ -1,7 +1,11 @@
-import React, { createContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import authService from '../services/auth.service';
+import { AuthContext } from './AuthContextDefinition';
+const AUTH_EVENT_KEY = 'noema-auth-event';
 
-export const AuthContext = createContext();
+const broadcastAuthChange = (type) => {
+  localStorage.setItem(AUTH_EVENT_KEY, `${type}:${Date.now()}`);
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -25,6 +29,30 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  useEffect(() => {
+    const handleAuthEvent = (event) => {
+      if (event.key !== AUTH_EVENT_KEY) return;
+      const type = event.newValue?.split(':')[0];
+
+      if (type === 'logout') {
+        setUser(null);
+        setError(null);
+        return;
+      }
+
+      if (type === 'login') {
+        authService.getCurrentUser()
+          .then((res) => {
+            if (res.success && res.user) setUser(res.user);
+          })
+          .catch(() => setUser(null));
+      }
+    };
+
+    window.addEventListener('storage', handleAuthEvent);
+    return () => window.removeEventListener('storage', handleAuthEvent);
+  }, []);
+
   const loginWithGoogle = async (token) => {
     setLoading(true);
     setError(null);
@@ -32,6 +60,7 @@ export const AuthProvider = ({ children }) => {
       const res = await authService.loginWithGoogle(token);
       if (res.success && res.user) {
         setUser(res.user);
+        broadcastAuthChange('login');
         return res;
       }
       throw new Error('Invalid response from server');
@@ -50,6 +79,7 @@ export const AuthProvider = ({ children }) => {
       const res = await authService.login(username, password);
       if (res.success && res.user) {
         setUser(res.user);
+        broadcastAuthChange('login');
         return res;
       }
       throw new Error('Invalid response from server');
@@ -68,6 +98,7 @@ export const AuthProvider = ({ children }) => {
       const res = await authService.register(username, password);
       if (res.success && res.user) {
         setUser(res.user);
+        broadcastAuthChange('login');
         return res;
       }
       throw new Error('Invalid response from server');
@@ -80,11 +111,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    setError(null);
     try {
       await authService.logout();
       setUser(null);
+      broadcastAuthChange('logout');
     } catch (err) {
       console.error('Logout error:', err);
+      setError(err.response?.data?.message || 'Logout failed. Please try again.');
     }
   };
 

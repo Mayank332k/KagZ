@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChatContext } from "../../context/ChatContext";
+import { ChatContext } from "../../context/ChatContextDefinition";
 import { EditorContext } from "../../context/EditorContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
@@ -10,20 +10,10 @@ import {
   ChevronRight,
   ChevronLeft,
   Menu,
-  LogOut,
-  CheckSquare,
   Check,
   MoreHorizontal,
   Edit2,
-  Trash2,
-  FilePlus,
-  FolderPlus,
   Star,
-  Plus,
-  Moon,
-  Sun,
-  Settings,
-  ArrowLeft,
   X
 } from "lucide-react";
 import {
@@ -55,6 +45,7 @@ import {
   pagesAPI,
   chatAPI,
 } from "../../services/api";
+import { useToast } from "../../context/ToastContext";
 
 const SidebarSkeletonItem = () => (
   <div className="flex items-center w-full py-1.5 px-3 mb-0.5">
@@ -65,6 +56,7 @@ const SidebarSkeletonItem = () => (
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -95,6 +87,7 @@ const Sidebar = () => {
     "recent-section": true,
     "chat-history-section": false,
   });
+  const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
 
   const searchInputRef = useRef(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -113,14 +106,21 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
-  const [sidebarWidth, setSidebarWidth] = useState(288);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const savedWidth = Number(localStorage.getItem("noema-sidebar-width"));
+    return Number.isFinite(savedWidth) ? Math.min(600, Math.max(200, savedWidth)) : 288;
+  });
   const isResizing = useRef(false);
+  const resizeCleanupRef = useRef(null);
+
+  useEffect(() => () => resizeCleanupRef.current?.(), []);
 
   const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newWorkspacePos, setNewWorkspacePos] = useState({ top: 0, left: 0 });
 
   const [showSettingsCard, setShowSettingsCard] = useState(false);
+  const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState("account");
   const [extraContrast, setExtraContrast] = useState(() => localStorage.getItem("noema-high-contrast") === "true");
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem("noema-font-size") || "16", 10));
@@ -151,7 +151,21 @@ const Sidebar = () => {
   useEffect(() => {
     document.documentElement.style.setProperty("--noema-font-size", `${fontSize}px`);
     localStorage.setItem("noema-font-size", String(fontSize));
+    window.dispatchEvent(new Event("noema-font-size-changed"));
   }, [fontSize]);
+
+  useEffect(() => {
+    const handleFontSizeChange = () => {
+      const savedSize = Number(localStorage.getItem("noema-font-size"));
+      if (Number.isFinite(savedSize)) setFontSize(Math.min(24, Math.max(12, savedSize)));
+    };
+    window.addEventListener("noema-font-size-changed", handleFontSizeChange);
+    return () => window.removeEventListener("noema-font-size-changed", handleFontSizeChange);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("noema-sidebar-width", String(sidebarWidth));
+  }, [sidebarWidth]);
 
   // Apply font family to document
   useEffect(() => {
@@ -202,7 +216,18 @@ const Sidebar = () => {
   };
 
   const handleClearStorage = () => {
-    const preserveKeys = ["theme", "noema-font-size", "noema-high-contrast", "noema-cookie-prefs", "noema-font-family", "noema-spellcheck"];
+    const preserveKeys = [
+      "theme",
+      "noema-font-size",
+      "noema-high-contrast",
+      "noema-cookie-prefs",
+      "noema-font-family",
+      "noema-spellcheck",
+      "noema-chat-model",
+      "noema-chat-thinking",
+      "noema-last-route",
+      "noema-sidebar-width",
+    ];
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -210,6 +235,7 @@ const Sidebar = () => {
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
     setStorageUsage(calcStorageUsage());
+    setShowClearDataModal(false);
   };
 
   const [modalState, setModalState] = useState({
@@ -315,25 +341,23 @@ const Sidebar = () => {
 
         const treeNodes = await Promise.all(
           workspaces.map(async (ws) => {
-            // Fetch root folders
-            const folderRes = await foldersAPI.getByWorkspace(ws._id, null);
-            const folders = folderRes.data.folders || [];
-
-            // Fetch root pages (not inside any folder)
-            const pageRes = await pagesAPI.getByWorkspace(ws._id, null);
-            const rootPages = pageRes.data.pages || [];
-
-            // Fetch pages inside each folder
-            const folderNodes = await Promise.all(
-              folders.map(async (folder) => {
-                const fpRes = await pagesAPI.getByWorkspace(ws._id, folder._id);
-                const folderPages = fpRes.data.pages || [];
-                return {
-                  id: folder._id,
-                  type: "folder",
-                  name: folder.name,
-                  isFavorite: folder.isFavorite,
-                  children: folderPages.map((p) => ({
+            const loadFolder = async (folder) => {
+              const [childFolderRes, pageRes] = await Promise.all([
+                foldersAPI.getByWorkspace(ws._id, folder._id),
+                pagesAPI.getByWorkspace(ws._id, folder._id),
+              ]);
+              const childFolders = await Promise.all(
+                (childFolderRes.data.folders || []).map(loadFolder),
+              );
+              return {
+                id: folder._id,
+                type: "folder",
+                name: folder.name,
+                isFavorite: folder.isFavorite,
+                workspaceId: ws._id,
+                children: [
+                  ...childFolders,
+                  ...(pageRes.data.pages || []).map((p) => ({
                     id: p._id,
                     type: "page",
                     name: p.title,
@@ -341,21 +365,22 @@ const Sidebar = () => {
                     isFavorite: p.isFavorite,
                     updatedAt: p.updatedAt,
                     isGlobal: false,
+                    workspaceId: ws._id,
+                    folderId: folder._id,
                   })),
-                };
-              }),
-            );
+                ],
+              };
+            };
 
-            // Deduplicate: remove pages from rootPages that are already inside a folder
-            const allFolderPageIds = new Set();
-            folderNodes.forEach((folder) => {
-              folder.children.forEach((page) => allFolderPageIds.add(page.id));
-            });
-            const filteredRootPages = rootPages.filter(
-              (p) => !allFolderPageIds.has(p._id),
-            );
+            const folderRes = await foldersAPI.getByWorkspace(ws._id, null);
+            const folders = folderRes.data.folders || [];
 
-            const pageNodes = filteredRootPages.map((p) => ({
+            // Fetch root pages (not inside any folder)
+            const pageRes = await pagesAPI.getByWorkspace(ws._id, null);
+            const rootPages = pageRes.data.pages || [];
+
+            const folderNodes = await Promise.all(folders.map(loadFolder));
+            const pageNodes = rootPages.map((p) => ({
               id: p._id,
               type: "page",
               name: p.title,
@@ -363,6 +388,8 @@ const Sidebar = () => {
               isFavorite: p.isFavorite,
               updatedAt: p.updatedAt,
               isGlobal: true,
+              workspaceId: ws._id,
+              folderId: null,
             }));
 
             return {
@@ -370,6 +397,7 @@ const Sidebar = () => {
               type: "workspace",
               name: ws.name,
               isFavorite: ws.isFavorite,
+              path: `/dashboard/workspace/${ws._id}`,
               children: [...folderNodes, ...pageNodes],
             };
           }),
@@ -388,9 +416,11 @@ const Sidebar = () => {
           nodes.forEach((node) => {
             if (node.isFavorite) {
               if (node.type === "workspace") {
-                favs.push({ ...node, path: `/dashboard` }); // Or appropriate path
+                favs.push({ ...node, path: `/dashboard/workspace/${node.id}` });
+                return;
               } else if (node.type === "folder") {
-                favs.push({ ...node, path: `/dashboard` });
+                favs.push({ ...node, path: `/dashboard/workspace/${node.workspaceId}` });
+                return;
               } else {
                 favs.push(node);
               }
@@ -403,6 +433,14 @@ const Sidebar = () => {
         collectFavs(treeNodes);
         
         setMockFavorites(favs);
+        setExpandedFavoriteFolders(
+          favs.reduce((expanded, node) => {
+            if (node.type === "workspace" || node.type === "folder") {
+              expanded[node.id] = true;
+            }
+            return expanded;
+          }, {}),
+        );
 
         // Recent = all pages sorted by updatedAt descending (newest first)
         const formattedAllPages = globalAllPages.map(p => ({
@@ -566,6 +604,10 @@ const Sidebar = () => {
     setExpandedFolders((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const toggleFavoriteFolder = (id) => {
+    setExpandedFavoriteFolders((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const handleMenuClick = (e, id) => {
     e.stopPropagation();
     e.preventDefault();
@@ -612,7 +654,7 @@ const Sidebar = () => {
     const { action, nodeId } = modalState;
     const targetNodeId =
       nodeId || (action === "ADD_PAGE" ? createPageLocation?.id : null);
-    if (!targetNodeId) return;
+    if (!targetNodeId) return false;
 
     try {
       if (action === "DELETE") {
@@ -630,7 +672,7 @@ const Sidebar = () => {
             );
             if (sessionId === targetNodeId) clearChat();
           }
-          return;
+          return true;
         }
 
         const deleteRecursive = (nodes) =>
@@ -647,8 +689,9 @@ const Sidebar = () => {
         });
         setMockRecent((prev) => prev.filter((n) => n.id !== targetNodeId));
         setMockFavorites((prev) => prev.filter((n) => n.id !== targetNodeId));
+        return true;
       } else if (action === "RENAME") {
-        if (!inputValue) return;
+        if (!inputValue) return false;
         const node = findNode(targetNodeId);
         if (node?.type === "workspace")
           await workspacesAPI.update(targetNodeId, { name: inputValue });
@@ -679,15 +722,16 @@ const Sidebar = () => {
             n.id === targetNodeId ? { ...n, name: inputValue } : n,
           ),
         );
+        return true;
       } else if (action === "ADD_FOLDER" || action === "ADD_PAGE") {
-        if (!inputValue) return;
+        if (!inputValue) return false;
         const parentNode = findNode(targetNodeId);
         const workspaceId =
           parentNode?.type === "workspace"
             ? targetNodeId
             : parentNode?.workspaceId || findWorkspaceIdForNode(targetNodeId);
 
-        if (!workspaceId) return;
+        if (!workspaceId) return false;
 
         if (action === "ADD_FOLDER") {
           const parentId = parentNode?.type === "folder" ? targetNodeId : null;
@@ -751,7 +795,6 @@ const Sidebar = () => {
             [newNode, ...prev.filter((node) => node.id !== newNode.id)]
               .sort(
                 (a, b) =>
-                  Number(b.isGlobal) - Number(a.isGlobal) ||
                   new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
               )
               .slice(0, 6),
@@ -766,10 +809,14 @@ const Sidebar = () => {
         }));
         setCreatePageLocation(null);
         setCreatePagePath([]);
+        return true;
       }
     } catch (err) {
       console.error("Modal action failed:", err);
+      showToast("The sidebar action failed. Please try again.", "error");
+      return false;
     }
+    return false;
   };
 
   if (isCollapsed) {
@@ -822,7 +869,7 @@ const Sidebar = () => {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
           onClick={async () => {
             setActiveMenu(null);
             try {
@@ -851,7 +898,7 @@ const Sidebar = () => {
         {(node.type === "workspace" || node.type === "folder") && (
           <>
             <button
-              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
               onClick={() => {
                 setActiveMenu(null);
                 setModalState({
@@ -865,7 +912,7 @@ const Sidebar = () => {
               <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
             </button>
             <button
-              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
               onClick={() => {
                 setActiveMenu(null);
                 setModalState({
@@ -882,7 +929,7 @@ const Sidebar = () => {
           </>
         )}
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
           onClick={() => {
             setActiveMenu(null);
             setModalState({
@@ -923,7 +970,7 @@ const Sidebar = () => {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
           onClick={() => {
             setActiveAddMenu(null);
             setModalState({
@@ -937,7 +984,7 @@ const Sidebar = () => {
           <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
         </button>
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
           onClick={() => {
             setActiveAddMenu(null);
             setModalState({
@@ -1188,13 +1235,13 @@ const Sidebar = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col mr-4">
                         <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Local Storage</span>
-                        <span className="text-[13px] text-gray-500">{storageUsage} used by this application</span>
+                        <span className="text-[13px] text-gray-500">{storageUsage} used. Unsaved drafts are included.</span>
                       </div>
                       <button 
-                        onClick={handleClearStorage}
+                        onClick={() => setShowClearDataModal(true)}
                         className="text-[13px] text-red-500 hover:text-red-600 font-medium px-4 py-1.5 rounded border border-gray-200 dark:border-gray-700 hover:border-red-100 hover:bg-red-50 dark:hover:border-red-900/30 dark:hover:bg-red-500/10 transition-colors shrink-0"
                       >
-                        Clear Cache
+                        Clear Local Data
                       </button>
                     </div>
                   </div>
@@ -1378,22 +1425,22 @@ const Sidebar = () => {
       .filter(Boolean);
   };
 
-  const renderTree = (nodes, level = 0) => {
+  const renderTree = (nodes, level = 0, expansionState = expandedFolders, onToggle = toggleFolder) => {
     return nodes.map((node) => {
       // Minimal distance from left corner, tight 10px indent per level
       const paddingLeft = `${4 + level * 10}px`;
-      const isExpanded = debouncedSearchQuery ? true : expandedFolders[node.id];
+      const isExpanded = debouncedSearchQuery ? true : expansionState[node.id];
 
       if (node.type === "page") {
         return (
           <div
             key={node.id}
-            className={`w-full relative ${activeMenu === node.id ? "z-50" : "z-auto"}`}
+            className={`group w-full relative ${activeMenu === node.id ? "z-50" : "z-auto"}`}
           >
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `group flex items-center justify-between w-full py-1 pr-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                `flex items-center w-full py-1 pr-10 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
                   isActive
                     ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
                     : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
@@ -1408,13 +1455,14 @@ const Sidebar = () => {
                 />
                 <span className="truncate">{node.name}</span>
               </div>
-              <button
-                onClick={(e) => handleMenuClick(e, node.id)}
-                className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
             </NavLink>
+            <button
+              onClick={(e) => handleMenuClick(e, node.id)}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+              aria-label={`More options for ${node.name}`}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
           </div>
         );
       }
@@ -1429,7 +1477,7 @@ const Sidebar = () => {
               <div
                 className="group flex items-center justify-between w-full py-1 pr-2 text-[13.5px] font-medium text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] mb-0.5 transition-colors cursor-pointer"
                 style={{ paddingLeft }}
-                onClick={() => toggleFolder(node.id)}
+                onClick={() => onToggle(node.id)}
               >
                 <div className="flex items-center overflow-hidden min-w-0">
                   {node.type === "workspace" ? (
@@ -1470,14 +1518,14 @@ const Sidebar = () => {
                       );
                       setActiveMenu(null);
                     }}
-                    className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity mr-0.5`}
+                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity mr-0.5`}
                     title="Add..."
                   >
                     <Add01Icon className="w-[18px] h-[18px]" />
                   </button>
                   <button
                     onClick={(e) => handleMenuClick(e, node.id)}
-                    className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="More Options"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -1492,7 +1540,7 @@ const Sidebar = () => {
               className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
             >
               <div className="overflow-hidden w-full flex flex-col">
-                {renderTree(node.children, level + 1)}
+                {renderTree(node.children, level + 1, expansionState, onToggle)}
               </div>
             </div>
           )}
@@ -1506,8 +1554,14 @@ const Sidebar = () => {
     isResizing.current = true;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    document.body.classList.add("cursor-col-resize", "select-none");
+    resizeCleanupRef.current = () => {
+      isResizing.current = false;
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.classList.remove("cursor-col-resize", "select-none");
+      resizeCleanupRef.current = null;
+    };
   };
 
   const handleMouseMove = (e) => {
@@ -1519,11 +1573,7 @@ const Sidebar = () => {
   };
 
   const handleMouseUp = () => {
-    isResizing.current = false;
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor = "default";
-    document.body.style.userSelect = "auto";
+    resizeCleanupRef.current?.();
   };
 
   const handleCreateRootPage = () => {
@@ -1678,7 +1728,7 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-purple-500/5 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-purple-500/5 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Recents</span>
@@ -1709,12 +1759,12 @@ const Sidebar = () => {
                 filterTree(mockRecent, debouncedSearchQuery).map((recent) => (
                   <div
                     key={recent.id}
-                    className={`w-full relative ${activeMenu === recent.id ? "z-50" : "z-auto"}`}
+                    className={`group w-full relative ${activeMenu === recent.id ? "z-50" : "z-auto"}`}
                   >
                     <NavLink
                       to={recent.path}
                       className={({ isActive }) =>
-                        `group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                        `flex items-center w-full py-1 px-2.5 pr-10 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
                           isActive
                             ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
                             : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
@@ -1728,13 +1778,14 @@ const Sidebar = () => {
                         />
                         <span className="truncate">{recent.name}</span>
                       </div>
-                      <button
-                        onClick={(e) => handleMenuClick(e, recent.id)}
-                        className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
                     </NavLink>
+                    <button
+                      onClick={(e) => handleMenuClick(e, recent.id)}
+                      className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                      aria-label={`More options for ${recent.name}`}
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </div>
                 ))
               )}
@@ -1746,7 +1797,7 @@ const Sidebar = () => {
         <div className="flex flex-col mb-3.5 shrink-0">
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-amber-500/5 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-amber-500/5 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
@@ -1792,10 +1843,10 @@ const Sidebar = () => {
 
         {/* Favorites Section */}
         <div className="flex flex-col mb-3.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-1 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-blue-500/5 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-blue-500/5 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Favorites</span>
@@ -1807,43 +1858,19 @@ const Sidebar = () => {
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[380px] overflow-y-auto custom-scrollbar">
               {treeLoading ? (
                 <>
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                 </>
               ) : (
-                filterTree(mockFavorites, debouncedSearchQuery).map((fav) => (
-                  <div
-                    key={fav.id}
-                    className={`w-full relative ${activeMenu === fav.id ? "z-50" : "z-auto"}`}
-                  >
-                    <NavLink
-                      to={fav.path}
-                      className={({ isActive }) =>
-                        `group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
-                          isActive
-                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
-                            : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
-                        }`
-                      }
-                    >
-                      <div className="flex items-center overflow-hidden gap-3">
-                        {fav.type === "workspace" && <ArtboardToolIcon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
-                        {fav.type === "folder" && <Folder01Icon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
-                        {fav.type === "page" && <NotebookIcon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />}
-                        <span className="truncate">{fav.name}</span>
-                      </div>
-                      <button
-                        onClick={(e) => handleMenuClick(e, fav.id)}
-                        className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === fav.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </NavLink>
-                  </div>
-                ))
+                renderTree(
+                  filterTree(mockFavorites, debouncedSearchQuery),
+                  0,
+                  expandedFavoriteFolders,
+                  toggleFavoriteFolder,
+                )
               )}
             </div>
           </div>
@@ -1854,7 +1881,7 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-full bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/10 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Chat History</span>
@@ -1910,7 +1937,7 @@ const Sidebar = () => {
                             onClick={(e) =>
                               handleMenuClick(e, session.sessionId)
                             }
-                            className={`p-1 rounded hover:bg-gray-300 text-gray-500 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                            className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                           >
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
@@ -2038,6 +2065,17 @@ const Sidebar = () => {
             ? "Are you sure you want to delete this item? This action cannot be undone."
             : ""
         }
+      />
+      <ActionModal
+        isOpen={showClearDataModal}
+        onClose={() => setShowClearDataModal(false)}
+        title="Clear local data?"
+        type="confirm"
+        description="Unsaved note drafts and temporary browser data will be deleted. Saved pages, chats, workspaces, and your preferences will not be affected."
+        onConfirm={handleClearStorage}
+        confirmText="Clear local data"
+        cancelText="Keep my data"
+        isDanger
       />
       <SearchPalette 
         isOpen={isSearchActive}

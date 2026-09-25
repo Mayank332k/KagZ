@@ -76,13 +76,31 @@ const invalidateAll = () => cache.clear();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authAPI = {
-  register: (username, password) => api.post('/auth/register', { username, password }),
-  login: (username, password) => api.post('/auth/login', { username, password }),
-  googleLogin: (token) => api.post('/auth/google', { token }),
+  register: (username, password) => {
+    invalidateAll();
+    return api.post('/auth/register', { username, password }).then((res) => {
+      invalidateAll();
+      return res;
+    });
+  },
+  login: (username, password) => {
+    invalidateAll();
+    return api.post('/auth/login', { username, password }).then((res) => {
+      invalidateAll();
+      return res;
+    });
+  },
+  googleLogin: (token) => {
+    invalidateAll();
+    return api.post('/auth/google', { token }).then((res) => {
+      invalidateAll();
+      return res;
+    });
+  },
   me: () => api.get('/auth/me'),  // Auth check — never cached
   logout: () => {
     invalidateAll(); // clear everything on logout
-    return api.post('/auth/logout');
+    return api.post('/auth/logout').finally(() => invalidateAll());
   },
 };
 
@@ -279,6 +297,7 @@ export const chatAPI = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let doneReceived = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -286,22 +305,41 @@ export const chatAPI = {
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete last line in buffer
+      buffer = lines.pop() || ''; // keep incomplete last line in buffer
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
+        if (!trimmed.startsWith('data:')) continue;
         try {
-          const parsed = JSON.parse(trimmed.slice(6));
+          const payload = trimmed.slice(5).trim();
+          if (payload === '[DONE]') {
+            doneReceived = true;
+            break;
+          }
+          const parsed = JSON.parse(payload);
           yield parsed;
         } catch {
           // ignore malformed lines
+        }
+      }
+      if (doneReceived) break;
+    }
+
+    const finalLine = buffer.trim();
+    if (finalLine.startsWith('data:')) {
+      const payload = finalLine.slice(5).trim();
+      if (payload && payload !== '[DONE]') {
+        try {
+          yield JSON.parse(payload);
+        } catch {
+          // Ignore an incomplete or malformed final SSE frame.
         }
       }
     }
 
     // Invalidate sessions cache after a new message (title may have changed)
     invalidateCache('chat:sessions');
+    invalidateCache(`chat:history:${sessionId}`);
   },
 
   getSessions: () =>

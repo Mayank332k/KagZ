@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useEffect,
   useCallback,
@@ -6,7 +6,7 @@ import React, {
   useContext,
 } from "react";
 import { useParams, useNavigate, useLocation, useBlocker } from "react-router-dom";
-import { MoreHorizontal, ArrowLeft, Sparkles, Edit3, Heading1, Heading2, Heading3, Bold, Italic, Strikethrough, Code, Type, Baseline, Underline as UnderlineIcon, RemoveFormatting, Link as LinkIcon, Sigma, MessageSquare, Smile, Settings2, ChevronRight } from "lucide-react";
+import { MoreHorizontal, ArrowLeft, Heading1, Heading2, Heading3, Bold, Italic, Strikethrough, Code, Underline as UnderlineIcon, RemoveFormatting, Link as LinkIcon } from "lucide-react";
 import {
   Edit02Icon,
   Bookmark02Icon,
@@ -39,6 +39,8 @@ import 'prosemirror-view/style/prosemirror.css';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import ScrollReveal from '../lightswind/scroll-reveal';
+
+const createStreamId = () => `stream-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const AIStreamNodeComponent = (props) => {
   return (
@@ -133,7 +135,10 @@ const NoteEditor = () => {
   const [content, setContent] = useState("");
   const [isFavorite, setIsFavorite] = useState(false);
   const [pageType, setPageType] = useState("document"); // 'document' or 'code'
-  const [fontSize, setFontSize] = useState(20); // px
+  const [fontSize, setFontSize] = useState(() => {
+    const savedSize = Number(localStorage.getItem("noema-font-size"));
+    return Number.isFinite(savedSize) ? Math.min(32, Math.max(12, savedSize)) : 20;
+  }); // px
   const [pageLocationIds, setPageLocationIds] = useState({
     workspaceId: null,
     folderId: null,
@@ -148,10 +153,27 @@ const NoteEditor = () => {
     const [globalSpellCheck, setGlobalSpellCheck] = useState(
     () => localStorage.getItem("noema-spellcheck") === "true",
   );
+
+  useEffect(() => {
+    const handleFontSizeChange = () => {
+      const savedSize = Number(localStorage.getItem("noema-font-size"));
+      if (Number.isFinite(savedSize)) {
+        setFontSize(Math.min(32, Math.max(12, savedSize)));
+      }
+    };
+    window.addEventListener("noema-font-size-changed", handleFontSizeChange);
+    return () => window.removeEventListener("noema-font-size-changed", handleFontSizeChange);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("noema-font-size", String(fontSize));
+    window.dispatchEvent(new Event("noema-font-size-changed"));
+  }, [fontSize]);
   const [titleError, setTitleError] = useState(false);
   const [isAiStreaming, setIsAiStreaming] = useState(false);
   const [originalData, setOriginalData] = useState({ title: "", content: "" });
   const isSavingRef = useRef(false);
+  const fetchRequestIdRef = useRef(0);
 
   
   const [slashMenu, setSlashMenu] = useState({
@@ -205,6 +227,11 @@ const NoteEditor = () => {
     extensions: [
       StarterKit,
       Markdown,
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+      }),
       Placeholder.configure({
         placeholder: 'Start writing...',
       }),
@@ -348,12 +375,10 @@ const NoteEditor = () => {
     }
   });
 
-  const [initialContentLoaded, setInitialContentLoaded] = useState(false);
+  const initialContentLoadedRef = useRef(false);
   useEffect(() => {
-     if (editor && initialContentLoaded) {
+     if (editor && initialContentLoadedRef.current) {
          try {
-           // Create a fresh EditorState to reset all plugin states (clears undo history)
-           // This prevents Cmd+Z from showing content of previously opened pages
            const freshState = editor.state.constructor.create({
              schema: editor.state.schema,
              plugins: editor.state.plugins,
@@ -362,11 +387,11 @@ const NoteEditor = () => {
            editor.commands.setContent(content);
          } catch (e) {
            console.warn('Editor state reset failed, falling back:', e);
-           try { editor.commands.setContent(content); } catch (e2) { /* ignore */ }
+           try { editor.commands.setContent(content); } catch { /* ignore */ }
          }
-         setInitialContentLoaded(false);
+         initialContentLoadedRef.current = false;
      }
-  }, [editor, initialContentLoaded]);
+  }, [editor, content]);
 
   const actionMenuRef = useRef(null);
     const slashMenuRef = useRef(null);
@@ -476,7 +501,7 @@ const NoteEditor = () => {
   const prevPageIdRef = useRef(pageId);
   useEffect(() => {
     if (!pageId) return;
-    
+
     // Skip loading state if we just auto-saved a new page and the URL changed from "new" to an ID.
     // This prevents the editor from unmounting and destroying the user's cursor/focus while they type.
     const isSavingNewPage = prevPageIdRef.current === "new" && pageId !== "new";
@@ -488,15 +513,20 @@ const NoteEditor = () => {
     if (pageId === "new") {
       setTitle("");
       setContent("");
+      setSelectedLocation(null);
+      setSelectedPath([]);
       setIsFavorite(false);
       setPageType("document");
       setPageLocationIds({ workspaceId: null, folderId: null });
       setLocationLocked(false);
       setIsNewPage(true);
-      setInitialContentLoaded(true);
+      initialContentLoadedRef.current = true;
       setLoading(false);
       return;
     }
+
+    const requestId = Date.now() + Math.random();
+    fetchRequestIdRef.current = requestId;
 
     // Reset location state when switching pages
     setSelectedLocation(null);
@@ -506,6 +536,8 @@ const NoteEditor = () => {
     pagesAPI
       .getById(pageId)
       .then((res) => {
+        if (fetchRequestIdRef.current !== requestId) return;
+
         const page = res.data.page;
         const fetchedTitle = page.title || "";
         const fetchedContent = page.content || "";
@@ -542,13 +574,19 @@ const NoteEditor = () => {
             getId(page.folderId) || !routeLocation.state?.showLocationPicker,
           ),
         );
-        setInitialContentLoaded(true);
+        initialContentLoadedRef.current = true;
       })
       .catch((err) => {
+        if (fetchRequestIdRef.current !== requestId) return;
         console.error("Failed to load page:", err);
-        navigate("/dashboard");
+        localStorage.removeItem("noema-last-route");
+        navigate("/dashboard", { replace: true });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (fetchRequestIdRef.current === requestId) {
+          setLoading(false);
+        }
+      });
   }, [pageId, navigate, getId, routeLocation.state]);
 
   useEffect(() => {
@@ -575,7 +613,17 @@ const NoteEditor = () => {
       if (!pageId && !isNewPage) return;
       isSavingRef.current = true;
 
-      // Validate title presence
+      const hasNewPageLocation =
+        pageId === "new" || isNewPage
+          ? Boolean(updates.workspaceId || selectedLocation?.type === "workspace" || selectedLocation?.type === "folder")
+          : true;
+      if (!hasNewPageLocation) {
+        showToast("Choose a workspace or folder before saving the page.", "error");
+        setSaveStatus("error");
+        isSavingRef.current = false;
+        return false;
+      }
+
       const currentTitle = updates.title !== undefined ? updates.title : title;
       const trimmedTitle = currentTitle ? currentTitle.trim() : "";
       if (!trimmedTitle || trimmedTitle.toLowerCase() === "untitled") {
@@ -583,22 +631,22 @@ const NoteEditor = () => {
         showToast("Title is required to save the page.", "error");
         setTimeout(() => setTitleError(false), 500);
         setSaveStatus("error");
+        isSavingRef.current = false;
         return false;
       }
 
-      // Validate page content size
       const currentContent = updates.content !== undefined ? updates.content : content;
       const contentValidation = validatePageContent(currentContent);
       if (!contentValidation.valid) {
         showToast(contentValidation.message, "error");
         setSaveStatus("error");
+        isSavingRef.current = false;
         return false;
       }
 
       setSaveStatus("saving");
       try {
         if (pageId === "new" || isNewPage) {
-          // Create new page
           const payload = {
             title,
             content,
@@ -611,6 +659,8 @@ const NoteEditor = () => {
 
           const res = await pagesAPI.create(payload);
           const newPageId = res.data.page._id;
+          setOriginalData({ title: payload.title || res.data.page.title, content: payload.content || "" });
+          setIsNewPage(false);
 
           setSaveStatus("saved");
           setTimeout(() => setSaveStatus("idle"), 2000);
@@ -630,7 +680,6 @@ const NoteEditor = () => {
             new CustomEvent("optimistic-add-page", { detail: newNode }),
           );
 
-          // Replace URL so we don't duplicate history state
           navigate(`/dashboard/page/${newPageId}`, { replace: true });
           return true;
         } else {
@@ -639,7 +688,7 @@ const NoteEditor = () => {
           setOriginalData({ title: updates.title ?? title, content: updates.content ?? content });
           localStorage.removeItem(`noema_draft_${pageId}`);
           setTimeout(() => setSaveStatus("idle"), 2000);
-          triggerSidebarRefresh(); // Update sidebar immediately
+          triggerSidebarRefresh();
           return true;
         }
       } catch (err) {
@@ -647,6 +696,8 @@ const NoteEditor = () => {
         setSaveStatus("error");
         showToast("Failed to save the page.", "error");
         return false;
+      } finally {
+        isSavingRef.current = false;
       }
     },
     [
@@ -659,6 +710,7 @@ const NoteEditor = () => {
       navigate,
       setTitleError,
       showToast,
+      selectedLocation,
     ],
   );
 
@@ -711,6 +763,10 @@ const NoteEditor = () => {
       : pageLocationIds.workspaceId
         ? { workspaceId: pageLocationIds.workspaceId, folderId: null }
         : { workspaceId: null, folderId: null };
+    if ((pageId === "new" || isNewPage) && !locationPayload.workspaceId) {
+      showToast("Choose a workspace or folder before saving the page.", "error");
+      return;
+    }
     const saved = await savePage({
       title,
       content,
@@ -724,10 +780,6 @@ const NoteEditor = () => {
           workspaceId: fallbackLocation.workspaceId,
           folderId: fallbackLocation.folderId,
         });
-        if (!selectedLocation) {
-          setSelectedLocation({ id: "global", type: "global", name: "Global" });
-          setSelectedPath(["Global"]);
-        }
         setLocationLocked(true);
       }
       setIsNewPage(false);
@@ -775,28 +827,30 @@ const NoteEditor = () => {
 
   
   
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     const newFav = !isFavorite;
     setIsFavorite(newFav);
     if (!isNewPage) {
-      savePage({ isFavorite: newFav });
+      const saved = await savePage({ isFavorite: newFav });
+      if (!saved) {
+        setIsFavorite(!newFav);
+      }
     }
   };
 
   // Delete page — triggered by custom modal confirm
-  const handleDeleteConfirmed = () => {
-    // 1. Instantly navigate away so the deleted page doesn't try to render
-    navigate("/dashboard");
-
-    // 2. Dispatch optimistic event to instantly update Sidebar
-    window.dispatchEvent(
-      new CustomEvent("optimistic-delete-page", { detail: pageId }),
-    );
-
-    // 3. Fire-and-forget the backend request (background DB processing)
-    pagesAPI.delete(pageId).catch((err) => {
-      console.error("Delete failed in background:", err);
-    });
+  const handleDeleteConfirmed = async () => {
+    try {
+      await pagesAPI.delete(pageId);
+      window.dispatchEvent(
+        new CustomEvent("optimistic-delete-page", { detail: pageId }),
+      );
+      setShowDeleteModal(false);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      showToast("Delete failed. Please try again.", "error");
+    }
   };
 
   // --- Slash Menu & Inline AI Helpers ---
@@ -807,7 +861,10 @@ const NoteEditor = () => {
   ].filter((item) =>
     item.label.toLowerCase().includes(slashMenu.search.toLowerCase())
   );
-  slashMenuItemsRef.current = slashMenuItems;
+
+  useEffect(() => {
+    slashMenuItemsRef.current = slashMenuItems;
+  }, [slashMenuItems]);
 
   
   
@@ -894,7 +951,7 @@ const NoteEditor = () => {
         frameIdx = (frameIdx + 1) % frames.length;
         try {
           editor.chain().deleteRange({ from: loadingMarkFrom, to: loadingMarkTo }).insertContentAt(loadingMarkFrom, ` ${frames[frameIdx]} ${actionText}... `).run();
-        } catch (e) {
+        } catch {
           clearInterval(animationInterval);
         }
       }, 150);
@@ -911,7 +968,7 @@ const NoteEditor = () => {
       return pos;
     };
 
-    const streamId = `stream-${Date.now()}`;
+    const streamId = createStreamId();
 
     try {
       setIsAiStreaming(true);
@@ -1203,7 +1260,7 @@ const NoteEditor = () => {
                     setPageType("document");
                     setShowActionMenu(false);
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 justify-between transition-colors"
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
                 >
                   <div className="flex items-center">
                     <TextIcon className="w-4 h-4 mr-2" /> Document
@@ -1217,7 +1274,7 @@ const NoteEditor = () => {
                     setPageType("code");
                     setShowActionMenu(false);
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 justify-between transition-colors"
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
                 >
                   <div className="flex items-center">
                     <CodeFolderIcon className="w-4 h-4 mr-2" /> Code
@@ -1230,7 +1287,7 @@ const NoteEditor = () => {
                 <div className="w-full h-px bg-gray-100 dark:bg-[var(--color-dark-border)] my-1.5" />
 
                 {/* Font Size */}
-                <div className="flex items-center justify-between px-4 py-2 text-[#8a817c]">
+                <div className="flex items-center justify-between px-4 py-2 text-[#8a817c] dark:text-white">
                   <span className="flex items-center">
                     <Edit02Icon className="w-4 h-4 mr-2" /> Text Size
                   </span>
@@ -1239,18 +1296,18 @@ const NoteEditor = () => {
                       onClick={() =>
                         setFontSize((prev) => Math.max(12, prev - 2))
                       }
-                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-[8px] hover:shadow-sm transition-colors"
+                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-white rounded-[8px] hover:shadow-sm transition-colors"
                     >
                       -
                     </button>
-                    <span className="text-[13px] font-medium text-gray-600 dark:text-gray-400 min-w-[3ch] text-center">
+                    <span className="text-[13px] font-medium text-gray-600 dark:text-white min-w-[3ch] text-center">
                       {fontSize}
                     </span>
                     <button
                       onClick={() =>
                         setFontSize((prev) => Math.min(32, prev + 2))
                       }
-                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-[8px] hover:shadow-sm transition-colors"
+                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-white rounded-[8px] hover:shadow-sm transition-colors"
                     >
                       +
                     </button>
@@ -1265,7 +1322,7 @@ const NoteEditor = () => {
                     toggleFavorite();
                     setShowActionMenu(false);
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-gray-300 transition-colors"
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
                 >
                   <FavouriteIcon
                     className={`w-4 h-4 mr-2 ${isFavorite ? "text-yellow-500" : ""}`}
@@ -1407,7 +1464,7 @@ const NoteEditor = () => {
                 left: `${selectionToolbar.x}px`,
                 transform: `translateX(-50%) translateY(${selectionToolbar.transformY})`,
               }}
-              className="w-[192px] h-auto bg-white dark:bg-[#252525] p-2 border border-gray-200 dark:border-[#333] shadow-2xl rounded-[12px] z-[1000] flex flex-col font-sans animate-in fade-in zoom-in-95 duration-100 text-gray-700 dark:text-gray-300"
+              className="w-[192px] h-auto bg-white dark:bg-[#252525] p-2 border border-gray-200 dark:border-[#333] shadow-2xl rounded-[12px] z-[1000] flex flex-col font-sans animate-in fade-in zoom-in-95 duration-100 text-gray-700 dark:text-white"
             >
               {selectionToolbar.showUrlInput ? (
                 <div className="relative">
@@ -1463,10 +1520,10 @@ const NoteEditor = () => {
                   </div>
 
                   <div className="flex flex-col gap-0.5 mt-1 flex-1">
-                    <button onClick={() => handleSelectionToolbarAction('improve_writing')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Improve writing</button>
-                    <button onClick={() => handleSelectionToolbarAction('grammar')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Proofread</button>
-                    <button onClick={() => handleSelectionToolbarAction('explain')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Explain</button>
-                    <button onClick={() => handleSelectionToolbarAction('summarize')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Summarize</button>
+                    <button onClick={() => handleSelectionToolbarAction('improve_writing')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Improve writing</button>
+                    <button onClick={() => handleSelectionToolbarAction('grammar')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Proofread</button>
+                    <button onClick={() => handleSelectionToolbarAction('explain')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Explain</button>
+                    <button onClick={() => handleSelectionToolbarAction('summarize')} className="text-left px-2 py-1 text-[13px] font-medium text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-[#333] hover:text-blue-600 dark:hover:text-[#3b82f6] rounded-[6px] transition-colors">Summarize</button>
                   </div>
                   
                   <div className="w-[160px] h-[1px] bg-gray-200 dark:bg-white/10 my-[4px] mx-[8px]" />

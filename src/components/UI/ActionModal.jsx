@@ -36,10 +36,10 @@ const ActionModal = ({
     }
   }, [isOpen, initialValue, type]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if ((type === 'input' && !inputValue.trim()) || confirmDisabled) return;
-    onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
-    onClose();
+    const result = await onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
+    if (result !== false) onClose();
   };
 
   const handleKeyDown = (e) => {

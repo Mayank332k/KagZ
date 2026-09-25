@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, Plus, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { ArtboardToolIcon, NotebookIcon, AppleReminderIcon, Time02Icon, Folder01Icon, DashboardSquare02Icon } from 'hugeicons-react';
 import ActionModal from '../../components/UI/ActionModal';
 import { workspacesAPI, pagesAPI, tasksAPI, foldersAPI } from '../../services/api';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../context/AuthContextDefinition';
 import KanbanBoard from '../../components/Tasks/KanbanBoard';
 
 
@@ -259,10 +258,7 @@ const Home = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+    <div
       className="flex-1 h-full overflow-y-auto px-4 md:px-8 lg:px-12 py-6 md:py-10 bg-[#FAFAFA] dark:bg-[var(--color-dark-bg)] text-gray-900 dark:text-gray-100 transition-colors"
     >
       <div className="w-full">
@@ -492,7 +488,7 @@ const Home = () => {
             : null
         }
       />
-    </motion.div>
+    </div>
   );
 };
 

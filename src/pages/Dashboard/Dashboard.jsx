@@ -1,14 +1,21 @@
-import React, { useState, useRef, useContext } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useContext, useEffect } from 'react';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import AIChat from '../../components/Chat/AIChat';
-import { ChatContext } from '../../context/ChatContext';
+import { ChatContext } from '../../context/ChatContextDefinition';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Dashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isRightChatOpen } = useContext(ChatContext);
   const isChatRoute = location.pathname === '/dashboard/chat';
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/dashboard/')) {
+      localStorage.setItem('noema-last-route', location.pathname + location.search);
+    }
+  }, [location.pathname, location.search]);
 
   // Resizable Right Chat Panel State (min: 320, max: 750, default: 440)
   const [rightPanelWidth, setRightPanelWidth] = useState(440);
@@ -74,6 +81,24 @@ const Dashboard = () => {
       </main>
     </div>
   );
+};
+
+let isInitialLoad = true;
+
+export const DashboardRoute = () => {
+  const location = useLocation();
+  const savedRoute = localStorage.getItem('noema-last-route');
+
+  if (isInitialLoad && location.pathname === '/dashboard' && savedRoute?.startsWith('/dashboard/') && savedRoute !== '/dashboard/chat') {
+    isInitialLoad = false;
+    return <Navigate to={savedRoute} replace />;
+  }
+
+  useEffect(() => {
+    isInitialLoad = false;
+  }, []);
+
+  return <Dashboard />;
 };
 
 export default Dashboard;

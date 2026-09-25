@@ -1,10 +1,10 @@
-import React, { createContext, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { chatAPI } from '../services/api';
 import { useToast } from './ToastContext';
 import { validateAiInput } from '../utils/aiValidation';
 
-export const ChatContext = createContext();
+import { ChatContext } from './ChatContextDefinition';
 
 export const ChatProvider = ({ children }) => {
   const { showToast } = useToast();
@@ -20,22 +20,37 @@ export const ChatProvider = ({ children }) => {
   const [isRightChatOpen, setIsRightChatOpen] = useState(false);
   
   // Model & Thinking States
-  const [selectedModel, setSelectedModel] = useState('meta/llama-3.2-11b-vision-instruct');
-  const [isThinking, setIsThinking] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(
+    () => localStorage.getItem('noema-chat-model') || 'meta/llama-3.2-11b-vision-instruct',
+  );
+  const [isThinking, setIsThinking] = useState(
+    () => localStorage.getItem('noema-chat-thinking') === 'true',
+  );
   const [chatError, setChatError] = useState(null); // { message: string, query: string }
   
   const hasAutoOpened = useRef(false);
   const userClosedSidebar = useRef(false);
   const abortControllerRef = useRef(null);
 
+  const updateSelectedModel = (model) => {
+    setSelectedModel(model);
+    localStorage.setItem('noema-chat-model', model);
+  };
+
+  const updateIsThinking = (enabled) => {
+    setIsThinking(enabled);
+    localStorage.setItem('noema-chat-thinking', String(enabled));
+  };
+
   const stopGeneration = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+      setIsStreaming(false);
     }
   };
 
-  const sendMessage = async (userQuery) => {
+  const sendMessage = async (userQuery, historyOverride = null) => {
     if (!userQuery.trim() || isStreaming) return;
 
     // Validate chat input before proceeding
@@ -47,9 +62,11 @@ export const ChatProvider = ({ children }) => {
 
     setChatError(null);
     setQuery('');
+    setCurrentSources([]);
 
     // Capture history before appending new user message
-    const chatHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
+    const history = historyOverride || messages;
+    const chatHistory = history.map(msg => ({ role: msg.role, content: msg.content }));
 
     setMessages((prev) => [
       ...prev,
@@ -65,6 +82,7 @@ export const ChatProvider = ({ children }) => {
 
     let contentBuffer = '';
     let rafId = null;
+    let streamError = false;
 
     const flushContentBuffer = () => {
       if (!contentBuffer) return;
@@ -100,9 +118,9 @@ export const ChatProvider = ({ children }) => {
             if (lastIndex < 0) return prev;
             const lastMsg = prev[lastIndex];
             if (lastMsg.role !== 'assistant') return prev;
-            return [...prev.slice(0, lastIndex), { ...lastMsg, sources: event.data }];
+            return [...prev.slice(0, lastIndex), { ...lastMsg, sources: Array.isArray(event.data) ? event.data : [] }];
           });
-          setCurrentSources(event.data);
+          setCurrentSources(Array.isArray(event.data) ? event.data : []);
         } else if (event.type === 'state') {
           if (rafId !== null) {
             cancelAnimationFrame(rafId);
@@ -111,7 +129,7 @@ export const ChatProvider = ({ children }) => {
           flushContentBuffer();
           if (event.data && /connecting to ai/i.test(event.data)) {
             // Ignore internal retry/connection state so it never displays on UI
-            return;
+            continue;
           }
           setMessages((prev) => {
             const lastIndex = prev.length - 1;
@@ -127,6 +145,7 @@ export const ChatProvider = ({ children }) => {
           break;
         } else if (event.type === 'error') {
           const errText = event.error || event.data || "An error occurred.";
+          streamError = true;
           showToast(errText, "error");
           setChatError({ message: errText, query: userQuery });
           break;
@@ -144,26 +163,33 @@ export const ChatProvider = ({ children }) => {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
-      flushContentBuffer();
-      setIsStreaming(false);
-      setMessages((prev) => {
-        const msgs = [...prev];
-        const lastIndex = msgs.length - 1;
-        if (lastIndex >= 0) {
-          const last = msgs[lastIndex];
-          if (last.role === 'assistant' && !last.content.trim()) {
-            msgs.pop(); // Remove the empty reply bubble
-            // Give message to frontend
-            if (!signal.aborted) {
-              setChatError({ message: "LLM failed to generate a response.", query: userQuery });
-              setTimeout(() => {
-                showToast("LLM failed to generate a response. Please try again.", "error");
-              }, 10);
+      if (signal.aborted) {
+        contentBuffer = '';
+      }
+      if (abortControllerRef.current?.signal === signal) {
+        abortControllerRef.current = null;
+      }
+      if (!signal.aborted) {
+        flushContentBuffer();
+        setIsStreaming(false);
+        setMessages((prev) => {
+          const msgs = [...prev];
+          const lastIndex = msgs.length - 1;
+          if (lastIndex >= 0) {
+            const last = msgs[lastIndex];
+            if (last.role === 'assistant' && !last.content.trim()) {
+              msgs.pop(); // Remove the empty reply bubble
+              if (!streamError) {
+                setChatError({ message: "LLM failed to generate a response.", query: userQuery });
+                setTimeout(() => {
+                  showToast("LLM failed to generate a response. Please try again.", "error");
+                }, 10);
+              }
             }
           }
-        }
-        return msgs;
-      });
+          return msgs;
+        });
+      }
     }
   };
 
@@ -177,21 +203,23 @@ export const ChatProvider = ({ children }) => {
     setChatError(null);
 
     // Clean up trailing unfulfilled user message or empty assistant message so history stays clean
-    setMessages((prev) => {
-      let clean = [...prev];
-      if (clean.length > 0 && clean[clean.length - 1].role === 'assistant' && !clean[clean.length - 1].content.trim()) {
-        clean.pop();
-      }
-      if (clean.length > 0 && clean[clean.length - 1].role === 'user' && clean[clean.length - 1].content === failedQuery) {
-        clean.pop();
-      }
-      return clean;
+    const cleanedMessages = [...messages];
+    if (cleanedMessages.at(-1)?.role === 'assistant' && !cleanedMessages.at(-1).content.trim()) {
+      cleanedMessages.pop();
+    }
+    if (cleanedMessages.at(-1)?.role === 'user' && cleanedMessages.at(-1).content === failedQuery) {
+      cleanedMessages.pop();
+    }
+
+    setMessages(() => {
+      return cleanedMessages;
     });
 
-    sendMessage(failedQuery);
+    sendMessage(failedQuery, cleanedMessages);
   };
 
   const loadSession = async (id) => {
+    stopGeneration();
     try {
       const res = await chatAPI.getHistory(id);
       if (res.data.success) {
@@ -226,6 +254,7 @@ export const ChatProvider = ({ children }) => {
   };
 
   const clearChat = () => {
+    stopGeneration();
     setMessages([]);
     setQuery('');
     setCurrentSources([]);
@@ -248,9 +277,9 @@ export const ChatProvider = ({ children }) => {
         isRightChatOpen,
         setIsRightChatOpen,
         selectedModel,
-        setSelectedModel,
+        setSelectedModel: updateSelectedModel,
         isThinking,
-        setIsThinking,
+        setIsThinking: updateIsThinking,
         sendMessage,
         stopGeneration,
         clearChat,

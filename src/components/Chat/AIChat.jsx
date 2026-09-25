@@ -1,13 +1,10 @@
-import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, ArrowDown, Plus, X, FileText, Maximize2, Mic, ChevronDown, PlusCircle, Loader, Copy, Check, MoreVertical, ArrowLeft, RotateCcw, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
+import { ArrowUp, ArrowDown, Plus, X, FileText, Copy, Check, MoreVertical, ArrowLeft, RotateCcw, AlertCircle } from 'lucide-react';
 import { FolderLibraryIcon, Brain03Icon, ClaudeIcon, NotebookIcon, SidebarLeft01Icon, Loading03Icon, Add01Icon, ArrowExpand01Icon } from 'hugeicons-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChatContext } from '../../context/ChatContext';
+import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
-import { AiCodeBlock } from '@/components/lightswind/ai-code-block';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import './AIChat.css';
 
@@ -386,7 +383,7 @@ const ThinkingSparkle = React.memo(() => {
       setFrame((prev) => (prev + 1) % frames.length);
     }, 150);
     return () => clearInterval(interval);
-  }, []);
+  }, [frames.length]);
 
   return (
     <span className="w-5 h-5 flex items-center justify-center text-[16px] leading-none mr-2 select-none opacity-80 shrink-0">
@@ -806,7 +803,7 @@ const AIChat = ({ isRightPanel = false }) => {
       }, 4000);
       return () => clearInterval(interval);
     }
-  }, [messages.length]);
+  }, [messages.length, greetings.length]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -939,7 +936,7 @@ const AIChat = ({ isRightPanel = false }) => {
           ) : (
             messages.map((msg, idx) => (
               <ChatMessageItem
-                key={idx}
+                key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
                 msg={msg}
                 isLatest={idx === messages.length - 1}
                 isStreaming={isStreaming}
@@ -1072,7 +1069,7 @@ const AIChat = ({ isRightPanel = false }) => {
               <div className="message-list">
                 {messages.map((msg, idx) => (
                   <RightPanelMessageItem
-                    key={idx}
+                    key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
                     msg={msg}
                     isLatest={idx === messages.length - 1}
                     isStreaming={isStreaming}
@@ -1143,8 +1140,8 @@ const AIChat = ({ isRightPanel = false }) => {
                 currentSources.map((src, i) => (
                   <div 
                     key={i} 
-                    onClick={() => handleOpenDoc(src.pageId)}
-                    className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-[var(--color-dark-border)] hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm cursor-pointer transition-all bg-gray-50/50 dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#202020]"
+                    onClick={() => src.pageId && handleOpenDoc(src.pageId)}
+                    className={`flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-[var(--color-dark-border)] hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm transition-all bg-gray-50/50 dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#202020] ${src.pageId ? 'cursor-pointer' : ''}`}
                   >
                     <div className="flex-1">
                       <h3 className="text-[13px] font-medium text-gray-800 dark:text-gray-200 leading-snug">{src.title}</h3>

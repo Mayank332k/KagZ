@@ -6,7 +6,7 @@ import { ChatProvider } from './context/ChatContext';
 import { EditorProvider } from './context/EditorContext';
 import { ToastProvider } from './context/ToastContext';
 
-import Dashboard from './pages/Dashboard/Dashboard';
+import { DashboardRoute } from './pages/Dashboard/Dashboard';
 import Home from './pages/Home/Home';
 import Workspace from './pages/Workspace/Workspace';
 import Tasks from './pages/Tasks/Tasks';
@@ -23,7 +23,7 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <ProtectedRoute>
-        <Dashboard />
+        <DashboardRoute />
       </ProtectedRoute>
     ),
     children: [

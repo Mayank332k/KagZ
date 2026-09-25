@@ -25,6 +25,7 @@ chat_log.json
 *secrets*.json
 
 # Editor directories and files
+.memory/
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -36,3 +37,4 @@ chat_log.json
 *.sw?
 dev/
 .dev/
+report.md

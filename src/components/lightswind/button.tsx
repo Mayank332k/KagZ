@@ -24,14 +24,14 @@ const buttonStyles = {
   }
 };
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof buttonStyles.variant;
   size?: keyof typeof buttonStyles.size;
   asChild?: boolean;
 }
 
-// Define the buttonVariants function (internal)
-function buttonVariants(options: {
+// Define the buttonVariants function (exported)
+export function buttonVariants(options: {
   variant?: keyof typeof buttonStyles.variant;
   size?: keyof typeof buttonStyles.size;
   className?: string;
