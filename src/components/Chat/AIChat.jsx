@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
-import { ArrowUp, ArrowDown, Plus, X, FileText, Copy, Check, MoreVertical, ArrowLeft, RotateCcw, AlertCircle } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, X, FileText, Copy, Check, MoreVertical, ArrowLeft, RotateCcw, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { FolderLibraryIcon, Brain03Icon, ClaudeIcon, NotebookIcon, SidebarLeft01Icon, Loading03Icon, Add01Icon, ArrowExpand01Icon } from 'hugeicons-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -521,7 +521,7 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   if (msg.role === 'user') {
     return (
       <div className="flex flex-col items-end group/msg">
-        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[15px] px-5 py-3 rounded-[20px] max-w-[85%] leading-relaxed shadow-sm">
+        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[14.5px] px-4 py-2 rounded-[14px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
           <MarkdownRenderer content={msg.content} />
         </div>
       </div>
@@ -607,8 +607,17 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
   }, []);
 
   const models = [
-    { value: 'meta/llama-3.2-11b-vision-instruct', label: 'Llama 3.2 11B', icon: <Brain03Icon className="w-[18px] h-[18px]" /> },
-    { value: 'nvidia/nemotron-3-super-120b-a12b', label: 'NVIDIA Nemotron 120B', icon: <ClaudeIcon className="w-[18px] h-[18px]" /> },
+    { 
+      value: 'meta/llama-3.2-11b-vision-instruct', 
+      label: 'kagZ lite',
+      subtitle: 'Fastest answers',
+    },
+    { 
+      value: 'nvidia/nemotron-3-super-120b-a12b', 
+      label: 'kagZ pro',
+      subtitle: 'Advanced reasoning',
+      badge: 'New',
+    },
   ];
 
   const activeModel = models.find(m => m.value === selectedModel) || models[0];
@@ -690,23 +699,23 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[14px] font-bold text-[#4B5563] dark:text-[#9CA3AF] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
               >
-                {activeModel.icon}
-                {activeModel.label}
+                <span>{activeModel.label}</span>
+                <ChevronUp className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
                 {isDropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full right-0 mb-2 w-[240px] bg-white border border-gray-200 shadow-lg z-50 overflow-hidden rounded-[10px]"
+                    className="absolute bottom-full right-0 mb-2 w-[240px] bg-white dark:bg-[#191919] border border-gray-200 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] z-50 overflow-hidden rounded-[24px] p-2"
                   >
-                    <div className="flex flex-col">
-                      {models.map((model, index) => {
+                    <div className="flex flex-col gap-0.5">
+                      {models.map((model) => {
                         const isActive = selectedModel === model.value;
 
                         return (
@@ -717,23 +726,53 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                               setSelectedModel(model.value);
                               setIsDropdownOpen(false);
                             }}
-                            className={`flex items-center gap-3 w-full px-4 py-3 text-left transition-colors ${
-                              index !== models.length - 1 ? 'border-b border-gray-100' : ''
-                            } ${
-                              isActive 
-                                ? 'bg-gray-50 text-gray-900 font-medium' 
-                                : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                            }`}
+                            className="flex items-start w-full px-3 py-2.5 rounded-[16px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.07] cursor-pointer"
                           >
-                            <div className={`${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                              {React.cloneElement(model.icon, { className: "w-[18px] h-[18px]" })}
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                              {isActive && (
+                                <Check className="w-4 h-4 text-gray-900 dark:text-white stroke-[2.2]" />
+                              )}
                             </div>
-                            <div className="text-[14px]">
-                              <span>{model.label}</span>
+                            <div className="flex flex-col ml-3 min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[14px] font-medium text-gray-900 dark:text-white leading-snug">
+                                  {model.label}
+                                </span>
+                                {model.badge && (
+                                  <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10.5px] font-medium text-gray-600 dark:text-gray-300">
+                                    {model.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[12px] text-gray-500 dark:text-[#9a9a9a] leading-tight mt-0.5">
+                                {model.subtitle}
+                              </span>
                             </div>
                           </button>
                         );
                       })}
+
+                      <div className="h-[1px] bg-gray-100 dark:bg-white/10 my-1 mx-2" />
+
+                      <button
+                        type="button"
+                        onClick={() => setIsThinking(!isThinking)}
+                        className="flex items-start w-full px-3 py-2.5 rounded-[16px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.07] cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                          {isThinking && (
+                            <Check className="w-4 h-4 text-gray-900 dark:text-white stroke-[2.2]" />
+                          )}
+                        </div>
+                        <div className="flex flex-col ml-3 min-w-0">
+                          <span className="text-[14px] font-medium text-gray-900 dark:text-white leading-snug">
+                            Extended thinking
+                          </span>
+                          <span className="text-[12px] text-gray-500 dark:text-[#9a9a9a] leading-tight mt-0.5">
+                            Complex problem solving
+                          </span>
+                        </div>
+                      </button>
                     </div>
                   </motion.div>
                 )}

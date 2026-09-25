@@ -323,13 +323,17 @@
 
 .message-bubble-user {
   max-width: 75%;
-  padding: 10px 16px;
-  border-radius: 20px;
+  padding: 8px 14px;
+  border-radius: 14px;
   background-color: var(--user-bubble-bg);
   color: var(--user-bubble-text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 14.5px;
+  line-height: 1.45;
   font-weight: 400;
+}
+
+.message-bubble-user p {
+  margin-bottom: 0;
 }
 
 .message-bubble-assistant {

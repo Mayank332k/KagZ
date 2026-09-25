@@ -7,46 +7,42 @@ const STATUSES = [
   {
     id: "todo",
     label: "To-do",
-    lightColor: "bg-purple-100 text-black",
-    darkColor: "dark:bg-purple-900/50 dark:text-purple-300",
+    pillClass: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
     dotColor: "bg-purple-500",
     countColor: "text-purple-600 dark:text-purple-400",
-    columnLightBg: "bg-purple-50/50",
-    columnDarkBg: "dark:bg-purple-900/10",
-    buttonClass: "text-purple-600 dark:text-purple-400 border border-purple-600/5 dark:border-purple-400/5 hover:bg-purple-50 dark:hover:bg-purple-900/30",
+    columnLightBg: "bg-[#f7f7f6]",
+    columnDarkBg: "dark:bg-[#191919]",
+    buttonClass: "text-purple-600 dark:text-purple-400 border border-purple-600/10 dark:border-purple-400/10 hover:bg-purple-500/10",
   },
   {
     id: "in_progress",
     label: "In progress",
-    lightColor: "bg-amber-100 text-black",
-    darkColor: "dark:bg-amber-900/50 dark:text-amber-300",
+    pillClass: "bg-amber-500/10 text-amber-800 dark:text-amber-300",
     dotColor: "bg-amber-500",
     countColor: "text-amber-600 dark:text-amber-400",
-    columnLightBg: "bg-amber-50/50",
-    columnDarkBg: "dark:bg-amber-900/10",
-    buttonClass: "text-amber-600 dark:text-amber-400 border border-amber-600/5 dark:border-amber-400/5 hover:bg-amber-50 dark:hover:bg-amber-900/30",
+    columnLightBg: "bg-[#f7f7f6]",
+    columnDarkBg: "dark:bg-[#191919]",
+    buttonClass: "text-amber-600 dark:text-amber-400 border border-amber-600/10 dark:border-amber-400/10 hover:bg-amber-500/10",
   },
   {
     id: "in_review",
     label: "In review",
-    lightColor: "bg-blue-100 text-black",
-    darkColor: "dark:bg-blue-900/50 dark:text-blue-300",
+    pillClass: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
     dotColor: "bg-blue-500",
     countColor: "text-blue-600 dark:text-blue-400",
-    columnLightBg: "bg-blue-50/50",
-    columnDarkBg: "dark:bg-blue-900/10",
-    buttonClass: "text-blue-600 dark:text-blue-400 border border-blue-600/5 dark:border-blue-400/5 hover:bg-blue-50 dark:hover:bg-blue-900/30",
+    columnLightBg: "bg-[#f7f7f6]",
+    columnDarkBg: "dark:bg-[#191919]",
+    buttonClass: "text-blue-600 dark:text-blue-400 border border-blue-600/10 dark:border-blue-400/10 hover:bg-blue-500/10",
   },
   {
     id: "completed",
     label: "Complete",
-    lightColor: "bg-green-100 text-black",
-    darkColor: "dark:bg-green-900/50 dark:text-green-300",
-    dotColor: "bg-green-500",
-    countColor: "text-green-600 dark:text-green-400",
-    columnLightBg: "bg-green-50/50",
-    columnDarkBg: "dark:bg-green-900/10",
-    buttonClass: "text-green-600 dark:text-green-400 border border-green-600/5 dark:border-green-400/5 hover:bg-green-50 dark:hover:bg-green-900/30",
+    pillClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    dotColor: "bg-emerald-500",
+    countColor: "text-emerald-600 dark:text-emerald-400",
+    columnLightBg: "bg-[#f7f7f6]",
+    columnDarkBg: "dark:bg-[#191919]",
+    buttonClass: "text-emerald-600 dark:text-emerald-400 border border-emerald-600/10 dark:border-emerald-400/10 hover:bg-emerald-500/10",
   },
 ];
 
@@ -157,7 +153,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
         {isLoading ? (
           <div className="flex w-full gap-6 px-1">
             {Array.from({ length: 3 }).map((_, colIdx) => (
-              <div key={colIdx} className="flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[20px] p-3 bg-gray-50/50 dark:bg-[#1a1a1a]">
+              <div key={colIdx} className="flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[20px] p-3 bg-[#f7f7f6] dark:bg-[#191919]">
                 <div className="flex items-center justify-between mb-4 px-1 animate-pulse">
                    <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-md bg-gray-200/80 dark:bg-white/10" />
@@ -199,12 +195,12 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
               {/* Column Header */}
               <div className="flex items-center mb-4">
                 <div
-                  className={`flex items-center px-2.5 py-1 rounded-full ${status.lightColor} ${status.darkColor}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${status.pillClass}`}
                 >
                   <div
-                    className={`w-3 h-3 rounded-full mr-2 ${status.dotColor}`}
-                  ></div>
-                  <span className="text-[12px] font-semibold tracking-wide">
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dotColor}`}
+                  />
+                  <span className="text-[11.5px] font-semibold tracking-wide">
                     {status.label}
                   </span>
                 </div>
@@ -227,7 +223,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                       draggable
                       onDragStart={(e) => handleDragStart(e, task._id || task.id)}
                       onDragEnd={(e) => handleDragEnd(e, task._id || task.id)}
-                      className={`group bg-white dark:bg-[#1f1f1f] border border-gray-100 dark:border-white/5 rounded-[12px] p-3.5 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col gap-2 relative ${activeTaskMenu === (task._id || task.id) ? 'z-[100]' : 'z-10'}`}
+                      className={`group bg-white dark:bg-[#1f1f1f] border border-gray-100 dark:border-white/5 rounded-[10px] px-3.5 py-2 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col relative ${activeTaskMenu === (task._id || task.id) ? 'z-[100]' : 'z-10'}`}
                     >
                       <div className="flex justify-between items-start gap-2">
                         <p className="text-[14px] leading-[1.4] font-medium text-gray-800 dark:text-gray-200 break-words">

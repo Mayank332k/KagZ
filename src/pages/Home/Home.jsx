@@ -266,11 +266,8 @@ const Home = () => {
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4 md:gap-0">
           <div>
-            <h1 className="text-[24px] md:text-[32px] font-bold tracking-tight flex items-center gap-2">
-              <span className="text-black dark:text-white">
-                {getGreeting()}, {firstName}
-              </span>
-              <span className="text-2xl md:text-3xl origin-bottom-right hover:animate-wave inline-block cursor-default">👋</span>
+            <h1 className="text-[24px] md:text-[32px] font-bold tracking-tight text-black dark:text-white">
+              {getGreeting()}, {firstName}
             </h1>
             <p className="text-[15px] text-gray-500 mt-2">Here's what's happening in your workspace.</p>
           </div>

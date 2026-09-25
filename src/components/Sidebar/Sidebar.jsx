@@ -1717,7 +1717,7 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-purple-500/5 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/15 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Recents</span>
@@ -1786,7 +1786,7 @@ const Sidebar = () => {
         <div className="flex flex-col mb-3.5 shrink-0">
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-amber-500/5 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15 transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
@@ -1835,7 +1835,7 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-2 px-1 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-blue-500/5 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Favorites</span>
@@ -1870,9 +1870,9 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/10 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <span className="text-[11.5px] font-semibold tracking-wide">Chat History</span>
               <ChevronRight
                 className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}

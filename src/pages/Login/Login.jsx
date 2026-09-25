@@ -140,7 +140,7 @@ const Login = () => {
                 <div className="mt-16 md:mt-auto mb-12 flex flex-col items-center justify-center text-center">
                     <motion.h1 
                         custom={1} initial="hidden" animate="visible" variants={fadeUp}
-                        className="text-4xl md:text-5xl lg:text-[56px] leading-[1.1] text-[#F0EFEC] tracking-tight mb-4"
+                        className="text-2xl sm:text-3xl md:text-[44px] lg:text-[52px] leading-[1.1] text-[#F0EFEC] tracking-tight mb-4 whitespace-nowrap"
                         style={{ fontFamily: "'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif" }}
                     >
                         Make Knowledge Useful.
@@ -159,7 +159,7 @@ const Login = () => {
                 {/* Authentication Card */}
                 <motion.div 
                     custom={3} initial="hidden" animate="visible" variants={fadeUp}
-                    className="w-full min-w-[320px] max-w-[448px] bg-[#111111] rounded-[32px] p-7 border-[0.5px] border-white/10 mb-auto text-center mx-auto"
+                    className="w-full min-w-[320px] max-w-[500px] bg-[#111111] rounded-[32px] p-8 border-[0.5px] border-white/10 mb-auto text-center mx-auto"
                 >
                     {displayError && (
                         <div className="mb-4 text-center text-[13px] font-medium text-[#FF6B6B]">

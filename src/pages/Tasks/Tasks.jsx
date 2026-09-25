@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, Edit2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { taskBoardsAPI, tasksAPI } from "../../services/api";
+import { useToast } from "../../context/ToastContext";
 import KanbanBoard from "../../components/Tasks/KanbanBoard";
 import ActionModal from "../../components/UI/ActionModal";
 import TaskEditModal from "../../components/Tasks/TaskEditModal";
 
 const Tasks = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState([]);
   const [boards, setBoards] = useState([]);
   const [activeBoardId, setActiveBoardId] = useState(null);
@@ -17,6 +19,8 @@ const Tasks = () => {
   const [newBoardName, setNewBoardName] = useState("");
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskToEdit, setTaskToEdit] = useState(null);
+  const [boardContextMenu, setBoardContextMenu] = useState(null);
+  const [boardModal, setBoardModal] = useState({ isOpen: false, type: 'rename', board: null });
 
   // Fetch initial data
   useEffect(() => {
@@ -104,46 +108,59 @@ const Tasks = () => {
       if (res?.data?.board) {
         setBoards(prev => [...prev, res.data.board]);
         setActiveBoardId(res.data.board._id);
+        showToast("Board created successfully", "success");
       }
     } catch (error) {
       console.error("Failed to create board", error);
-      alert("Failed to create board. Please try again.");
+      showToast("Failed to create board. Please try again.", "error");
     }
     setNewBoardName("");
     setIsCreatingBoard(false);
   };
 
-  const handleBoardContextMenu = async (e, board) => {
+  const handleBoardContextMenu = (e, board) => {
     e.preventDefault();
-    const action = prompt(`Options for "${board.name}":\nType "rename" to change name\nType "delete" to remove board`);
-    
-    if (action === "rename") {
-      const newName = prompt("Enter new name:", board.name);
-      if (newName && newName.trim() !== board.name) {
-        try {
-          const res = await taskBoardsAPI.renameBoard(board._id, newName.trim());
-          if (res?.data?.board) {
-            setBoards(prev => prev.map(b => b._id === board._id ? res.data.board : b));
-          }
-        } catch (error) {
-          console.error("Failed to rename board", error);
-          alert("Failed to rename board.");
-        }
+    setBoardContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      board,
+    });
+  };
+
+  const handleConfirmBoardModal = async (inputValue) => {
+    if (!boardModal.board) return;
+
+    if (boardModal.type === 'rename') {
+      const newName = inputValue?.trim();
+      if (!newName || newName === boardModal.board.name) {
+        setBoardModal({ isOpen: false, type: 'rename', board: null });
+        return;
       }
-    } else if (action === "delete") {
-      if (window.confirm(`Are you sure you want to delete "${board.name}" and all its tasks?`)) {
-        try {
-          await taskBoardsAPI.deleteBoard(board._id);
-          setBoards(prev => prev.filter(b => b._id !== board._id));
-          if (activeBoardId === board._id) {
-            setActiveBoardId(boards.length > 1 ? boards.find(b => b._id !== board._id)._id : null);
-          }
-        } catch (error) {
-          console.error("Failed to delete board", error);
-          alert("Failed to delete board.");
+      try {
+        const res = await taskBoardsAPI.renameBoard(boardModal.board._id, newName);
+        if (res?.data?.board) {
+          setBoards(prev => prev.map(b => b._id === boardModal.board._id ? res.data.board : b));
+          showToast("Board renamed successfully", "success");
         }
+      } catch (error) {
+        console.error("Failed to rename board", error);
+        showToast("Failed to rename board.", "error");
+      }
+    } else if (boardModal.type === 'delete') {
+      try {
+        await taskBoardsAPI.deleteBoard(boardModal.board._id);
+        const remainingBoards = boards.filter(b => b._id !== boardModal.board._id);
+        setBoards(remainingBoards);
+        if (activeBoardId === boardModal.board._id) {
+          setActiveBoardId(remainingBoards.length > 0 ? remainingBoards[0]._id : null);
+        }
+        showToast("Board deleted successfully", "success");
+      } catch (error) {
+        console.error("Failed to delete board", error);
+        showToast("Failed to delete board.", "error");
       }
     }
+    setBoardModal({ isOpen: false, type: 'rename', board: null });
   };
 
   const handleTaskEdit = (task) => {
@@ -274,6 +291,66 @@ const Tasks = () => {
         confirmText="Delete"
         cancelText="Cancel"
       />
+
+      <ActionModal
+        isOpen={boardModal.isOpen}
+        onClose={() => setBoardModal({ isOpen: false, type: 'rename', board: null })}
+        title={boardModal.type === 'rename' ? 'Rename Board' : 'Delete Board'}
+        type={boardModal.type === 'rename' ? 'input' : 'confirm'}
+        initialValue={boardModal.board?.name || ''}
+        placeholder="Enter board name..."
+        description={
+          boardModal.type === 'delete'
+            ? `Are you sure you want to delete "${boardModal.board?.name}" and all its tasks? This action cannot be undone.`
+            : ''
+        }
+        isDanger={boardModal.type === 'delete'}
+        confirmText={boardModal.type === 'rename' ? 'Save' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBoardModal}
+      />
+
+      {boardContextMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setBoardContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setBoardContextMenu(null); }}
+          />
+          <div 
+            className="fixed z-50 w-44 bg-white dark:bg-[#202020] rounded-[10px] shadow-[0_8px_30px_rgb(0,0,0,0.18)] border border-gray-100 dark:border-white/10 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: Math.min(boardContextMenu.y, window.innerHeight - 100),
+              left: Math.min(boardContextMenu.x, window.innerWidth - 190)
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                const targetBoard = boardContextMenu.board;
+                setBoardContextMenu(null);
+                setBoardModal({ isOpen: true, type: 'rename', board: targetBoard });
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              <span>Rename board</span>
+            </button>
+            <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
+            <button
+              onClick={() => {
+                const targetBoard = boardContextMenu.board;
+                setBoardContextMenu(null);
+                setBoardModal({ isOpen: true, type: 'delete', board: targetBoard });
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400 dark:text-red-400/80" />
+              <span>Delete board</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <TaskEditModal
         isOpen={!!taskToEdit}
