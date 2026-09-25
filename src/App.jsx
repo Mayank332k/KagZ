@@ -1,38 +1,97 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import Login from './pages/Login/Login';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
 import { EditorProvider } from './context/EditorContext';
 import { ToastProvider } from './context/ToastContext';
 
-import { DashboardRoute } from './pages/Dashboard/Dashboard';
-import Home from './pages/Home/Home';
-import Workspace from './pages/Workspace/Workspace';
-import Tasks from './pages/Tasks/Tasks';
-import NoteEditor from './components/Editor/NoteEditor';
-import AIChat from './components/Chat/AIChat';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import MobileOverlay from './components/UI/MobileOverlay';
 
 import { ThemeProvider } from 'next-themes';
 
+const Login = lazy(() => import('./pages/Login/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
+const Home = lazy(() => import('./pages/Home/Home'));
+const Workspace = lazy(() => import('./pages/Workspace/Workspace'));
+const Tasks = lazy(() => import('./pages/Tasks/Tasks'));
+const NoteEditor = lazy(() => import('./components/Editor/NoteEditor'));
+const AIChat = lazy(() => import('./components/Chat/AIChat'));
+
+const RouteLoader = () => (
+  <div className="flex items-center justify-center h-full w-full min-h-[40vh]">
+    <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-800 dark:border-t-white rounded-full animate-spin" />
+  </div>
+);
+
 const router = createBrowserRouter([
-  { path: "/login", element: <Login /> },
+  {
+    path: "/login",
+    element: (
+      <Suspense fallback={<RouteLoader />}>
+        <Login />
+      </Suspense>
+    ),
+  },
   {
     path: "/dashboard",
     element: (
       <ProtectedRoute>
-        <DashboardRoute />
+        <Suspense fallback={<RouteLoader />}>
+          <Dashboard />
+        </Suspense>
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Home /> },
-      { path: "chat", element: <AIChat /> },
-      { path: "page/:pageId", element: <NoteEditor /> },
-      { path: "editor/:pageId", element: <NoteEditor /> },
-      { path: "workspace/:workspaceId", element: <Workspace /> },
-      { path: "tasks", element: <Tasks /> },
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <Home />
+          </Suspense>
+        ),
+      },
+      {
+        path: "chat",
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <AIChat />
+          </Suspense>
+        ),
+      },
+      {
+        path: "page/:pageId",
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <NoteEditor />
+          </Suspense>
+        ),
+      },
+      {
+        path: "editor/:pageId",
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <NoteEditor />
+          </Suspense>
+        ),
+      },
+      {
+        path: "workspace/:workspaceId",
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <Workspace />
+          </Suspense>
+        ),
+      },
+      {
+        path: "tasks",
+        element: (
+          <Suspense fallback={<RouteLoader />}>
+            <Tasks />
+          </Suspense>
+        ),
+      },
     ],
   },
   { path: "/", element: <Navigate to="/dashboard" replace /> },

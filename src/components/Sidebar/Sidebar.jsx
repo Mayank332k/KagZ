@@ -150,18 +150,12 @@ const Sidebar = () => {
   // Apply font size to document
   useEffect(() => {
     document.documentElement.style.setProperty("--noema-font-size", `${fontSize}px`);
-    localStorage.setItem("noema-font-size", String(fontSize));
-    window.dispatchEvent(new Event("noema-font-size-changed"));
+    const currentStored = Number(localStorage.getItem("noema-font-size"));
+    if (currentStored !== fontSize) {
+      localStorage.setItem("noema-font-size", String(fontSize));
+      window.dispatchEvent(new Event("noema-font-size-changed"));
+    }
   }, [fontSize]);
-
-  useEffect(() => {
-    const handleFontSizeChange = () => {
-      const savedSize = Number(localStorage.getItem("noema-font-size"));
-      if (Number.isFinite(savedSize)) setFontSize(Math.min(24, Math.max(12, savedSize)));
-    };
-    window.addEventListener("noema-font-size-changed", handleFontSizeChange);
-    return () => window.removeEventListener("noema-font-size-changed", handleFontSizeChange);
-  }, []);
 
   useEffect(() => {
     localStorage.setItem("noema-sidebar-width", String(sidebarWidth));
@@ -301,14 +295,7 @@ const Sidebar = () => {
   ];
 
   const isHomeActive = () => {
-    const path = location.pathname;
-    return (
-      path === "/dashboard" ||
-      (!path.startsWith("/dashboard/chat") &&
-        !path.startsWith("/dashboard/tasks") &&
-        !path.startsWith("/dashboard/search") &&
-        path !== "/dashboard/settings")
-    );
+    return location.pathname === "/dashboard" || location.pathname === "/dashboard/";
   };
 
   // Real API-backed tree state
@@ -341,23 +328,24 @@ const Sidebar = () => {
 
         const treeNodes = await Promise.all(
           workspaces.map(async (ws) => {
-            const loadFolder = async (folder) => {
-              const [childFolderRes, pageRes] = await Promise.all([
-                foldersAPI.getByWorkspace(ws._id, folder._id),
-                pagesAPI.getByWorkspace(ws._id, folder._id),
-              ]);
-              const childFolders = await Promise.all(
-                (childFolderRes.data.folders || []).map(loadFolder),
-              );
-              return {
-                id: folder._id,
-                type: "folder",
-                name: folder.name,
-                isFavorite: folder.isFavorite,
-                workspaceId: ws._id,
-                children: [
-                  ...childFolders,
-                  ...(pageRes.data.pages || []).map((p) => ({
+            const folderRes = await foldersAPI.getByWorkspace(ws._id, null);
+            const folders = folderRes.data.folders || [];
+
+            // Fetch root pages (not inside any folder)
+            const pageRes = await pagesAPI.getByWorkspace(ws._id, null);
+            const rootPages = pageRes.data.pages || [];
+
+            const folderNodes = await Promise.all(
+              folders.map(async (folder) => {
+                const fpRes = await pagesAPI.getByWorkspace(ws._id, folder._id);
+                const folderPages = fpRes.data.pages || [];
+                return {
+                  id: folder._id,
+                  type: "folder",
+                  name: folder.name,
+                  isFavorite: folder.isFavorite,
+                  workspaceId: ws._id,
+                  children: folderPages.map((p) => ({
                     id: p._id,
                     type: "page",
                     name: p.title,
@@ -368,19 +356,20 @@ const Sidebar = () => {
                     workspaceId: ws._id,
                     folderId: folder._id,
                   })),
-                ],
-              };
-            };
+                };
+              }),
+            );
 
-            const folderRes = await foldersAPI.getByWorkspace(ws._id, null);
-            const folders = folderRes.data.folders || [];
+            // Deduplicate: remove pages from rootPages that are already inside a folder
+            const allFolderPageIds = new Set();
+            folderNodes.forEach((folder) => {
+              folder.children.forEach((page) => allFolderPageIds.add(page.id));
+            });
+            const filteredRootPages = rootPages.filter(
+              (p) => !allFolderPageIds.has(p._id),
+            );
 
-            // Fetch root pages (not inside any folder)
-            const pageRes = await pagesAPI.getByWorkspace(ws._id, null);
-            const rootPages = pageRes.data.pages || [];
-
-            const folderNodes = await Promise.all(folders.map(loadFolder));
-            const pageNodes = rootPages.map((p) => ({
+            const pageNodes = filteredRootPages.map((p) => ({
               id: p._id,
               type: "page",
               name: p.title,

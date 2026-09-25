@@ -166,8 +166,11 @@ const NoteEditor = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("noema-font-size", String(fontSize));
-    window.dispatchEvent(new Event("noema-font-size-changed"));
+    const currentStored = Number(localStorage.getItem("noema-font-size"));
+    if (currentStored !== fontSize) {
+      localStorage.setItem("noema-font-size", String(fontSize));
+      window.dispatchEvent(new Event("noema-font-size-changed"));
+    }
   }, [fontSize]);
   const [titleError, setTitleError] = useState(false);
   const [isAiStreaming, setIsAiStreaming] = useState(false);
