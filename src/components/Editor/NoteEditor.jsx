@@ -4,6 +4,7 @@ import {
   useCallback,
   useRef,
   useContext,
+  Fragment,
 } from "react";
 import { useParams, useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { Loading03Icon } from "hugeicons-react";
@@ -22,6 +23,10 @@ import { Markdown } from 'tiptap-markdown';
 import { Mark, mergeAttributes } from '@tiptap/core';
 import { marked } from 'marked';
 import 'prosemirror-view/style/prosemirror.css';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
@@ -178,6 +183,11 @@ const NoteEditor = () => {
   });
       const [showPromptInput, setShowPromptInput] = useState(null); // { textBefore, textAfter, insertIndex }
   const [promptInputVal, setPromptInputVal] = useState("");
+  const [tableToolbar, setTableToolbar] = useState({
+    isOpen: false,
+    x: 0,
+    y: 0,
+  });
 
   const slashMenuState = useRef(slashMenu);
   const containerRef = useRef(null);
@@ -221,6 +231,12 @@ const NoteEditor = () => {
         link: false,
         underline: false,
       }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Markdown,
       Underline,
       Link.configure({
@@ -248,7 +264,7 @@ const NoteEditor = () => {
              if (typed.includes(' ')) {
                 setSlashMenu(prev => ({ ...prev, isOpen: false }));
              } else {
-                setSlashMenu(prev => ({ ...prev, search: typed }));
+                setSlashMenu(prev => ({ ...prev, search: typed, index: 0 }));
              }
           }
       } else {
@@ -292,7 +308,11 @@ const NoteEditor = () => {
              }
              
              // Calculate center X of the selection
-             const centerX = (rect.left + rect.width / 2) - containerRect.left;
+             const rawCenterX = (rect.left + rect.width / 2) - containerRect.left;
+             const containerWidth = containerRef.current?.getBoundingClientRect().width || window.innerWidth;
+             const minX = 140;
+             const maxX = Math.max(minX, containerWidth - 140);
+             const centerX = Math.min(Math.max(rawCenterX, minX), maxX);
              
              // Estimate menu height
              const estimatedMenuHeight = 250; 
@@ -335,6 +355,35 @@ const NoteEditor = () => {
           }, 50);
        } else {
           setSelectionToolbar(prev => prev.isOpen ? { ...prev, isOpen: false } : prev);
+       }
+
+       if (editor.isActive('table')) {
+          setTimeout(() => {
+             if (!containerRef.current) return;
+             const containerRect = containerRef.current.getBoundingClientRect();
+             const sel = window.getSelection();
+             const node = sel?.anchorNode;
+             const cellEl = node?.nodeType === 1 ? node.closest('td, th') : node?.parentElement?.closest('td, th');
+             const tableEl = cellEl?.closest('table');
+
+             if (tableEl) {
+                const tableRect = tableEl.getBoundingClientRect();
+                setTableToolbar({
+                   isOpen: true,
+                   x: Math.max(0, tableRect.left - containerRect.left),
+                   y: Math.max(0, tableRect.top - containerRect.top - 38),
+                });
+             } else {
+                const coords = editor.view.coordsAtPos(editor.state.selection.from);
+                setTableToolbar({
+                   isOpen: true,
+                   x: Math.max(0, coords.left - containerRect.left),
+                   y: Math.max(0, coords.top - containerRect.top - 38),
+                });
+             }
+          }, 30);
+       } else {
+          setTableToolbar(prev => prev.isOpen ? { ...prev, isOpen: false } : prev);
        }
     },
     editorProps: {
@@ -424,6 +473,36 @@ const NoteEditor = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showActionMenu, slashMenu.isOpen]);
+
+  // Global Escape key listener to close slash menu, prompt inputs, and action menus
+  useEffect(() => {
+    const handleGlobalEscape = (e) => {
+      if (e.key === "Escape") {
+        if (slashMenu.isOpen) {
+          e.preventDefault();
+          setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+          editor?.commands.focus();
+          return;
+        }
+        if (showPromptInput) {
+          e.preventDefault();
+          setShowPromptInput(null);
+          editor?.commands.focus();
+          return;
+        }
+        if (tableToolbar.isOpen) {
+          setTableToolbar((prev) => ({ ...prev, isOpen: false }));
+          return;
+        }
+        if (showActionMenu) {
+          setShowActionMenu(false);
+          return;
+        }
+      }
+    };
+    document.addEventListener("keydown", handleGlobalEscape);
+    return () => document.removeEventListener("keydown", handleGlobalEscape);
+  }, [slashMenu.isOpen, showPromptInput, tableToolbar.isOpen, showActionMenu, editor]);
 
   // Focus prompt input when shown
   useEffect(() => {
@@ -846,20 +925,114 @@ const NoteEditor = () => {
   };
 
   // --- Slash Menu & Inline AI Helpers ---
-  const slashMenuItems = [
-    { id: "write", label: "Ask AI to write...", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">edit_document</span> },
-    { id: "summarize", label: "Summarize Selection", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">close_fullscreen</span> },
-    { id: "grammar", label: "Fix Grammar", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">brush</span> },
-  ].filter((item) =>
-    item.label.toLowerCase().includes(slashMenu.search.toLowerCase())
-  );
+  const allSlashMenuItems = [
+    // Basic formatting
+    {
+      id: "text",
+      group: "Basic Blocks",
+      label: "Text",
+      description: "Just start typing with plain text.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_paragraph</span>,
+      keywords: ["text", "paragraph", "plain", "normal", "p"],
+    },
+    {
+      id: "h1",
+      group: "Basic Blocks",
+      label: "Heading 1",
+      description: "Big section heading.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h1</span>,
+      keywords: ["h1", "heading 1", "title", "header 1"],
+    },
+    {
+      id: "h2",
+      group: "Basic Blocks",
+      label: "Heading 2",
+      description: "Medium section heading.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h2</span>,
+      keywords: ["h2", "heading 2", "subtitle", "header 2"],
+    },
+    {
+      id: "h3",
+      group: "Basic Blocks",
+      label: "Heading 3",
+      description: "Small section heading.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h3</span>,
+      keywords: ["h3", "heading 3", "subheading", "header 3"],
+    },
+    {
+      id: "h4",
+      group: "Basic Blocks",
+      label: "Heading 4",
+      description: "Sub-section heading.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h4</span>,
+      keywords: ["h4", "heading 4", "header 4"],
+    },
+    {
+      id: "bold",
+      group: "Basic Blocks",
+      label: "Bold",
+      description: "Bold emphasis styling.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_bold</span>,
+      keywords: ["bold", "b", "strong"],
+    },
+    {
+      id: "table",
+      group: "Basic Blocks",
+      label: "Table",
+      description: "Insert a 3×3 grid table with header.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">table</span>,
+      keywords: ["table", "grid", "rows", "columns", "tabular"],
+    },
+    // AI Tools (existing)
+    {
+      id: "write",
+      group: "AI Tools",
+      label: "Ask AI to write...",
+      description: "Generate copy, draft ideas, or brainstorm.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">edit_document</span>,
+      keywords: ["ai", "write", "generate", "draft"],
+    },
+    {
+      id: "summarize",
+      group: "AI Tools",
+      label: "Summarize Selection",
+      description: "Create a concise summary of text.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">close_fullscreen</span>,
+      keywords: ["summarize", "summary", "shorten", "ai"],
+    },
+    {
+      id: "grammar",
+      group: "AI Tools",
+      label: "Fix Grammar",
+      description: "Correct spelling and grammar issues.",
+      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">brush</span>,
+      keywords: ["grammar", "spell", "fix", "ai"],
+    },
+  ];
+
+  const slashMenuItems = allSlashMenuItems.filter((item) => {
+    const q = slashMenu.search.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      item.label.toLowerCase().includes(q) ||
+      item.id.toLowerCase().includes(q) ||
+      (item.keywords && item.keywords.some((k) => k.includes(q)))
+    );
+  });
 
   useEffect(() => {
     slashMenuItemsRef.current = slashMenuItems;
   }, [slashMenuItems]);
 
-  
-  
+  useEffect(() => {
+    if (slashMenu.isOpen && slashMenuRef.current) {
+      const activeEl = slashMenuRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [slashMenu.index, slashMenu.isOpen]);
+
   const handleSelectSlashItem = async (item) => {
     if (!editor) return;
     const currentSlashMenu = slashMenuState.current;
@@ -868,7 +1041,37 @@ const NoteEditor = () => {
     try {
       editor.chain().deleteRange({ from: slashStart, to }).run();
     } catch (e) { console.error("Slash deleteRange error", e); }
-    setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+    setSlashMenu((prev) => ({ ...prev, isOpen: false, search: "" }));
+
+    // Formatting commands
+    if (item.id === "text") {
+      editor.chain().focus().setParagraph().run();
+      return;
+    }
+    if (item.id === "h1") {
+      editor.chain().focus().toggleHeading({ level: 1 }).run();
+      return;
+    }
+    if (item.id === "h2") {
+      editor.chain().focus().toggleHeading({ level: 2 }).run();
+      return;
+    }
+    if (item.id === "h3") {
+      editor.chain().focus().toggleHeading({ level: 3 }).run();
+      return;
+    }
+    if (item.id === "h4") {
+      editor.chain().focus().toggleHeading({ level: 4 }).run();
+      return;
+    }
+    if (item.id === "bold") {
+      editor.chain().focus().toggleBold().run();
+      return;
+    }
+    if (item.id === "table") {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      return;
+    }
 
     if (item.id === "write") {
       setShowPromptInput({
@@ -912,6 +1115,7 @@ const NoteEditor = () => {
   };
 
   const runInlineAIStream = async ({ promptType, text, instruction, insertPos, fromPos, toPos }) => {
+    if (!editor || editor.isDestroyed) return;
     // Validate input before proceeding
     const validation = validateAiInput(promptType, text, instruction);
     if (!validation.valid) {
@@ -968,6 +1172,10 @@ const NoteEditor = () => {
       const stream = chatAPI.askInline(promptType, text, instruction, abortController.signal);
       
       for await (const chunk of stream) {
+        if (!editor || editor.isDestroyed) {
+          abortController.abort();
+          break;
+        }
         if (chunk?.type === "done" || chunk?.data === "[DONE]") {
            break;
         }
@@ -990,6 +1198,11 @@ const NoteEditor = () => {
       // Stream is fully downloaded now!
       const finalText = streamingResult || text || " ";
       
+      if (!editor || editor.isDestroyed) {
+        setIsAiStreaming(false);
+        return;
+      }
+
       if (isSelectionAction) {
          editor.chain().setTextSelection({ from: fromPos, to: toPos }).unsetMark('aiEffect').run();
          editor.chain()
@@ -1006,14 +1219,16 @@ const NoteEditor = () => {
          } catch (e) { console.error("Draft parse error", e); }
       }
       
-      editor.commands.scrollIntoView();
+      if (editor && !editor.isDestroyed) {
+        editor.commands.scrollIntoView();
+      }
       
       // Wait for ScrollReveal to finish before converting to Markdown
       const wordCount = finalText.split(/\s+/).length;
       const animationDurationMs = (0.4 + wordCount * 0.02) * 1000 + 400; // 400ms buffer
       
       setTimeout(() => {
-          if (editor.isDestroyed) return;
+          if (!editor || editor.isDestroyed) return;
           const parsedHtml = marked.parse(finalText);
           try {
              const streamNodePos = findAIStreamNode(editor.state.doc, streamId);
@@ -1028,11 +1243,13 @@ const NoteEditor = () => {
              }
           } catch (e) {
              console.error("Final replace error", e);
-             const streamNodePos = findAIStreamNode(editor.state.doc, streamId);
-             if (streamNodePos !== -1) {
-               editor.chain()
-                 .insertContentAt(streamNodePos, finalText)
-                 .run();
+             if (editor && !editor.isDestroyed) {
+               const streamNodePos = findAIStreamNode(editor.state.doc, streamId);
+               if (streamNodePos !== -1) {
+                 editor.chain()
+                   .insertContentAt(streamNodePos, finalText)
+                   .run();
+               }
              }
           }
       }, animationDurationMs);
@@ -1042,9 +1259,11 @@ const NoteEditor = () => {
       setIsAiStreaming(false);
       if (!isSelectionAction) {
           clearInterval(animationInterval);
-          try {
-            editor.chain().deleteRange({ from: loadingMarkFrom, to: loadingMarkTo }).run();
-          } catch (e) { console.error("Draft parse error", e); }
+          if (editor && !editor.isDestroyed) {
+            try {
+              editor.chain().deleteRange({ from: loadingMarkFrom, to: loadingMarkTo }).run();
+            } catch (e) { console.error("Draft parse error", e); }
+          }
       }
       console.error("Inline AI Stream Error:", err);
 
@@ -1052,7 +1271,7 @@ const NoteEditor = () => {
       const errorMessage = handleApiSizeError(err, promptType);
       showToast(errorMessage, "error");
 
-      if (isSelectionAction) {
+      if (isSelectionAction && editor && !editor.isDestroyed) {
          editor.chain().setTextSelection({ from: fromPos, to: toPos }).unsetMark('aiEffect').run();
       }
     }
@@ -1187,10 +1406,11 @@ const NoteEditor = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
+            aria-label="Go back"
             className="flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors mr-2"
             title="Go back"
           >
-            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
+            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current" aria-hidden="true">keyboard_backspace</span>
           </button>
           <LocationDropdown
             variant="header"
@@ -1215,7 +1435,7 @@ const NoteEditor = () => {
               <Loading03Icon className="w-4 h-4 text-gray-400 animate-spin" />
             )}
             {saveStatus === "saved" && (
-              <span className="material-symbols-outlined text-[16px] leading-none select-none text-green-500">bookmark</span>
+              <span className="material-symbols-outlined text-[16px] leading-none select-none text-green-500" aria-hidden="true">bookmark</span>
             )}
           </div>
 
@@ -1223,6 +1443,7 @@ const NoteEditor = () => {
           <button
             onClick={handleManualSave}
             disabled={!isDirty || saveStatus === "saving"}
+            aria-label={!isDirty && pageId !== "new" && !isNewPage ? 'Page saved' : 'Save page'}
             className={`text-sm font-semibold transition-all mr-4 ${!isDirty ? (pageId !== "new" && !isNewPage ? 'text-green-500 dark:text-green-400 cursor-default' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed') : 'text-black dark:text-white hover:opacity-70 active:scale-95'}`}
           >
             {!isDirty && pageId !== "new" && !isNewPage ? 'Saved' : 'Save'}
@@ -1235,8 +1456,11 @@ const NoteEditor = () => {
               className={`w-[32px] h-[32px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors ${showActionMenu ? "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
               style={{ borderRadius: "10px" }}
               title="More Actions"
+              aria-label="More actions"
+              aria-haspopup="true"
+              aria-expanded={showActionMenu}
             >
-              <span className="material-symbols-outlined text-[20px] leading-none select-none">more_horiz</span>
+              <span className="material-symbols-outlined text-[20px] leading-none select-none" aria-hidden="true">more_horiz</span>
             </button>
 
             {/* Action Dropdown Card */}
@@ -1347,6 +1571,7 @@ const NoteEditor = () => {
         <div className="max-w-4xl mx-auto h-full flex flex-col relative" ref={containerRef}>
           <input
             type="text"
+            aria-label="Page title"
             value={title}
             onChange={handleTitleChange}
             onKeyDown={(e) => {
@@ -1383,38 +1608,129 @@ const NoteEditor = () => {
           )}
 
           {/* Floating Slash Command Menu */}
-          {slashMenu.isOpen && slashMenuItems.length > 0 && (
+          {slashMenu.isOpen && (
             <div
               ref={slashMenuRef}
+              role="listbox"
+              id="slash-command-menu"
+              aria-label="Slash commands"
               style={{
                 position: "absolute",
                 top: `${slashMenu.y}px`,
                 left: `${slashMenu.x}px`,
               }}
-              className="w-64 bg-white dark:bg-[#202020] border border-gray-100 dark:border-[#333333] shadow-lg rounded-[12px] p-1.5 z-[1000] text-sm flex flex-col font-sans"
+              className="w-72 max-h-[340px] bg-white dark:bg-[#202020] border border-gray-200/80 dark:border-[#333333] shadow-xl rounded-[12px] p-1.5 z-[1000] text-sm flex flex-col font-sans"
             >
-              <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider select-none uppercase">
-                AI Actions
-              </div>
-              {slashMenuItems.map((item, idx) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSelectSlashItem(item)}
-                  onMouseEnter={() =>
-                    setSlashMenu((prev) => ({ ...prev, index: idx }))
-                  }
-                  className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors rounded-[6px] ${
-                    slashMenu.index === idx
-                      ? "bg-gray-100 dark:bg-[#2f2f2f] text-gray-900 dark:text-gray-100"
-                      : "text-gray-700 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
-                  }`}
-                >
-                  <div className="flex items-center justify-center text-gray-500 dark:text-gray-400">
-                    {item.icon}
+              {/* Top Search Bar (like sidebar search) */}
+              <div className="p-1 pb-1.5 border-b border-black/[0.06] dark:border-white/[0.08] mb-1">
+                <div className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[8px] border border-black/[0.12] dark:border-white/[0.12] bg-black/[0.02] dark:bg-white/[0.03] transition-colors">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-400 dark:text-[#7d7a75] shrink-0" aria-hidden="true">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      role="combobox"
+                      aria-expanded={slashMenu.isOpen}
+                      aria-autocomplete="list"
+                      aria-controls="slash-command-menu"
+                      aria-label="Search blocks or commands"
+                      value={slashMenu.search}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSlashMenu((prev) => ({ ...prev, search: val, index: 0 }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          if (slashMenuItems.length > 0) {
+                            setSlashMenu((prev) => ({
+                              ...prev,
+                              index: (prev.index + 1) % slashMenuItems.length,
+                            }));
+                          }
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          if (slashMenuItems.length > 0) {
+                            setSlashMenu((prev) => ({
+                              ...prev,
+                              index:
+                                (prev.index - 1 + slashMenuItems.length) %
+                                slashMenuItems.length,
+                            }));
+                          }
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          const item = slashMenuItems[slashMenu.index];
+                          if (item) {
+                            handleSelectSlashItem(item);
+                          }
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+                          editor?.commands.focus();
+                        }
+                      }}
+                      placeholder="Search blocks or commands..."
+                      className="w-full bg-transparent text-[12.5px] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-[#7d7a75] outline-none border-none p-0 leading-tight"
+                    />
                   </div>
-                  <span className="font-medium text-[14px]">{item.label}</span>
-                </button>
-              ))}
+                  <kbd className="text-[10px] font-sans font-medium text-gray-400 dark:text-[#6e6b66] bg-transparent border border-black/[0.08] dark:border-white/[0.1] rounded px-1.5 py-0.5 leading-none select-none shrink-0 ml-1.5">
+                    Esc
+                  </kbd>
+                </div>
+              </div>
+
+              {slashMenuItems.length === 0 ? (
+                <div className="py-6 px-3 text-center text-xs text-gray-400 dark:text-[#7d7a75] select-none">
+                  No blocks or commands found
+                </div>
+              ) : (
+                <div className="flex flex-col overflow-y-auto max-h-[260px] custom-scrollbar">
+                  {slashMenuItems.map((item, idx) => {
+                    const showGroupHeader =
+                      idx === 0 || item.group !== slashMenuItems[idx - 1].group;
+                    return (
+                      <Fragment key={item.id}>
+                        {showGroupHeader && (
+                          <div className="px-2 pt-2 pb-1 text-[10.5px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider select-none uppercase">
+                            {item.group}
+                          </div>
+                        )}
+                        <button
+                          role="option"
+                          aria-selected={slashMenu.index === idx}
+                          aria-label={item.label}
+                          data-active={slashMenu.index === idx ? "true" : "false"}
+                          onClick={() => handleSelectSlashItem(item)}
+                          onMouseEnter={() =>
+                            setSlashMenu((prev) => ({ ...prev, index: idx }))
+                          }
+                          className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors rounded-[7px] cursor-pointer ${
+                            slashMenu.index === idx
+                              ? "bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white"
+                              : "text-gray-700 dark:text-gray-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          <div className="w-[26px] h-[26px] rounded-[6px] bg-black/[0.03] dark:bg-white/[0.05] flex items-center justify-center shrink-0 text-gray-600 dark:text-gray-300" aria-hidden="true">
+                            {item.icon}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-[13px] leading-tight text-gray-900 dark:text-gray-100">
+                              {item.label}
+                            </span>
+                            {item.description && (
+                              <span className="text-[11px] text-gray-400 dark:text-[#7d7a75] truncate leading-tight mt-0.5">
+                                {item.description}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      </Fragment>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1444,6 +1760,92 @@ const NoteEditor = () => {
                 <span><kbd className="font-sans px-1.5 py-0.5 rounded bg-gray-100 dark:bg-[#333333] border border-gray-200 dark:border-[#444444]">Enter</kbd> to Generate</span>
                 <span><kbd className="font-sans px-1.5 py-0.5 rounded bg-gray-100 dark:bg-[#333333] border border-gray-200 dark:border-[#444444]">Esc</kbd> to Cancel</span>
               </div>
+            </div>
+          )}
+
+          {/* Notion-style Contextual Table Action Toolbar */}
+          {tableToolbar.isOpen && editor && editor.isActive("table") && !selectionToolbar.isOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: `${tableToolbar.y}px`,
+                left: `${tableToolbar.x}px`,
+              }}
+              className="h-8 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#333333] shadow-lg rounded-[8px] px-1 py-0.5 z-[990] flex items-center gap-0.5 text-xs select-none font-sans animate-in fade-in zoom-in-95 duration-75"
+            >
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().addRowAfter().run()}
+                title="Add row below"
+                className="px-2 py-1 rounded-[5px] flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">table_rows</span>
+                <span>+ Row</span>
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().addColumnAfter().run()}
+                title="Add column right"
+                className="px-2 py-1 rounded-[5px] flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">view_column</span>
+                <span>+ Column</span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().deleteRow().run()}
+                title="Delete current row"
+                className="px-1.5 py-1 rounded-[5px] flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">remove_selection</span>
+                <span>- Row</span>
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().deleteColumn().run()}
+                title="Delete current column"
+                className="px-1.5 py-1 rounded-[5px] flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">variable_remove</span>
+                <span>- Col</span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+                title="Toggle header row"
+                className="px-2 py-1 rounded-[5px] flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">table_chart_view</span>
+                <span>Header</span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-gray-200 dark:bg-white/10 mx-0.5" />
+
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  editor.chain().focus().deleteTable().run();
+                  setTableToolbar({ isOpen: false, x: 0, y: 0 });
+                }}
+                title="Delete entire table"
+                className="px-1.5 py-1 rounded-[5px] flex items-center gap-1 text-gray-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer text-[12px] font-medium leading-none"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">delete</span>
+              </button>
             </div>
           )}
 

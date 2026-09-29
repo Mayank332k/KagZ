@@ -64,6 +64,7 @@ const Sidebar = () => {
     "chat-history-section": false,
   });
   const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
 
   const {
     sectionStates,
@@ -266,6 +267,7 @@ const Sidebar = () => {
       setShowSettingsCard(false);
       setShowThemeDropdown(false);
       setShowFontDropdown(false);
+      setIsNewMenuOpen(false);
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
@@ -290,7 +292,7 @@ const Sidebar = () => {
       label: "Home",
       path: "/dashboard/home",
       icon: () => (
-        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+        <span className="material-symbols-outlined text-[19px] leading-none select-none">
           home
         </span>
       ),
@@ -300,7 +302,7 @@ const Sidebar = () => {
       label: "Chat",
       path: "/dashboard/chat",
       icon: () => (
-        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+        <span className="material-symbols-outlined text-[19px] leading-none select-none">
           chat
         </span>
       ),
@@ -310,7 +312,7 @@ const Sidebar = () => {
       label: "Tasks",
       path: "/dashboard/tasks",
       icon: () => (
-        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+        <span className="material-symbols-outlined text-[19px] leading-none select-none">
           checklist
         </span>
       ),
@@ -1576,15 +1578,54 @@ const Sidebar = () => {
           >
             <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
           </button>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 relative">
             <button
-              onClick={handleCreateRootPage}
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
-              title="New page"
-              aria-label="New page"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsNewMenuOpen((prev) => !prev);
+              }}
+              className={`w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer ${
+                isNewMenuOpen
+                  ? "bg-black/10 dark:bg-white/15 text-black dark:text-white"
+                  : "hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+              }`}
+              title="New"
+              aria-label="New"
             >
               <SquarePen className="w-4 h-4" strokeWidth={1.8} />
             </button>
+
+            {isNewMenuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1.5 w-44 bg-white dark:bg-[#1e1e1e] border border-black/[0.08] dark:border-[#333333] shadow-xl rounded-[12px] p-1.5 z-50 flex flex-col font-sans animate-in fade-in zoom-in-95 duration-100"
+              >
+                <button
+                  onClick={() => {
+                    setIsNewMenuOpen(false);
+                    handleCreateRootPage();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-[13.5px] font-medium text-gray-800 dark:text-gray-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                >
+                  <span className="material-symbols-outlined text-[17px] leading-none select-none text-gray-500 dark:text-gray-400 shrink-0">
+                    assignment
+                  </span>
+                  <span>Page</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsNewMenuOpen(false);
+                    handleStartNewChat();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-[13.5px] font-medium text-gray-800 dark:text-gray-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                >
+                  <span className="material-symbols-outlined text-[17px] leading-none select-none text-gray-500 dark:text-gray-400 shrink-0">
+                    chat
+                  </span>
+                  <span>Chat</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1603,7 +1644,7 @@ const Sidebar = () => {
       </div>
 
       {/* Animated Quick Actions Bar (3 pills: Home, Chat, Tasks) */}
-      <div className="px-3 pt-2 pb-2 flex items-center justify-start gap-1">
+      <div className="px-3 pt-2 pb-2 flex items-center justify-start gap-1.5">
         {topNavItems.map((item) => {
 
           if (item.id === "chat") {
@@ -1617,10 +1658,10 @@ const Sidebar = () => {
               >
                 <motion.div
                   layout
-                  className={`flex items-center h-7 rounded-[6px] overflow-hidden ${
+                  className={`flex items-center h-8 rounded-[8px] overflow-hidden ${
                     isChatActive
-                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2 font-medium"
-                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
+                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-3 font-medium"
+                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-8 justify-center"
                   }`}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 >
@@ -1628,16 +1669,16 @@ const Sidebar = () => {
                     layout="position"
                     className="shrink-0 flex items-center justify-center"
                   >
-                    <item.icon className="w-[17px] h-[17px]" />
+                    <item.icon />
                   </motion.div>
                   <AnimatePresence initial={false}>
                     {isChatActive && (
                       <motion.span
                         initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
+                        animate={{ opacity: 1, width: "auto", marginLeft: 7 }}
                         exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="text-[13px] font-medium whitespace-nowrap overflow-hidden"
+                        className="text-[15px] font-medium whitespace-nowrap overflow-hidden leading-none"
                       >
                         {item.label}
                       </motion.span>
@@ -1657,10 +1698,10 @@ const Sidebar = () => {
                 return (
                   <motion.div
                     layout
-                    className={`flex items-center h-7 rounded-[6px] overflow-hidden ${
+                    className={`flex items-center h-8 rounded-[8px] overflow-hidden ${
                       active
-                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2 font-medium"
-                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
+                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-3 font-medium"
+                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-8 justify-center"
                     }`}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
@@ -1668,16 +1709,16 @@ const Sidebar = () => {
                       layout="position"
                       className="shrink-0 flex items-center justify-center"
                     >
-                      <item.icon className="w-[17px] h-[17px]" />
+                      <item.icon />
                     </motion.div>
                     <AnimatePresence initial={false}>
                       {active && (
                         <motion.span
                           initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
+                          animate={{ opacity: 1, width: "auto", marginLeft: 7 }}
                           exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[13px] font-medium whitespace-nowrap overflow-hidden"
+                          className="text-[15px] font-medium whitespace-nowrap overflow-hidden leading-none"
                         >
                           {item.label}
                         </motion.span>
