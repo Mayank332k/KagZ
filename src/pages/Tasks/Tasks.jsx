@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus, ArrowLeft, Edit2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +7,8 @@ import { useToast } from "../../context/ToastContext";
 import KanbanBoard from "../../components/Tasks/KanbanBoard";
 import ActionModal from "../../components/UI/ActionModal";
 import TaskEditModal from "../../components/Tasks/TaskEditModal";
+import useSectionLoader from "../../hooks/useSectionLoader";
+import SectionErrorState from "../../components/UI/SectionErrorState";
 
 const Tasks = () => {
   const navigate = useNavigate();
@@ -14,7 +16,7 @@ const Tasks = () => {
   const [tasks, setTasks] = useState([]);
   const [boards, setBoards] = useState([]);
   const [activeBoardId, setActiveBoardId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [boardsLoading, setBoardsLoading] = useState(true);
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
   const [taskToDelete, setTaskToDelete] = useState(null);
@@ -22,32 +24,45 @@ const Tasks = () => {
   const [boardContextMenu, setBoardContextMenu] = useState(null);
   const [boardModal, setBoardModal] = useState({ isOpen: false, type: 'rename', board: null });
 
-  // Fetch initial data
+  const {
+    sectionStates,
+    loadSection,
+    invalidateSection,
+    updateSectionData,
+  } = useSectionLoader();
+
+  // Load board tasks on demand for a specific board
+  const loadBoardTasks = useCallback(async (boardId, force = false) => {
+    if (!boardId) return;
+    return loadSection(`kanban-board-${boardId}`, async () => {
+      const tasksRes = await tasksAPI.getTasks();
+      const allTasks = tasksRes?.data?.tasks || [];
+      setTasks(allTasks);
+      return allTasks;
+    }, { force });
+  }, [loadSection]);
+
+  // Fetch only board tabs on initial mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchBoards = async () => {
       try {
-        const [boardsRes, tasksRes] = await Promise.all([
-          taskBoardsAPI.getBoards(),
-          tasksAPI.getTasks()
-        ]);
-        
-        if (boardsRes?.data?.boards) {
-          setBoards(boardsRes.data.boards);
-          if (boardsRes.data.boards.length > 0) {
-            setActiveBoardId(boardsRes.data.boards[0]._id);
-          }
-        }
-        if (tasksRes?.data?.tasks) {
-          setTasks(tasksRes.data.tasks);
+        setBoardsLoading(true);
+        const boardsRes = await taskBoardsAPI.getBoards();
+        const loadedBoards = boardsRes?.data?.boards || [];
+        setBoards(loadedBoards);
+        if (loadedBoards.length > 0) {
+          const firstBoardId = loadedBoards[0]._id;
+          setActiveBoardId(firstBoardId);
+          loadBoardTasks(firstBoardId);
         }
       } catch (error) {
-        console.error("Failed to fetch boards/tasks", error.response?.data || error);
+        console.error("Failed to fetch boards", error.response?.data || error);
       } finally {
-        setIsLoading(false);
+        setBoardsLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchBoards();
+  }, [loadBoardTasks]);
 
   const handleTaskUpdate = async (taskId, targetStatusId) => {
     // Optimistic UI update
@@ -212,7 +227,10 @@ const Tasks = () => {
           {boards.map(board => (
             <button
               key={board._id}
-              onClick={() => setActiveBoardId(board._id)}
+              onClick={() => {
+                setActiveBoardId(board._id);
+                loadBoardTasks(board._id);
+              }}
               onContextMenu={(e) => handleBoardContextMenu(e, board)}
               className={`flex items-center px-3.5 py-1.5 rounded-full text-[14px] font-medium transition-colors whitespace-nowrap ${activeBoardId === board._id ? "bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222] hover:text-gray-800 dark:hover:text-gray-200"}`}
               title="Right-click to rename or delete"
@@ -265,9 +283,16 @@ const Tasks = () => {
       </div>
 
       {/* Board */}
-      {!activeBoardId && !isLoading ? (
+      {!activeBoardId && !boardsLoading ? (
         <div className="flex w-full h-full items-center justify-center text-gray-500">
           No board selected. Please create or select a board.
+        </div>
+      ) : activeBoardId && sectionStates[`kanban-board-${activeBoardId}`]?.isError ? (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <SectionErrorState
+            message="Failed to load tasks for this board"
+            onRetry={() => loadBoardTasks(activeBoardId, true)}
+          />
         </div>
       ) : (
         <KanbanBoard 
@@ -277,7 +302,7 @@ const Tasks = () => {
           onTaskEdit={handleTaskEdit}
           onTaskDelete={handleTaskDelete}
           allowCreation={true}
-          isLoading={isLoading}
+          isLoading={boardsLoading || sectionStates[`kanban-board-${activeBoardId}`]?.isLoading}
         />
       )}
 

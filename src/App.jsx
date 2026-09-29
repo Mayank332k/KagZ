@@ -46,6 +46,10 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <Navigate to="/dashboard/page/new" replace />,
+      },
+      {
+        path: "home",
         element: (
           <Suspense fallback={<RouteLoader />}>
             <Home />
@@ -94,8 +98,8 @@ const router = createBrowserRouter([
       },
     ],
   },
-  { path: "/", element: <Navigate to="/dashboard" replace /> },
-  { path: "*", element: <Navigate to="/dashboard" replace /> },
+  { path: "/", element: <Navigate to="/dashboard/page/new" replace /> },
+  { path: "*", element: <Navigate to="/dashboard/page/new" replace /> },
 ]);
 
 function App() {

@@ -123,6 +123,8 @@ const NoteEditor = () => {
     registerAppendContent,
     unregisterAppendContent,
     workspaceTree,
+    isWorkspacesLoading,
+    loadWorkspaceData,
     selectedLocation,
     setSelectedLocation,
     selectedPath,
@@ -525,6 +527,8 @@ const NoteEditor = () => {
       setIsNewPage(true);
       initialContentLoadedRef.current = true;
       setLoading(false);
+      // Background-fetch workspace data so location selector populates without blocking typing
+      loadWorkspaceData().catch(console.error);
       return;
     }
 
@@ -1206,6 +1210,7 @@ const NoteEditor = () => {
           <LocationDropdown
             variant="header"
             treeData={workspaceTree}
+            isLoading={isWorkspacesLoading}
             selectedLocation={selectedLocation}
             selectedPath={
               selectedPath.length > 0

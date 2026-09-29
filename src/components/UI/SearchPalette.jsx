@@ -8,9 +8,12 @@ import {
   Folder01Icon, 
   TextIcon, 
   FilterIcon,
-  NotebookIcon
+  NotebookIcon,
+  ChatFeedback01Icon
 } from 'hugeicons-react';
 import { EditorContext } from '../../context/EditorContext';
+import { ChatContext } from '../../context/ChatContextDefinition';
+import { chatAPI } from '../../services/api';
 
 // Spring config for Apple-like subtle, restrained liquid bounce
 const springConfig = {
@@ -24,7 +27,8 @@ const springConfig = {
 const circlesData = [
   { id: 'workspace', icon: ArtboardToolIcon, label: 'Workspace' },
   { id: 'folder', icon: Folder01Icon, label: 'Folder' },
-  { id: 'page', icon: NotebookIcon, label: 'Page' }
+  { id: 'page', icon: NotebookIcon, label: 'Page' },
+  { id: 'chat', icon: ChatFeedback01Icon, label: 'Chat' }
 ];
 
 const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
@@ -33,63 +37,66 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedCircle, setSelectedCircle] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { workspaceTree } = useContext(EditorContext);
+  const { workspaceTree, loadWorkspaceData } = useContext(EditorContext);
+  const { loadSession } = useContext(ChatContext) || {};
+  const [chatSessions, setChatSessions] = useState([]);
   const navigate = useNavigate();
 
   const hasQuery = searchQuery && searchQuery.trim().length > 0;
 
   const { groupedResults, flatSelectable } = useMemo(() => {
-    if (!searchQuery.trim() || !workspaceTree) return { groupedResults: [], flatSelectable: [] };
+    if (!searchQuery.trim()) return { groupedResults: [], flatSelectable: [] };
     
     const searchLower = searchQuery.toLowerCase();
     
     const groups = []; 
     const selectable = [];
 
-    for (const ws of workspaceTree) {
-      if (ws.type !== 'workspace') continue;
-      
-      const wsMatch = ws.name && ws.name.toLowerCase().includes(searchLower);
-      const wsPassesFilter = !selectedCircle || selectedCircle === 'workspace';
-      const isWorkspaceMatch = wsMatch && wsPassesFilter;
-      
-      const matchedItems = [];
-      
-      const traverseInside = (nodes) => {
-        for (const child of nodes) {
-          const childMatch = child.name && child.name.toLowerCase().includes(searchLower);
-          const childPassesFilter = !selectedCircle || child.type === selectedCircle;
-          
-          const shouldIncludeFromParentMatch = isWorkspaceMatch && childPassesFilter;
-          
-          if ((childMatch && childPassesFilter) || shouldIncludeFromParentMatch) {
-             matchedItems.push(child);
+    if (workspaceTree && workspaceTree.length > 0) {
+      for (const ws of workspaceTree) {
+        if (ws.type !== 'workspace') continue;
+        
+        const wsMatch = ws.name && ws.name.toLowerCase().includes(searchLower);
+        const wsPassesFilter = !selectedCircle || selectedCircle === 'workspace';
+        const isWorkspaceMatch = wsMatch && wsPassesFilter;
+        
+        const matchedItems = [];
+        
+        const traverseInside = (nodes) => {
+          for (const child of nodes) {
+            const childMatch = child.name && child.name.toLowerCase().includes(searchLower);
+            const childPassesFilter = !selectedCircle || child.type === selectedCircle;
+            
+            const shouldIncludeFromParentMatch = isWorkspaceMatch && childPassesFilter;
+            
+            if ((childMatch && childPassesFilter) || shouldIncludeFromParentMatch) {
+               matchedItems.push(child);
+            }
+            
+            if (child.children) {
+               traverseInside(child.children);
+            }
           }
-          
-          if (child.children) {
-             traverseInside(child.children);
-          }
+        };
+        
+        if (ws.children) {
+           traverseInside(ws.children);
         }
-      };
-      
-      if (ws.children) {
-         traverseInside(ws.children);
-      }
-      
-      if (isWorkspaceMatch || matchedItems.length > 0) {
-         // Deduplicate items just in case
-         const uniqueItems = Array.from(new Set(matchedItems));
-         groups.push({
-           workspace: ws,
-           isWorkspaceMatch: isWorkspaceMatch,
-           items: uniqueItems
-         });
-         
-         if (isWorkspaceMatch) selectable.push(ws);
-         selectable.push(...uniqueItems);
+        
+        if (isWorkspaceMatch || matchedItems.length > 0) {
+           // Deduplicate items just in case
+           const uniqueItems = Array.from(new Set(matchedItems));
+           groups.push({
+             workspace: ws,
+             isWorkspaceMatch: isWorkspaceMatch,
+             items: uniqueItems
+           });
+           
+           if (isWorkspaceMatch) selectable.push(ws);
+           selectable.push(...uniqueItems);
+        }
       }
     }
-    
     
     // Add Recent Pages that are not already included in the workspace matches
     if (recentPages && recentPages.length > 0) {
@@ -111,9 +118,36 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
          }
       }
     }
+
+    // Add Chat History matches
+    if (chatSessions && chatSessions.length > 0) {
+      const chatMatches = chatSessions.filter(s => {
+        const title = s.title || "Untitled Chat";
+        const match = title.toLowerCase().includes(searchLower);
+        const passesFilter = !selectedCircle || selectedCircle === 'chat';
+        return match && passesFilter;
+      });
+
+      if (chatMatches.length > 0) {
+        const chatItems = chatMatches.map(s => ({
+          id: s.sessionId,
+          type: 'chat',
+          name: s.title || 'Untitled Chat',
+          path: '/dashboard/chat',
+          sessionId: s.sessionId
+        }));
+
+        groups.push({
+          workspace: { id: 'chat_history', name: 'Chat History', type: 'section' },
+          isWorkspaceMatch: false,
+          items: chatItems
+        });
+        selectable.push(...chatItems);
+      }
+    }
     
     return { groupedResults: groups, flatSelectable: selectable };
-  }, [searchQuery, workspaceTree, selectedCircle, recentPages]);
+  }, [searchQuery, workspaceTree, selectedCircle, recentPages, chatSessions]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -123,6 +157,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
     if (selectedCircle === 'workspace') return "Search workspace...";
     if (selectedCircle === 'folder') return "Search folder...";
     if (selectedCircle === 'page') return "Search page...";
+    if (selectedCircle === 'chat') return "Search chats...";
     return "Search KagZ...";
   };
 
@@ -131,8 +166,19 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
       setTimeout(() => inputRef.current?.focus(), 100);
       setIsExpanded(false); // Reset on open
       setSelectedCircle(null);
+
+      // Quiet background fetch for workspace if not loaded
+      if (!workspaceTree || workspaceTree.length === 0) {
+        loadWorkspaceData?.().catch(() => {});
+      }
+
+      // Quiet background fetch for chat sessions
+      chatAPI.getSessions().then((res) => {
+        const sessions = res.data?.sessions || [];
+        setChatSessions(sessions);
+      }).catch(() => {});
     }
-  }, [isOpen]);
+  }, [isOpen, workspaceTree, loadWorkspaceData]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -164,6 +210,9 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
           e.preventDefault();
           const result = flatSelectable[selectedIndex];
           if (result && result.path) {
+            if (result.type === 'chat' && result.sessionId && loadSession) {
+              loadSession(result.sessionId);
+            }
             onClose();
             navigate(result.path);
           }
@@ -388,7 +437,13 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}
                             className="relative z-10 flex items-center px-4 py-2 text-gray-500 dark:text-gray-400 bg-white/40 dark:bg-black/40 rounded-lg"
                           >
-                            {ws.id === 'recent_pages' ? <NotebookIcon className="w-4 h-4 mr-2 opacity-70" /> : <ArtboardToolIcon className="w-4 h-4 mr-2 opacity-70" />}
+                            {ws.id === 'recent_pages' ? (
+                              <NotebookIcon className="w-4 h-4 mr-2 opacity-70" />
+                            ) : ws.id === 'chat_history' ? (
+                              <ChatFeedback01Icon className="w-4 h-4 mr-2 opacity-70" />
+                            ) : (
+                              <ArtboardToolIcon className="w-4 h-4 mr-2 opacity-70" />
+                            )}
                             <span className="text-[13px] font-medium tracking-wide">{ws.name}</span>
                             <span className="ml-2 text-[11px] uppercase tracking-wider opacity-50">Context</span>
                           </motion.div>
@@ -411,6 +466,9 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                   key={item.id}
                                   onMouseEnter={() => setSelectedIndex(itemIdx)}
                                   onClick={() => {
+                                    if (item.type === 'chat' && item.sessionId && loadSession) {
+                                      loadSession(item.sessionId);
+                                    }
                                     if (item.path) { onClose(); navigate(item.path); }
                                   }}
                                   variants={{
@@ -425,6 +483,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                   <div className={`mr-4 flex items-center justify-center ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {item.type === 'folder' && <Folder01Icon className="w-5 h-5" />}
                                     {(item.type === 'page' || item.type === 'document') && <NotebookIcon className="w-5 h-5" />}
+                                    {item.type === 'chat' && <ChatFeedback01Icon className="w-5 h-5" />}
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>

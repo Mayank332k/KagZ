@@ -5,6 +5,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, X } from 'lucide-react';
+import { Loading03Icon } from 'hugeicons-react';
+import useAsyncAction from '../../hooks/useAsyncAction';
 import landingImg from '../../assets/img.png';
 
 const Login = () => {
@@ -20,7 +22,7 @@ const Login = () => {
     const navigate = useNavigate();
 
     if (!loading && user) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/dashboard/page/new" replace />;
     }
 
     const handleUsernameChange = (e) => setUsername(e.target.value);
@@ -58,7 +60,7 @@ const Login = () => {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             await loginWithGoogle(credentialResponse.credential);
-            navigate('/dashboard', { replace: true });
+            navigate('/dashboard/page/new', { replace: true });
         } catch (err) {
             console.error(err);
         }
@@ -74,41 +76,50 @@ const Login = () => {
         return null;
     };
 
+    const { execute: runAuthSubmit, isLoading: isSubmitting, retryCount } = useAsyncAction(
+        async () => {
+            if (isSignUp) {
+                await register(username, password);
+            } else {
+                await login(username, password);
+            }
+            navigate('/dashboard/page/new', { replace: true });
+        },
+        {
+            maxRetries: 3,
+            onError: (err) => {
+                console.error(err);
+                if (err?.response?.status === 400 && err?.response?.data?.errors) {
+                    const formErrors = {};
+                    err.response.data.errors.forEach(e => {
+                        formErrors[e.path] = e.msg;
+                    });
+                    setFieldErrors(formErrors);
+                } else {
+                    setLocalError(err?.response?.data?.message || 'Authentication failed. Please check your credentials.');
+                }
+            }
+        }
+    );
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLocalError(null);
         setFieldErrors({});
 
-        try {
-            if (isSignUp) {
-                const passError = validatePassword(password);
-                if (passError) {
-                    setFieldErrors({ password: passError });
-                    return;
-                }
-                
-                if (password !== confirmPassword) {
-                    setFieldErrors({ confirmPassword: "Passwords do not match" });
-                    return;
-                }
-                await register(username, password);
-                navigate('/dashboard', { replace: true });
-            } else {
-                await login(username, password);
-                navigate('/dashboard', { replace: true });
+        if (isSignUp) {
+            const passError = validatePassword(password);
+            if (passError) {
+                setFieldErrors({ password: passError });
+                return;
             }
-        } catch (error) {
-            console.error(error);
-            if (error.response?.status === 400 && error.response?.data?.errors) {
-                const formErrors = {};
-                error.response.data.errors.forEach(err => {
-                    formErrors[err.path] = err.msg;
-                });
-                setFieldErrors(formErrors);
-            } else {
-                setLocalError(error.response?.data?.message || 'Server error');
+            
+            if (password !== confirmPassword) {
+                setFieldErrors({ confirmPassword: "Passwords do not match" });
+                return;
             }
         }
+        runAuthSubmit();
     };
 
     const displayError = localError || error;
@@ -201,7 +212,7 @@ const Login = () => {
                             <input
                                 type="text"
                                 required
-                                disabled={loading}
+                                disabled={loading || isSubmitting}
                                 value={username}
                                 onChange={handleUsernameChange}
                                 placeholder="Enter your username"
@@ -217,7 +228,7 @@ const Login = () => {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     required
-                                    disabled={loading}
+                                    disabled={loading || isSubmitting}
                                     value={password}
                                     onChange={handlePasswordChange}
                                     placeholder="Enter your password"
@@ -225,6 +236,7 @@ const Login = () => {
                                 />
                                 <button
                                     type="button"
+                                    disabled={loading || isSubmitting}
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#F0EFEC]/30 hover:text-[#F0EFEC]/60 transition-colors"
                                 >
@@ -246,7 +258,7 @@ const Login = () => {
                                     
                                     <div className="flex flex-col gap-1.5 mt-1 text-[12px]">
                                         {!rules.length && (
-                                            <div className="flex items-center gap-2 text-white/40">
+                                             <div className="flex items-center gap-2 text-white/40">
                                                 <X className="w-3.5 h-3.5" /> Minimum 8 characters
                                             </div>
                                         )}
@@ -288,7 +300,7 @@ const Login = () => {
                                         <input
                                             type={showPassword ? "text" : "password"}
                                             required
-                                            disabled={loading}
+                                            disabled={loading || isSubmitting}
                                             value={confirmPassword}
                                             onChange={handleConfirmPasswordChange}
                                             placeholder="Confirm your password"
@@ -304,11 +316,14 @@ const Login = () => {
 
                         <button
                             type="submit"
-                            disabled={loading || !username || !password || (isSignUp && (!confirmPassword || rulesPassed < 5))}
-                            className="w-full h-[40px] mt-2 bg-white text-black font-medium text-[15px] rounded-[10px] hover:bg-white/90 active:scale-[0.99] transition-all duration-150 ease-out disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center"
+                            disabled={loading || isSubmitting || !username || !password || (isSignUp && (!confirmPassword || rulesPassed < 5))}
+                            className="w-full h-[40px] mt-2 bg-white text-black font-medium text-[15px] rounded-[10px] hover:bg-white/90 active:scale-[0.99] transition-all duration-150 ease-out disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
                         >
-                            {loading ? (
-                                <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></span>
+                            {isSubmitting || loading ? (
+                                <span className="inline-flex items-center gap-2">
+                                    <Loading03Icon className="w-4 h-4 animate-spin shrink-0 text-black" />
+                                    <span>{retryCount > 0 ? `Retrying (${retryCount}/3)...` : (isSignUp ? 'Creating account...' : 'Signing in...')}</span>
+                                </span>
                             ) : (
                                 isSignUp ? 'Create account' : 'Sign in'
                             )}

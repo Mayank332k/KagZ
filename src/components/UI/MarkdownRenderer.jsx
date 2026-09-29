@@ -71,16 +71,30 @@ const MarkdownRenderer = ({ content }) => {
           </blockquote>
         ),
         table: ({ children }) => (
-          <div className="w-full overflow-x-auto my-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-            <table className="w-full text-left border-collapse text-[1em]">{children}</table>
+          <div className="w-full overflow-x-auto my-5 border border-gray-200 dark:border-[#262626] rounded-lg bg-white dark:bg-[#141414] shadow-sm">
+            <table className="w-full text-left border-collapse text-[13.5px]">{children}</table>
           </div>
         ),
-        thead: ({ children }) => <thead className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700">{children}</thead>,
-        tbody: ({ children }) => <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>,
-        tr: ({ children }) => <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/50">{children}</tr>,
-        th: ({ children }) => <th className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">{children}</th>,
-        td: ({ children }) => <td className="px-4 py-3 text-gray-700 dark:text-gray-300 align-top">{children}</td>,
-        strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>,
+        thead: ({ children }) => (
+          <thead className="bg-gray-50 dark:bg-white/[0.05] border-b border-gray-200 dark:border-[#262626]">{children}</thead>
+        ),
+        tbody: ({ children }) => <tbody className="divide-y-0">{children}</tbody>,
+        tr: ({ children }) => (
+          <tr className="border-b border-gray-200 dark:border-[#262626] last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+            {children}
+          </tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-4 py-3 font-semibold text-gray-900 dark:text-white border-r border-gray-200 dark:border-[#262626] last:border-r-0 whitespace-nowrap tracking-tight bg-gray-50/80 dark:bg-white/[0.04]">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="px-4 py-3 text-gray-700 dark:text-[#d1cfca] border-r border-gray-200 dark:border-[#262626] last:border-r-0 align-middle tabular-nums whitespace-nowrap">
+            {children}
+          </td>
+        ),
+        strong: ({ children }) => <strong className="font-semibold text-gray-950 dark:text-white">{children}</strong>,
         em: ({ children }) => <em className="italic text-gray-800 dark:text-gray-200">{children}</em>,
         pre({ children }) {
           return <>{children}</>;

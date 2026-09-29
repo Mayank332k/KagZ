@@ -66,12 +66,14 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
   return ReactDOM.createPortal(
     <div
       ref={panelRef}
-      className="fixed bg-white dark:bg-[#232323] border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-[8px]"
+      className="fixed bg-white dark:bg-[#232323] border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-[15px]"
       style={{ top: pos.top, left: pos.left, zIndex: 99999 + breadcrumb.length, minWidth: 210, padding: "4px" }}
     >
       <PanelHeader breadcrumb={thisBreadcrumb} />
 
-      {(node.children || []).map((child) => {
+      {(node.children || [])
+        .filter((child) => !selectableTypes || selectableTypes.includes(child.type))
+        .map((child) => {
         const hasKids = child.children && child.children.length > 0;
         const isHov = hoveredId === child.id;
         const canSelect = !selectableTypes || selectableTypes.includes(child.type);
@@ -84,7 +86,7 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
             className={`group relative flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${isHov ? "bg-gray-100 dark:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
             onMouseEnter={(e) => handleHover(e, child)}
             onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-            onClick={() => { if (!hasKids && canSelect) { onSelect(child, childPath); onClose(); } }}
+            onClick={() => { if (canSelect) { onSelect(child, childPath); onClose(); } }}
           >
             <NodeIcon type={child.type} />
             <span className="flex-1 truncate text-[13px] text-gray-600 dark:text-[rgb(174,172,167)] group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
@@ -180,7 +182,9 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
         </div>
       )}
 
-      {treeData.map((node) => {
+      {treeData
+        .filter((node) => !selectableTypes || selectableTypes.includes(node.type))
+        .map((node) => {
         const hasKids = node.children && node.children.length > 0;
         const isHov = hoveredId === node.id;
         const canSelect = !selectableTypes || selectableTypes.includes(node.type);
@@ -193,7 +197,7 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
             className={`group relative flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${isHov ? "bg-gray-100 dark:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
             onMouseEnter={(e) => handleHover(e, node)}
             onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-            onClick={() => { if (!hasKids && canSelect) { onSelect(node, nodePath); onClose(); } }}
+            onClick={() => { if (canSelect) { onSelect(node, nodePath); onClose(); } }}
           >
             <NodeIcon type={node.type} />
             <span className="flex-1 truncate text-[13px] text-gray-600 dark:text-[rgb(174,172,167)] group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
@@ -239,6 +243,7 @@ const LocationDropdown = ({
   variant = "sidebar",
   selectableTypes = null,
   locked = false,
+  isLoading = false,
 }) => {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -255,6 +260,15 @@ const LocationDropdown = ({
   const isSidebar = variant === "sidebar";
 
   const isHeader = variant === "header";
+
+  if (isLoading && isHeader) {
+    return (
+      <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-gray-100/70 dark:bg-white/5 animate-pulse text-[13px] text-gray-400 dark:text-gray-500 select-none">
+        <div className="w-3.5 h-3.5 rounded bg-gray-200 dark:bg-white/10 shrink-0" />
+        <span className="truncate">Select location...</span>
+      </div>
+    );
+  }
 
   const selectedContent = hasSelection ? (
     <div className={`flex items-center flex-wrap ${isHeader ? "gap-1.5 text-[15px]" : ""}`}>

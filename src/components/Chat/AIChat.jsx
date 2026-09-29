@@ -662,7 +662,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
         )}
       </AnimatePresence>
 
-      <form onSubmit={handleSend} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[24px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:border-[var(--accent-warm)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 p-2.5 mx-auto">
+      <form onSubmit={handleSend} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[21px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 p-2.5 mx-auto">
         <textarea
           ref={textareaRef}
           value={query}

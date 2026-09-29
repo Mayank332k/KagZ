@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CodeFolderIcon, TextIcon } from 'hugeicons-react';
+import { CodeFolderIcon, TextIcon, Loading03Icon } from 'hugeicons-react';
+import useAsyncAction from '../../hooks/useAsyncAction';
 
 const ActionModal = ({
   isOpen,
@@ -22,6 +23,16 @@ const ActionModal = ({
   const [selectedPageType, setSelectedPageType] = useState('document');
   const inputRef = useRef(null);
 
+  const { execute: runConfirm, isLoading, retryCount } = useAsyncAction(
+    async () => {
+      const result = await onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
+      if (result !== false) {
+        onClose();
+      }
+    },
+    { maxRetries: 3 }
+  );
+
   useEffect(() => {
     if (isOpen) {
       setInputValue(initialValue);
@@ -36,15 +47,14 @@ const ActionModal = ({
     }
   }, [isOpen, initialValue, type]);
 
-  const handleConfirm = async () => {
-    if ((type === 'input' && !inputValue.trim()) || confirmDisabled) return;
-    const result = await onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
-    if (result !== false) onClose();
+  const handleConfirm = () => {
+    if ((type === 'input' && !inputValue.trim()) || confirmDisabled || isLoading) return;
+    runConfirm();
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleConfirm();
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape' && !isLoading) onClose();
   };
 
   return (
@@ -58,7 +68,7 @@ const ActionModal = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="absolute inset-0 bg-black/50"
-            onClick={onClose}
+            onClick={isLoading ? undefined : onClose}
           />
           
           {/* Modal Content */}
@@ -110,18 +120,26 @@ const ActionModal = ({
             <div className="px-4 pb-4 pt-1 flex flex-col gap-2">
               <button
                 onClick={handleConfirm}
-                disabled={(type === 'input' && !inputValue.trim()) || confirmDisabled}
+                disabled={(type === 'input' && !inputValue.trim()) || confirmDisabled || isLoading}
                 className={`w-full px-4 py-2 text-[14px] font-medium text-white rounded-[8px] transition-all
                   ${isDanger 
                     ? 'bg-[rgb(216,57,51)] hover:opacity-90 focus:ring-2 focus:ring-[rgba(216,57,51,0.2)]' 
                     : 'bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20'}
-                  disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center`}
+                  disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2`}
               >
-                {confirmText}
+                {isLoading ? (
+                  <>
+                    <Loading03Icon className="w-4 h-4 animate-spin shrink-0" />
+                    <span>{retryCount > 0 ? `Retrying (${retryCount}/3)...` : confirmText}</span>
+                  </>
+                ) : (
+                  confirmText
+                )}
               </button>
               <button
                 onClick={onClose}
-                className="w-full px-4 py-2 text-[14px] font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent border border-gray-200 dark:border-[var(--color-dark-border)] hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 rounded-[8px] transition-colors"
+                disabled={isLoading}
+                className="w-full px-4 py-2 text-[14px] font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent border border-gray-200 dark:border-[var(--color-dark-border)] hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 rounded-[8px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>

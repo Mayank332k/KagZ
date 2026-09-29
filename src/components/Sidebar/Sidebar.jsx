@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext } from "react";
+import { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContextDefinition";
 import { EditorContext } from "../../context/EditorContext";
@@ -46,11 +46,13 @@ import {
   chatAPI,
 } from "../../services/api";
 import { useToast } from "../../context/ToastContext";
+import useSectionLoader from "../../hooks/useSectionLoader";
+import SectionErrorState from "../UI/SectionErrorState";
 
 const SidebarSkeletonItem = () => (
-  <div className="flex items-center w-full py-1.5 px-3 mb-0.5">
-    <div className="w-[18px] h-[18px] rounded bg-gray-200/60 animate-pulse mr-2 shrink-0" />
-    <div className="h-[14px] bg-gray-200/60 rounded animate-pulse w-3/5" />
+  <div className="flex items-center w-full py-1.5 px-3 mb-0.5 animate-pulse">
+    <div className="w-[18px] h-[18px] rounded bg-gray-200/60 dark:bg-white/10 mr-2.5 shrink-0" />
+    <div className="h-[14px] bg-gray-200/60 dark:bg-white/10 rounded w-3/5" />
   </div>
 );
 
@@ -71,6 +73,9 @@ const Sidebar = () => {
     isPageOpen,
     workspaceTree,
     setWorkspaceTree,
+    recentPages,
+    favoriteItems,
+    loadWorkspaceData,
     selectedLocation,
     setSelectedLocation,
     selectedPath,
@@ -82,12 +87,19 @@ const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [expandedFolders, setExpandedFolders] = useState({
-    "favorites-section": true,
-    "workspaces-section": true,
-    "recent-section": true,
+    "favorites-section": false,
+    "workspaces-section": false,
+    "recent-section": false,
     "chat-history-section": false,
   });
   const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
+
+  const {
+    sectionStates,
+    loadSection,
+    invalidateSection,
+    updateSectionData,
+  } = useSectionLoader();
 
   const searchInputRef = useRef(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -273,7 +285,7 @@ const Sidebar = () => {
   }, [searchQuery]);
 
   const topNavItems = [
-    { id: "home", label: "Home", path: "/dashboard", icon: Home01Icon },
+    { id: "home", label: "Home", path: "/dashboard/home", icon: Home01Icon },
     {
       id: "chat",
       label: "Chat",
@@ -295,7 +307,7 @@ const Sidebar = () => {
   ];
 
   const isHomeActive = () => {
-    return location.pathname === "/dashboard" || location.pathname === "/dashboard/";
+    return location.pathname === "/dashboard/home" || location.pathname === "/dashboard/home/";
   };
 
   // Real API-backed tree state
@@ -306,161 +318,93 @@ const Sidebar = () => {
   const [treeLoading, setTreeLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(true);
 
-  // Build the sidebar tree from backend
+  // Sync background-loaded workspace, recent, and favorites from EditorContext
   useEffect(() => {
-    const loadChatSessions = async () => {
-      try {
-        const res = await chatAPI.getSessions();
-        if (res.data.success) {
-          setChatSessions(res.data.sessions || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch chat sessions:", err);
-      } finally {
-        setChatLoading(false);
+    if (workspaceTree && workspaceTree.length > 0) {
+      setMockTree(workspaceTree);
+      updateSectionData("workspaces-section", workspaceTree);
+    }
+  }, [workspaceTree, updateSectionData]);
+
+  useEffect(() => {
+    if (recentPages && recentPages.length > 0) {
+      setMockRecent(recentPages);
+      updateSectionData("recent-section", recentPages);
+    }
+  }, [recentPages, updateSectionData]);
+
+  useEffect(() => {
+    if (favoriteItems && favoriteItems.length > 0) {
+      setMockFavorites(favoriteItems);
+      setExpandedFavoriteFolders(
+        favoriteItems.reduce((expanded, node) => {
+          if (node.type === "workspace" || node.type === "folder") {
+            expanded[node.id] = true;
+          }
+          return expanded;
+        }, {}),
+      );
+      updateSectionData("favorites-section", favoriteItems);
+    }
+  }, [favoriteItems, updateSectionData]);
+
+  // Modular event-based section loaders reusing background workspace response
+  const loadWorkspacesSection = useCallback(async (force = false) => {
+    return loadSection("workspaces-section", async () => {
+      const data = await loadWorkspaceData(force);
+      return data.workspaceTree;
+    }, { force });
+  }, [loadSection, loadWorkspaceData]);
+
+  const loadRecentSection = useCallback(async (force = false) => {
+    return loadSection("recent-section", async () => {
+      if (!force && recentPages && recentPages.length > 0) {
+        setMockRecent(recentPages);
+        return recentPages;
       }
-    };
+      const data = await loadWorkspaceData(force);
+      return data.recentPages;
+    }, { force });
+  }, [loadSection, recentPages, loadWorkspaceData]);
 
-    const loadTree = async () => {
-      try {
-        const wsRes = await workspacesAPI.getAll();
-        const workspaces = wsRes.data.workspaces || [];
-
-        const treeNodes = await Promise.all(
-          workspaces.map(async (ws) => {
-            const folderRes = await foldersAPI.getByWorkspace(ws._id, null);
-            const folders = folderRes.data.folders || [];
-
-            // Fetch root pages (not inside any folder)
-            const pageRes = await pagesAPI.getByWorkspace(ws._id, null);
-            const rootPages = pageRes.data.pages || [];
-
-            const folderNodes = await Promise.all(
-              folders.map(async (folder) => {
-                const fpRes = await pagesAPI.getByWorkspace(ws._id, folder._id);
-                const folderPages = fpRes.data.pages || [];
-                return {
-                  id: folder._id,
-                  type: "folder",
-                  name: folder.name,
-                  isFavorite: folder.isFavorite,
-                  workspaceId: ws._id,
-                  children: folderPages.map((p) => ({
-                    id: p._id,
-                    type: "page",
-                    name: p.title,
-                    path: `/dashboard/page/${p._id}`,
-                    isFavorite: p.isFavorite,
-                    updatedAt: p.updatedAt,
-                    isGlobal: false,
-                    workspaceId: ws._id,
-                    folderId: folder._id,
-                  })),
-                };
-              }),
-            );
-
-            // Deduplicate: remove pages from rootPages that are already inside a folder
-            const allFolderPageIds = new Set();
-            folderNodes.forEach((folder) => {
-              folder.children.forEach((page) => allFolderPageIds.add(page.id));
-            });
-            const filteredRootPages = rootPages.filter(
-              (p) => !allFolderPageIds.has(p._id),
-            );
-
-            const pageNodes = filteredRootPages.map((p) => ({
-              id: p._id,
-              type: "page",
-              name: p.title,
-              path: `/dashboard/page/${p._id}`,
-              isFavorite: p.isFavorite,
-              updatedAt: p.updatedAt,
-              isGlobal: true,
-              workspaceId: ws._id,
-              folderId: null,
-            }));
-
-            return {
-              id: ws._id,
-              type: "workspace",
-              name: ws.name,
-              isFavorite: ws.isFavorite,
-              path: `/dashboard/workspace/${ws._id}`,
-              children: [...folderNodes, ...pageNodes],
-            };
-          }),
-        );
-
-        setMockTree(treeNodes);
-        setWorkspaceTree(treeNodes); // Sync into EditorContext
-
-        // Fetch ALL pages for the user to reliably populate Recent and Favorites (including orphans)
-        const allPagesRes = await pagesAPI.getAll();
-        const globalAllPages = allPagesRes.data.pages || [];
-
-        // Collect favorites (workspaces + folders + pages marked isFavorite)
-        const favs = [];
-        const collectFavs = (nodes) => {
-          nodes.forEach((node) => {
-            if (node.isFavorite) {
-              if (node.type === "workspace") {
-                favs.push({ ...node, path: `/dashboard/workspace/${node.id}` });
-                return;
-              } else if (node.type === "folder") {
-                favs.push({ ...node, path: `/dashboard/workspace/${node.workspaceId}` });
-                return;
-              } else {
-                favs.push(node);
-              }
-            }
-            if (node.children) {
-              collectFavs(node.children);
-            }
-          });
-        };
-        collectFavs(treeNodes);
-        
-        setMockFavorites(favs);
-        setExpandedFavoriteFolders(
-          favs.reduce((expanded, node) => {
-            if (node.type === "workspace" || node.type === "folder") {
-              expanded[node.id] = true;
-            }
-            return expanded;
-          }, {}),
-        );
-
-        // Recent = all pages sorted by updatedAt descending (newest first)
-        const formattedAllPages = globalAllPages.map(p => ({
-          id: p._id,
-          type: "page",
-          name: p.title,
-          path: `/dashboard/page/${p._id}`,
-          isFavorite: p.isFavorite,
-          updatedAt: p.updatedAt,
-          isGlobal: !p.folderId
-        }));
-        
-        formattedAllPages.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-        setMockRecent(formattedAllPages.slice(0, 6));
-
-        // Only expand the main sections by default, keep individual workspaces/folders collapsed
-        const expanded = {
-          "favorites-section": true,
-          "workspaces-section": true,
-          "recent-section": true,
-        };
-        setExpandedFolders(expanded);
-      } catch (err) {
-        console.error("Sidebar tree load failed:", err);
-      } finally {
-        setTreeLoading(false);
+  const loadFavoritesSection = useCallback(async (force = false) => {
+    return loadSection("favorites-section", async () => {
+      if (!force && favoriteItems && favoriteItems.length > 0) {
+        setMockFavorites(favoriteItems);
+        return favoriteItems;
       }
-    };
-    loadChatSessions();
-    loadTree();
-  }, [refreshSidebarTrigger]); // Re-run when refreshSidebarTrigger changes
+      const data = await loadWorkspaceData(force);
+      return data.favoriteItems;
+    }, { force });
+  }, [loadSection, favoriteItems, loadWorkspaceData]);
+
+  const loadChatHistorySection = useCallback(async (force = false) => {
+    return loadSection("chat-history-section", async () => {
+      const res = await chatAPI.getSessions();
+      const sessions = res.data.sessions || [];
+      setChatSessions(sessions);
+      return sessions;
+    }, { force });
+  }, [loadSection]);
+
+  // Refetch only active/open sections when refreshSidebarTrigger occurs
+  useEffect(() => {
+    if (!refreshSidebarTrigger) return;
+    if (expandedFolders["recent-section"]) loadRecentSection(true);
+    if (expandedFolders["workspaces-section"]) loadWorkspacesSection(true);
+    if (expandedFolders["favorites-section"]) loadFavoritesSection(true);
+    if (expandedFolders["chat-history-section"]) loadChatHistorySection(true);
+  }, [refreshSidebarTrigger]);
+
+  // Load sections if user types in search so results are populated
+  useEffect(() => {
+    if (debouncedSearchQuery) {
+      loadRecentSection();
+      loadWorkspacesSection();
+      loadFavoritesSection();
+      loadChatHistorySection();
+    }
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
     const handleOptimisticDelete = (e) => {
@@ -590,7 +534,20 @@ const Sidebar = () => {
   };
 
   const toggleFolder = (id) => {
-    setExpandedFolders((prev) => ({ ...prev, [id]: !prev[id] }));
+    const willOpen = !expandedFolders[id];
+    setExpandedFolders((prev) => ({ ...prev, [id]: willOpen }));
+
+    if (willOpen) {
+      if (id === "recent-section") {
+        loadRecentSection();
+      } else if (id === "workspaces-section") {
+        loadWorkspacesSection();
+      } else if (id === "favorites-section") {
+        loadFavoritesSection();
+      } else if (id === "chat-history-section") {
+        loadChatHistorySection();
+      }
+    }
   };
 
   const toggleFavoriteFolder = (id) => {
@@ -1416,8 +1373,8 @@ const Sidebar = () => {
 
   const renderTree = (nodes, level = 0, expansionState = expandedFolders, onToggle = toggleFolder) => {
     return nodes.map((node) => {
-      // Minimal distance from left corner, tight 10px indent per level
-      const paddingLeft = `${4 + level * 10}px`;
+      // Clear visual indentation hierarchy per level
+      const paddingLeft = `${14 + level * 14}px`;
       const isExpanded = debouncedSearchQuery ? true : expansionState[node.id];
 
       if (node.type === "page") {
@@ -1429,18 +1386,18 @@ const Sidebar = () => {
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `flex items-center w-full py-1 pr-10 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                `flex items-center w-full py-1 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-colors ${
                   isActive
-                    ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
-                    : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                    ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
+                    : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
                 }`
               }
               style={{ paddingLeft }}
             >
               <div className="flex items-center overflow-hidden">
                 <NotebookIcon
-                  className="w-[18px] h-[18px] mr-2 text-current shrink-0"
-                  strokeWidth={2}
+                  className="w-4 h-4 mr-2 text-current shrink-0"
+                  strokeWidth={1.6}
                 />
                 <span className="truncate">{node.name}</span>
               </div>
@@ -1450,7 +1407,7 @@ const Sidebar = () => {
               className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
               aria-label={`More options for ${node.name}`}
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
           </div>
         );
@@ -1464,25 +1421,25 @@ const Sidebar = () => {
           {(() => {
             return (
               <div
-                className="group flex items-center justify-between w-full py-1 pr-2 text-[13.5px] font-medium text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] mb-0.5 transition-colors cursor-pointer"
+                className="group flex items-center justify-between w-full py-1 pr-2 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] mb-0.5 transition-colors cursor-pointer"
                 style={{ paddingLeft }}
                 onClick={() => onToggle(node.id)}
               >
                 <div className="flex items-center overflow-hidden min-w-0">
                   {node.type === "workspace" ? (
                     <ArtboardToolIcon
-                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
-                      strokeWidth={2}
+                      className="w-4 h-4 mr-2 shrink-0 text-current"
+                      strokeWidth={1.6}
                     />
                   ) : isExpanded ? (
                     <Folder02Icon
-                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
-                      strokeWidth={2}
+                      className="w-4 h-4 mr-2 shrink-0 text-current"
+                      strokeWidth={1.6}
                     />
                   ) : (
                     <Folder01Icon
-                      className="w-[18px] h-[18px] mr-2 shrink-0 text-current"
-                      strokeWidth={2}
+                      className="w-4 h-4 mr-2 shrink-0 text-current"
+                      strokeWidth={1.6}
                     />
                   )}
                   <span className="truncate select-none mr-1.5">
@@ -1510,14 +1467,14 @@ const Sidebar = () => {
                     className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity mr-0.5`}
                     title="Add..."
                   >
-                    <Add01Icon className="w-[18px] h-[18px]" />
+                    <Add01Icon className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={(e) => handleMenuClick(e, node.id)}
                     className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="More Options"
                   >
-                    <MoreHorizontal className="w-4 h-4" />
+                    <MoreHorizontal className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1567,6 +1524,11 @@ const Sidebar = () => {
 
   const handleCreateRootPage = () => {
     navigate("/dashboard/page/new");
+  };
+
+  const handleStartNewChat = () => {
+    clearChat();
+    navigate("/dashboard/chat");
   };
 
   return (
@@ -1713,37 +1675,42 @@ const Sidebar = () => {
       {/* Tree Navigation */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-2 py-2 min-h-0">
         {/* Recent Section */}
-        <div className="flex flex-col mb-3.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+        <div className="flex flex-col mb-2.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/15 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
-              <span className="text-[11.5px] font-semibold tracking-wide">Recents</span>
+              <FolderClockIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
+              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Recents</span>
               <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
+                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
               />
             </div>
           </div>
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["recent-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 pb-1">
               <button
                 onClick={handleCreateRootPage}
-                className="group flex items-center gap-3 w-full py-1 px-2.5 mb-0.5 text-[13.5px] font-medium text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2.5 w-full py-1 px-3 mb-0.5 text-[13px] font-normal text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
-                <File02Icon className="w-[18px] h-[18px] shrink-0 text-current" strokeWidth={2} />
+                <File02Icon className="w-4 h-4 shrink-0 text-current" strokeWidth={1.6} />
                 New Page
               </button>
 
-              {treeLoading ? (
+              {sectionStates["recent-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                 </>
+              ) : sectionStates["recent-section"]?.isError ? (
+                <SectionErrorState
+                  message="Failed to load recents"
+                  onRetry={() => loadRecentSection(true)}
+                />
               ) : (
                 filterTree(mockRecent, debouncedSearchQuery).map((recent) => (
                   <div
@@ -1753,17 +1720,17 @@ const Sidebar = () => {
                     <NavLink
                       to={recent.path}
                       className={({ isActive }) =>
-                        `flex items-center w-full py-1 px-2.5 pr-10 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors ${
+                        `flex items-center w-full py-1 px-3 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-colors ${
                           isActive
-                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
-                            : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
+                            : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
                         }`
                       }
                     >
-                      <div className="flex items-center overflow-hidden gap-3">
+                      <div className="flex items-center overflow-hidden gap-2">
                         <NotebookIcon
-                          className="w-[18px] h-[18px] text-current shrink-0"
-                          strokeWidth={2}
+                          className="w-4 h-4 text-current shrink-0"
+                          strokeWidth={1.6}
                         />
                         <span className="truncate">{recent.name}</span>
                       </div>
@@ -1773,26 +1740,29 @@ const Sidebar = () => {
                       className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                       aria-label={`More options for ${recent.name}`}
                     >
-                      <MoreHorizontal className="w-4 h-4" />
+                      <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))
+              )}
+              {sectionStates["recent-section"]?.isSuccess && mockRecent.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-gray-400">No recent pages</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Workspaces Section */}
-        <div className="flex flex-col mb-3.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+        <div className="flex flex-col mb-2.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
             <div
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-              <span className="text-[11.5px] font-semibold tracking-wide">Workspaces</span>
+              <ArtboardToolIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
+              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Workspaces</span>
               <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
+                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
               />
             </div>
             <button
@@ -1805,7 +1775,7 @@ const Sidebar = () => {
                 setShowNewWorkspaceModal(true);
               }}
             >
-              <Add01Icon className="w-4 h-4" />
+              <Add01Icon className="w-3.5 h-3.5" />
             </button>
           </div>
           <div
@@ -1815,44 +1785,57 @@ const Sidebar = () => {
                 : "grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-1 pt-1.5 max-h-[380px] overflow-y-auto custom-scrollbar pb-1">
-              {treeLoading ? (
+            <div className="overflow-hidden w-full flex flex-col px-1 pt-1.5 pb-1">
+              {sectionStates["workspaces-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                 </>
+              ) : sectionStates["workspaces-section"]?.isError ? (
+                <SectionErrorState
+                  message="Failed to load workspaces"
+                  onRetry={() => loadWorkspacesSection(true)}
+                />
               ) : (
                 renderTree(filterTree(mockTree, debouncedSearchQuery))
+              )}
+              {sectionStates["workspaces-section"]?.isSuccess && mockTree.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-gray-400">No workspaces yet</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Favorites Section */}
-        <div className="flex flex-col mb-3.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-1 pb-2 shrink-0">
+        <div className="flex flex-col mb-2.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-              <span className="text-[11.5px] font-semibold tracking-wide">Favorites</span>
+              <FolderFavouriteIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
+              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Favorites</span>
               <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
+                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
               />
             </div>
           </div>
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[380px] overflow-y-auto custom-scrollbar">
-              {treeLoading ? (
+            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 pb-1">
+              {sectionStates["favorites-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
                   <SidebarSkeletonItem />
                 </>
+              ) : sectionStates["favorites-section"]?.isError ? (
+                <SectionErrorState
+                  message="Failed to load favorites"
+                  onRetry={() => loadFavoritesSection(true)}
+                />
               ) : (
                 renderTree(
                   filterTree(mockFavorites, debouncedSearchQuery),
@@ -1861,86 +1844,120 @@ const Sidebar = () => {
                   toggleFavoriteFolder,
                 )
               )}
+              {sectionStates["favorites-section"]?.isSuccess && mockFavorites.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-gray-400">No favorites yet</div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Chat History Section */}
-        <div className="flex flex-col mb-3.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-2 shrink-0">
+        <div
+          className={`flex flex-col mb-1 transition-all ${
+            debouncedSearchQuery || expandedFolders["chat-history-section"]
+              ? "flex-1 min-h-[120px]"
+              : "shrink-0"
+          }`}
+        >
+          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span className="text-[11.5px] font-semibold tracking-wide">Chat History</span>
+              <ChatFeedback01Icon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
+              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Chat History</span>
               <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-300 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
+                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
               />
             </div>
+            <button
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              title="New Chat"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStartNewChat();
+              }}
+            >
+              <Add01Icon className="w-3.5 h-3.5" />
+            </button>
           </div>
           <div
             className={`grid transition-all duration-300 ease-in-out ${
               debouncedSearchQuery || expandedFolders["chat-history-section"]
-                ? "grid-rows-[1fr] opacity-100"
+                ? "grid-rows-[1fr] opacity-100 flex-1 min-h-0"
                 : "grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 max-h-[320px] overflow-y-auto custom-scrollbar pb-2">
-              {chatLoading ? (
-                <>
-                  <SidebarSkeletonItem />
-                  <SidebarSkeletonItem />
-                  <SidebarSkeletonItem />
-                </>
-              ) : (
-                chatSessions.map((session) => (
-                  <div
-                    key={session.sessionId}
-                    className={`w-full relative ${activeMenu === session.sessionId ? "z-50" : "z-auto"}`}
-                  >
-                    {(() => {
-                      const isChatActive = sessionId === session.sessionId;
-                      return (
-                        <div
-                          className={`group flex items-center justify-between w-full py-1 px-2.5 text-[13.5px] font-medium rounded-[6px] mb-0.5 transition-colors cursor-pointer ${
-                            isChatActive
-                              ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white"
-                              : "text-gray-700 dark:text-[#d1cfca] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
-                          }`}
-                          onClick={() => {
-                            loadSession(session.sessionId);
-                            navigate("/dashboard/chat");
-                          }}
-                        >
-                          <div className="flex items-center overflow-hidden gap-3">
-                            <ChatFeedback01Icon
-                              className="w-[18px] h-[18px] text-current shrink-0"
-                              strokeWidth={2}
-                            />
-                            <span className="truncate">
-                              {session.title || "Untitled Chat"}
-                            </span>
-                          </div>
-                          <button
-                            onClick={(e) =>
-                              handleMenuClick(e, session.sessionId)
-                            }
-                            className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+            <div className="overflow-hidden w-full h-full flex flex-col px-0.5 pt-1.5 pb-1 min-h-0">
+              <button
+                onClick={handleStartNewChat}
+                className="group flex items-center gap-2.5 w-full py-1 px-3 mb-1 text-[13px] font-normal text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
+              >
+                <Add01Icon className="w-4 h-4 shrink-0 text-current" strokeWidth={1.6} />
+                New Chat
+              </button>
+
+              <div className="w-full flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain">
+                {sectionStates["chat-history-section"]?.isLoading ? (
+                  <>
+                    <SidebarSkeletonItem />
+                    <SidebarSkeletonItem />
+                    <SidebarSkeletonItem />
+                  </>
+                ) : sectionStates["chat-history-section"]?.isError ? (
+                  <SectionErrorState
+                    message="Failed to load chat history"
+                    onRetry={() => loadChatHistorySection(true)}
+                  />
+                ) : (
+                  chatSessions.map((session) => (
+                    <div
+                      key={session.sessionId}
+                      className={`w-full relative ${activeMenu === session.sessionId ? "z-50" : "z-auto"}`}
+                    >
+                      {(() => {
+                        const isChatActive = sessionId === session.sessionId;
+                        return (
+                          <div
+                            className={`group flex items-center justify-between w-full py-1 px-3 text-[13px] rounded-[6px] mb-0.5 transition-colors cursor-pointer ${
+                              isChatActive
+                                ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
+                                : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                            }`}
+                            onClick={() => {
+                              loadSession(session.sessionId);
+                              navigate("/dashboard/chat");
+                            }}
                           >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </button>
-                        </div>
-                      );
-                    })()}
+                            <div className="flex items-center overflow-hidden gap-2">
+                              <ChatFeedback01Icon
+                                className="w-4 h-4 text-current shrink-0"
+                                strokeWidth={1.6}
+                              />
+                              <span className="truncate">
+                                {session.title || "Untitled Chat"}
+                              </span>
+                            </div>
+                            <button
+                              onClick={(e) =>
+                                handleMenuClick(e, session.sessionId)
+                              }
+                              className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ))
+                )}
+                {chatSessions.length === 0 && (
+                  <div className="px-8 py-2 text-sm text-gray-400">
+                    No recent chats
                   </div>
-                ))
-              )}
-              {chatSessions.length === 0 && (
-                <div className="px-8 py-2 text-sm text-gray-400">
-                  No recent chats
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
