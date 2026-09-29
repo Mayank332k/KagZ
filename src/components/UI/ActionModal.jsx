@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CodeFolderIcon, TextIcon, Loading03Icon } from 'hugeicons-react';
+import { Loading03Icon } from 'hugeicons-react';
 import useAsyncAction from '../../hooks/useAsyncAction';
 
 const ActionModal = ({
@@ -101,13 +101,13 @@ const ActionModal = ({
                         onClick={() => setSelectedPageType('document')}
                         className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${selectedPageType === 'document' ? 'bg-white dark:bg-[#262626] shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                       >
-                        <TextIcon className="w-4 h-4" /> Document
+                        <span className="material-symbols-outlined text-[16px] leading-none select-none">description</span> Document
                       </button>
                       <button 
                         onClick={() => setSelectedPageType('code')}
                         className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${selectedPageType === 'code' ? 'bg-white dark:bg-[#262626] shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                       >
-                        <CodeFolderIcon className="w-4 h-4" /> Code
+                        <span className="material-symbols-outlined text-[16px] leading-none select-none">folder_special</span> Code
                       </button>
                     </div>
                   )}

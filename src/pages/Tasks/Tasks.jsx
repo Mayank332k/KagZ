@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Plus, ArrowLeft, Edit2, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { taskBoardsAPI, tasksAPI } from "../../services/api";
@@ -7,16 +7,46 @@ import { useToast } from "../../context/ToastContext";
 import KanbanBoard from "../../components/Tasks/KanbanBoard";
 import ActionModal from "../../components/UI/ActionModal";
 import TaskEditModal from "../../components/Tasks/TaskEditModal";
-import useSectionLoader from "../../hooks/useSectionLoader";
-import SectionErrorState from "../../components/UI/SectionErrorState";
+
+const CACHE_KEY_BOARDS = "noema_kanban_boards";
+const CACHE_KEY_ACTIVE_BOARD = "noema_kanban_active_board";
+const CACHE_KEY_TASKS = "noema_kanban_tasks";
 
 const Tasks = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [tasks, setTasks] = useState([]);
-  const [boards, setBoards] = useState([]);
-  const [activeBoardId, setActiveBoardId] = useState(null);
-  const [boardsLoading, setBoardsLoading] = useState(true);
+
+  const [boards, setBoards] = useState(() => {
+    try {
+      const saved = localStorage.getItem(CACHE_KEY_BOARDS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [activeBoardId, setActiveBoardId] = useState(() => {
+    try {
+      const savedActive = localStorage.getItem(CACHE_KEY_ACTIVE_BOARD);
+      if (savedActive) return savedActive;
+      const savedBoards = localStorage.getItem(CACHE_KEY_BOARDS);
+      const parsed = savedBoards ? JSON.parse(savedBoards) : [];
+      return parsed.length > 0 ? parsed[0]._id : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem(CACHE_KEY_TASKS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [boardsLoading, setBoardsLoading] = useState(() => boards.length === 0);
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
   const [taskToDelete, setTaskToDelete] = useState(null);
@@ -24,49 +54,81 @@ const Tasks = () => {
   const [boardContextMenu, setBoardContextMenu] = useState(null);
   const [boardModal, setBoardModal] = useState({ isOpen: false, type: 'rename', board: null });
 
-  const {
-    sectionStates,
-    loadSection,
-    invalidateSection,
-    updateSectionData,
-  } = useSectionLoader();
+  const updateBoards = (newBoards) => {
+    setBoards(newBoards);
+    try {
+      localStorage.setItem(CACHE_KEY_BOARDS, JSON.stringify(newBoards));
+    } catch {}
+  };
 
-  // Load board tasks on demand for a specific board
-  const loadBoardTasks = useCallback(async (boardId, force = false) => {
-    if (!boardId) return;
-    return loadSection(`kanban-board-${boardId}`, async () => {
-      const tasksRes = await tasksAPI.getTasks();
-      const allTasks = tasksRes?.data?.tasks || [];
-      setTasks(allTasks);
-      return allTasks;
-    }, { force });
-  }, [loadSection]);
+  const handleSelectBoard = (boardId) => {
+    setActiveBoardId(boardId);
+    try {
+      localStorage.setItem(CACHE_KEY_ACTIVE_BOARD, boardId);
+    } catch {}
+  };
 
-  // Fetch only board tabs on initial mount
-  useEffect(() => {
-    const fetchBoards = async () => {
+  const updateTasks = (updater) => {
+    setTasks((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
       try {
-        setBoardsLoading(true);
-        const boardsRes = await taskBoardsAPI.getBoards();
+        localStorage.setItem(CACHE_KEY_TASKS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Background fetch on initial mount (stale-while-revalidate)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchInitialData = async () => {
+      try {
+        if (boards.length === 0) {
+          setBoardsLoading(true);
+        }
+        const [boardsRes, tasksRes] = await Promise.all([
+          taskBoardsAPI.getBoards(),
+          tasksAPI.getTasks(),
+        ]);
+
+        if (!isMounted) return;
+
         const loadedBoards = boardsRes?.data?.boards || [];
-        setBoards(loadedBoards);
+        updateBoards(loadedBoards);
+
+        const loadedTasks = tasksRes?.data?.tasks || [];
+        updateTasks(loadedTasks);
+
         if (loadedBoards.length > 0) {
-          const firstBoardId = loadedBoards[0]._id;
-          setActiveBoardId(firstBoardId);
-          loadBoardTasks(firstBoardId);
+          setActiveBoardId((prevActive) => {
+            const exists = loadedBoards.some((b) => b._id === prevActive);
+            const targetId = exists ? prevActive : loadedBoards[0]._id;
+            try {
+              localStorage.setItem(CACHE_KEY_ACTIVE_BOARD, targetId);
+            } catch {}
+            return targetId;
+          });
         }
       } catch (error) {
-        console.error("Failed to fetch boards", error.response?.data || error);
+        console.error("Failed to fetch kanban data", error.response?.data || error);
       } finally {
-        setBoardsLoading(false);
+        if (isMounted) {
+          setBoardsLoading(false);
+        }
       }
     };
-    fetchBoards();
-  }, [loadBoardTasks]);
+
+    fetchInitialData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleTaskUpdate = async (taskId, targetStatusId) => {
-    // Optimistic UI update
-    setTasks((prev) =>
+    // Optimistic UI update + sync cache
+    updateTasks((prev) =>
       prev.map((task) =>
         (task.id === taskId || task._id === taskId) ? { ...task, status: targetStatusId } : task,
       ),
@@ -92,8 +154,8 @@ const Tasks = () => {
       boardId: activeBoardId
     };
     
-    // Optimistic UI
-    setTasks(prev => [...prev, newTask]);
+    // Optimistic UI + sync cache
+    updateTasks((prev) => [...prev, newTask]);
 
     try {
       const res = await tasksAPI.createTask({
@@ -102,14 +164,17 @@ const Tasks = () => {
         status: statusId
       });
       if (res?.data?.task) {
-        setTasks(prev => prev.map(t => t._id === tempId || t.id === tempId ? { ...t, _id: res.data.task._id, id: res.data.task._id } : t));
+        updateTasks((prev) =>
+          prev.map((t) => (t._id === tempId || t.id === tempId) ? { ...t, _id: res.data.task._id, id: res.data.task._id } : t)
+        );
       }
     } catch (error) {
       console.error("Failed to create task", error);
-      // Remove failed task from UI
-      setTasks(prev => prev.filter(t => t._id !== tempId && t.id !== tempId));
+      // Remove failed task from UI & cache
+      updateTasks((prev) => prev.filter((t) => t._id !== tempId && t.id !== tempId));
     }
   };
+
 
   const submitNewBoard = async () => {
     if (!newBoardName.trim()) {
@@ -121,8 +186,9 @@ const Tasks = () => {
     try {
       const res = await taskBoardsAPI.createBoard({ name: newBoardName.trim() });
       if (res?.data?.board) {
-        setBoards(prev => [...prev, res.data.board]);
-        setActiveBoardId(res.data.board._id);
+        const created = res.data.board;
+        updateBoards([...boards, created]);
+        handleSelectBoard(created._id);
         showToast("Board created successfully", "success");
       }
     } catch (error) {
@@ -154,7 +220,7 @@ const Tasks = () => {
       try {
         const res = await taskBoardsAPI.renameBoard(boardModal.board._id, newName);
         if (res?.data?.board) {
-          setBoards(prev => prev.map(b => b._id === boardModal.board._id ? res.data.board : b));
+          updateBoards(boards.map((b) => b._id === boardModal.board._id ? res.data.board : b));
           showToast("Board renamed successfully", "success");
         }
       } catch (error) {
@@ -164,11 +230,13 @@ const Tasks = () => {
     } else if (boardModal.type === 'delete') {
       try {
         await taskBoardsAPI.deleteBoard(boardModal.board._id);
-        const remainingBoards = boards.filter(b => b._id !== boardModal.board._id);
-        setBoards(remainingBoards);
+        const remainingBoards = boards.filter((b) => b._id !== boardModal.board._id);
+        updateBoards(remainingBoards);
         if (activeBoardId === boardModal.board._id) {
-          setActiveBoardId(remainingBoards.length > 0 ? remainingBoards[0]._id : null);
+          const nextActiveId = remainingBoards.length > 0 ? remainingBoards[0]._id : null;
+          handleSelectBoard(nextActiveId);
         }
+        updateTasks((prev) => prev.filter((t) => t.boardId !== boardModal.board._id));
         showToast("Board deleted successfully", "success");
       } catch (error) {
         console.error("Failed to delete board", error);
@@ -185,10 +253,13 @@ const Tasks = () => {
   const handleSaveTaskEdit = async (newTitle) => {
     if (!taskToEdit || !newTitle) return;
     
-    setTasks(prev => prev.map(t => (t._id === taskToEdit._id || t.id === taskToEdit.id) ? { ...t, task: newTitle, title: newTitle } : t));
+    const targetId = taskToEdit._id || taskToEdit.id;
+    updateTasks((prev) =>
+      prev.map((t) => (t._id === targetId || t.id === targetId) ? { ...t, task: newTitle, title: newTitle } : t)
+    );
     setTaskToEdit(null);
     try {
-      await tasksAPI.updateTask(taskToEdit._id || taskToEdit.id, { task: newTitle });
+      await tasksAPI.updateTask(targetId, { task: newTitle });
     } catch (error) {
       console.error("Failed to update task", error);
     }
@@ -201,7 +272,7 @@ const Tasks = () => {
   const confirmDeleteTask = async () => {
     if (!taskToDelete) return;
     const taskId = taskToDelete;
-    setTasks(prev => prev.filter(t => t._id !== taskId && t.id !== taskId));
+    updateTasks((prev) => prev.filter((t) => t._id !== taskId && t.id !== taskId));
     setTaskToDelete(null);
     try {
       await tasksAPI.deleteTask(taskId);
@@ -210,7 +281,7 @@ const Tasks = () => {
     }
   };
 
-  const displayTasks = tasks.filter(t => t.boardId === activeBoardId);
+  const displayTasks = tasks.filter((t) => t.boardId === activeBoardId);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#fbfbfa] dark:bg-[var(--color-dark-bg)]">
@@ -222,15 +293,12 @@ const Tasks = () => {
             className="flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors mr-2"
             title="Go back"
           >
-            <ArrowLeft className="w-5 h-5 stroke-[2]" />
+            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           {boards.map(board => (
             <button
               key={board._id}
-              onClick={() => {
-                setActiveBoardId(board._id);
-                loadBoardTasks(board._id);
-              }}
+              onClick={() => handleSelectBoard(board._id)}
               onContextMenu={(e) => handleBoardContextMenu(e, board)}
               className={`flex items-center px-3.5 py-1.5 rounded-full text-[14px] font-medium transition-colors whitespace-nowrap ${activeBoardId === board._id ? "bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222] hover:text-gray-800 dark:hover:text-gray-200"}`}
               title="Right-click to rename or delete"
@@ -273,7 +341,7 @@ const Tasks = () => {
                 onClick={() => setIsCreatingBoard(true)}
                 className="flex items-center justify-center shrink-0 w-7 h-7 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#222] transition-colors ml-1"
               >
-                <Plus className="w-4 h-4" />
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">add_2</span>
               </motion.button>
             )}
           </AnimatePresence>
@@ -287,13 +355,6 @@ const Tasks = () => {
         <div className="flex w-full h-full items-center justify-center text-gray-500">
           No board selected. Please create or select a board.
         </div>
-      ) : activeBoardId && sectionStates[`kanban-board-${activeBoardId}`]?.isError ? (
-        <div className="flex-1 flex items-center justify-center p-8">
-          <SectionErrorState
-            message="Failed to load tasks for this board"
-            onRetry={() => loadBoardTasks(activeBoardId, true)}
-          />
-        </div>
       ) : (
         <KanbanBoard 
           tasks={displayTasks}
@@ -302,7 +363,7 @@ const Tasks = () => {
           onTaskEdit={handleTaskEdit}
           onTaskDelete={handleTaskDelete}
           allowCreation={true}
-          isLoading={boardsLoading || sectionStates[`kanban-board-${activeBoardId}`]?.isLoading}
+          isLoading={boardsLoading && boards.length === 0}
         />
       )}
 
@@ -358,7 +419,7 @@ const Tasks = () => {
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
             >
-              <Edit2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-400 dark:text-gray-500">edit</span>
               <span>Rename board</span>
             </button>
             <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
@@ -370,7 +431,7 @@ const Tasks = () => {
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             >
-              <Trash2 className="w-3.5 h-3.5 text-red-400 dark:text-red-400/80" />
+              <span className="material-symbols-outlined text-[14px] leading-none select-none text-red-400 dark:text-red-400/80">delete</span>
               <span>Delete board</span>
             </button>
           </div>

@@ -6,21 +6,8 @@ import {
   useContext,
 } from "react";
 import { useParams, useNavigate, useLocation, useBlocker } from "react-router-dom";
-import { MoreHorizontal, ArrowLeft, Heading1, Heading2, Heading3, Bold, Italic, Strikethrough, Code, Underline as UnderlineIcon, RemoveFormatting, Link as LinkIcon } from "lucide-react";
-import {
-  Edit02Icon,
-  Bookmark02Icon,
-  FavouriteIcon,
-  Delete01Icon,
-  CodeFolderIcon,
-  TextIcon,
-  
-  Loading03Icon,
-  QuillWrite02Icon,
-  Minimize02Icon,
-  BlushBrush02Icon,
-  FeatherIcon,
-} from "hugeicons-react";
+import { Loading03Icon } from "hugeicons-react";
+
 import { pagesAPI, chatAPI } from "../../services/api";
 import ActionModal from "../UI/ActionModal";
 import LocationDropdown from "../UI/LocationDropdown";
@@ -230,7 +217,10 @@ const NoteEditor = () => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false,
+        underline: false,
+      }),
       Markdown,
       Underline,
       Link.configure({
@@ -382,17 +372,12 @@ const NoteEditor = () => {
 
   const initialContentLoadedRef = useRef(false);
   useEffect(() => {
-     if (editor && initialContentLoadedRef.current) {
+     if (editor && !editor.isDestroyed && initialContentLoadedRef.current) {
          try {
-           const freshState = editor.state.constructor.create({
-             schema: editor.state.schema,
-             plugins: editor.state.plugins,
-           });
-           editor.view.updateState(freshState);
-           editor.commands.setContent(content);
+           editor.commands.setContent(content, { emitUpdate: false });
+           editor.commands.clearHistory?.();
          } catch (e) {
-           console.warn('Editor state reset failed, falling back:', e);
-           try { editor.commands.setContent(content); } catch { /* ignore */ }
+           console.warn('Editor setContent failed:', e);
          }
          initialContentLoadedRef.current = false;
      }
@@ -862,9 +847,9 @@ const NoteEditor = () => {
 
   // --- Slash Menu & Inline AI Helpers ---
   const slashMenuItems = [
-    { id: "write", label: "Ask AI to write...", icon: <QuillWrite02Icon className="w-[18px] h-[18px]" /> },
-    { id: "summarize", label: "Summarize Selection", icon: <Minimize02Icon className="w-[18px] h-[18px]" /> },
-    { id: "grammar", label: "Fix Grammar", icon: <BlushBrush02Icon className="w-[18px] h-[18px]" /> },
+    { id: "write", label: "Ask AI to write...", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">edit_document</span> },
+    { id: "summarize", label: "Summarize Selection", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">close_fullscreen</span> },
+    { id: "grammar", label: "Fix Grammar", icon: <span className="material-symbols-outlined text-[18px] leading-none select-none">brush</span> },
   ].filter((item) =>
     item.label.toLowerCase().includes(slashMenu.search.toLowerCase())
   );
@@ -1205,7 +1190,7 @@ const NoteEditor = () => {
             className="flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors mr-2"
             title="Go back"
           >
-            <ArrowLeft className="w-5 h-5 stroke-[2]" />
+            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           <LocationDropdown
             variant="header"
@@ -1230,7 +1215,7 @@ const NoteEditor = () => {
               <Loading03Icon className="w-4 h-4 text-gray-400 animate-spin" />
             )}
             {saveStatus === "saved" && (
-              <Bookmark02Icon className="w-4 h-4 text-green-500" />
+              <span className="material-symbols-outlined text-[16px] leading-none select-none text-green-500">bookmark</span>
             )}
           </div>
 
@@ -1251,7 +1236,7 @@ const NoteEditor = () => {
               style={{ borderRadius: "10px" }}
               title="More Actions"
             >
-              <MoreHorizontal className="w-5 h-5" />
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">more_horiz</span>
             </button>
 
             {/* Action Dropdown Card */}
@@ -1271,7 +1256,7 @@ const NoteEditor = () => {
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
                 >
                   <div className="flex items-center">
-                    <TextIcon className="w-4 h-4 mr-2" /> Document
+                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">description</span> Document
                   </div>
                   {pageType === "document" && (
                     <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -1285,7 +1270,7 @@ const NoteEditor = () => {
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
                 >
                   <div className="flex items-center">
-                    <CodeFolderIcon className="w-4 h-4 mr-2" /> Code
+                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">folder_special</span> Code
                   </div>
                   {pageType === "code" && (
                     <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -1297,7 +1282,7 @@ const NoteEditor = () => {
                 {/* Font Size */}
                 <div className="flex items-center justify-between px-4 py-2 text-[#8a817c] dark:text-white">
                   <span className="flex items-center">
-                    <Edit02Icon className="w-4 h-4 mr-2" /> Text Size
+                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">edit</span> Text Size
                   </span>
                   <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-[10px] p-0.5">
                     <button
@@ -1332,10 +1317,9 @@ const NoteEditor = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
                 >
-                  <FavouriteIcon
-                    className={`w-4 h-4 mr-2 ${isFavorite ? "text-yellow-500" : ""}`}
-                    variant={isFavorite ? "solid" : "stroke"}
-                  />
+                  <span
+                    className={`material-symbols-outlined text-[16px] leading-none select-none mr-2 ${isFavorite ? "fill-yellow-400 text-yellow-500" : ""}`}
+                  >favorite</span>
                   {isFavorite ? "Remove Favorite" : "Add to Favorites"}
                 </button>
 
@@ -1347,7 +1331,7 @@ const NoteEditor = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 flex items-center text-red-500 transition-colors"
                 >
-                  <Delete01Icon className="w-4 h-4 mr-2" /> Delete Page
+                  <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete Page
                 </button>
               </div>
             )}
@@ -1388,7 +1372,7 @@ const NoteEditor = () => {
                 {/* Background Shimmer (Clipped properly by overflow-hidden) */}
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gray-100/40 dark:via-white/[0.03] to-transparent animate-shimmer-move" />
                 
-                <FeatherIcon className="w-4 h-4 text-blue-500/90 dark:text-blue-400 relative z-10" />
+                <span className="material-symbols-outlined text-[16px] leading-none select-none text-blue-500/90 dark:text-blue-400 relative z-10">edit</span>
                 
                 {/* Premium Text Shimmer */}
                 <span className="relative z-10 bg-gradient-to-r from-gray-600 via-blue-500 to-gray-600 dark:from-gray-400 dark:via-blue-400 dark:to-gray-400 bg-[length:200%_auto] animate-shimmer-text bg-clip-text text-transparent">
@@ -1500,22 +1484,22 @@ const NoteEditor = () => {
                 <>
                   {/* Functional Formatting (Row 1) */}
                   <div className="flex items-center justify-between">
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 1 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}> <Heading1 className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 2 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}> <Heading2 className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 3 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}> <Heading3 className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('bold') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()}> <Bold className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('italic') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()}> <Italic className="w-[16px] h-[16px]" /> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 1 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_h1</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 2 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_h2</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('heading', { level: 3 }) ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_h3</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('bold') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_bold</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('italic') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_italic</span> </button>
                   </div>
                   
                   {/* Functional Formatting (Row 2) */}
                   <div className="flex items-center justify-between mt-1">
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('underline') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()}> <UnderlineIcon className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('strike') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()}> <Strikethrough className="w-[16px] h-[16px]" /> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('underline') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_underlined</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('strike') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">strikethrough_s</span> </button>
                      <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('link') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => {
                        setSelectionToolbar(prev => ({ ...prev, showUrlInput: true }));
-                     }}> <LinkIcon className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('code') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleCode().run()}> <Code className="w-[16px] h-[16px]" /> </button>
-                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().unsetAllMarks().run()}> <RemoveFormatting className="w-[16px] h-[16px]" /> </button>
+                     }}> <span className="material-symbols-outlined text-[16px] leading-none select-none">link</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] transition-colors ${editor.isActive('code') ? 'text-blue-600 bg-blue-50 dark:text-[#3b82f6] dark:bg-[#333]' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleCode().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">code</span> </button>
+                     <button className={`p-1.5 hover:bg-gray-100 dark:hover:bg-[#333] rounded-[6px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().unsetAllMarks().run()}> <span className="material-symbols-outlined text-[16px] leading-none select-none">format_clear</span> </button>
                   </div>
 
                   <div className="w-[160px] h-[1px] bg-gray-200 dark:bg-white/10 my-[4px] mx-[8px]" />

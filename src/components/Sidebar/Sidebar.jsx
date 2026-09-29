@@ -5,37 +5,8 @@ import { EditorContext } from "../../context/EditorContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
-import {
-  ChevronDown,
-  ChevronRight,
-  ChevronLeft,
-  Menu,
-  Check,
-  MoreHorizontal,
-  Edit2,
-  Star,
-  X
-} from "lucide-react";
-import {
-  FolderFavouriteIcon,
-  FolderClockIcon,
-  ArtboardToolIcon,
-  Folder01Icon,
-  Folder02Icon,
-  NotebookIcon,
-  Delete01Icon,
-  ChatFeedback01Icon,
-  Search01Icon,
-  Quiz04Icon,
-  Home01Icon,
-  Add01Icon,
-  ArrowRight01Icon,
-  File02Icon,
-  TextIcon,
-  AccountSetting03Icon,
-  Logout01Icon,
-  OptionIcon
-} from "hugeicons-react";
+import { PanelLeft, SquarePen } from "lucide-react";
+
 import ActionModal from "../UI/ActionModal";
 import LocationDropdown from "../UI/LocationDropdown";
 import SearchPalette from "../UI/SearchPalette";
@@ -89,7 +60,7 @@ const Sidebar = () => {
   const [expandedFolders, setExpandedFolders] = useState({
     "favorites-section": false,
     "workspaces-section": false,
-    "recent-section": false,
+    "recent-section": true,
     "chat-history-section": false,
   });
   const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
@@ -105,15 +76,44 @@ const Sidebar = () => {
   const [isSearchActive, setIsSearchActive] = useState(false);
 
   useEffect(() => {
+    let lastTriggerTime = 0;
     const handleGlobalKeyDown = (e) => {
-      // Option + S (macOS) or Alt + S (Windows) to toggle search
-      if (e.altKey && e.code === 'KeyS') {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const isKeyK =
+        e.code === "KeyK" ||
+        e.key === "k" ||
+        e.key === "K" ||
+        e.keyCode === 75 ||
+        e.which === 75;
+
+      // Cmd/Ctrl + K or Option + S to toggle search
+      if (isCmdOrCtrl && isKeyK) {
         e.preventDefault();
-        setIsSearchActive(prev => !prev);
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastTriggerTime > 150) {
+          lastTriggerTime = now;
+          setIsSearchActive((prev) => !prev);
+        }
+        return;
+      }
+      if (e.altKey && (e.code === "KeyS" || e.key === "s" || e.key === "S" || e.keyCode === 83)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastTriggerTime > 150) {
+          lastTriggerTime = now;
+          setIsSearchActive((prev) => !prev);
+        }
       }
     };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    document.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+      document.removeEventListener("keydown", handleGlobalKeyDown, true);
+    };
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -285,24 +285,35 @@ const Sidebar = () => {
   }, [searchQuery]);
 
   const topNavItems = [
-    { id: "home", label: "Home", path: "/dashboard/home", icon: Home01Icon },
+    {
+      id: "home",
+      label: "Home",
+      path: "/dashboard/home",
+      icon: () => (
+        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+          home
+        </span>
+      ),
+    },
     {
       id: "chat",
       label: "Chat",
       path: "/dashboard/chat",
-      icon: ChatFeedback01Icon,
+      icon: () => (
+        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+          chat
+        </span>
+      ),
     },
     {
       id: "tasks",
       label: "Tasks",
       path: "/dashboard/tasks",
-      icon: Quiz04Icon,
-    },
-    {
-      id: "search",
-      label: "Search",
-      path: "/dashboard/search",
-      icon: Search01Icon,
+      icon: () => (
+        <span className="material-symbols-outlined text-[18px] leading-none select-none">
+          checklist
+        </span>
+      ),
     },
   ];
 
@@ -405,6 +416,11 @@ const Sidebar = () => {
       loadChatHistorySection();
     }
   }, [debouncedSearchQuery]);
+
+  // Load recent section on initial load since it is open by default
+  useEffect(() => {
+    loadRecentSection();
+  }, [loadRecentSection]);
 
   useEffect(() => {
     const handleOptimisticDelete = (e) => {
@@ -767,14 +783,23 @@ const Sidebar = () => {
 
   if (isCollapsed) {
     return (
-      <div className="h-screen w-16 bg-[#f7f6f3] dark:bg-[var(--color-dark-sidebar)] flex flex-col items-center py-4 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400 transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      </div>
+      <>
+        <div className="h-screen w-12 bg-[#f7f6f3] dark:bg-[var(--color-dark-sidebar)] flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+            title="Open sidebar"
+            aria-label="Open sidebar"
+          >
+            <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
+          </button>
+        </div>
+        <SearchPalette 
+          isOpen={isSearchActive}
+          onClose={() => setIsSearchActive(false)}
+          recentPages={mockRecent}
+        />
+      </>
     );
   }
 
@@ -802,7 +827,7 @@ const Sidebar = () => {
               });
             }}
           >
-            <Delete01Icon className="w-[18px] h-[18px] mr-2" /> Delete Chat
+            <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete Chat
           </button>
         </div>
       );
@@ -835,9 +860,7 @@ const Sidebar = () => {
             }
           }}
         >
-          <Star
-            className={`w-[18px] h-[18px] mr-2 ${node.isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`}
-          />
+          <span className={`material-symbols-outlined text-[18px] leading-none select-none mr-2 ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`}>star</span>
           {node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
         </button>
         <div className="h-px bg-gray-200 dark:bg-[var(--color-dark-border)] my-1"></div>
@@ -855,7 +878,7 @@ const Sidebar = () => {
                 });
               }}
             >
-              <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
+              <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">note_add</span> New Page
             </button>
             <button
               className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
@@ -869,7 +892,7 @@ const Sidebar = () => {
                 });
               }}
             >
-              <Folder01Icon className="w-[18px] h-[18px] mr-2" /> New Folder
+              <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">folder</span> New Folder
             </button>
             <div className="h-px bg-gray-200 dark:bg-[var(--color-dark-border)] my-1"></div>
           </>
@@ -886,7 +909,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <Edit2 className="w-[18px] h-[18px] mr-2" /> Rename
+          <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">edit</span> Rename
         </button>
         <button
           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-red-600 dark:text-red-400 flex items-center transition-colors"
@@ -900,7 +923,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <Delete01Icon className="w-[18px] h-[18px] mr-2" /> Delete
+          <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete
         </button>
       </div>
     );
@@ -927,7 +950,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <NotebookIcon className="w-[18px] h-[18px] mr-2" /> New Page
+          <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">note_add</span> New Page
         </button>
         <button
           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
@@ -941,7 +964,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <Folder01Icon className="w-[18px] h-[18px] mr-2" /> New Folder
+          <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">folder</span> New Folder
         </button>
       </div>
     );
@@ -973,7 +996,7 @@ const Sidebar = () => {
             onClick={() => setShowSettingsCard(false)} 
             className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 z-10"
           >
-            <X className="w-5 h-5" />
+            <span className="material-symbols-outlined text-[20px] leading-none select-none">close</span>
           </button>
 
           {/* Left Sidebar */}
@@ -1000,7 +1023,7 @@ const Sidebar = () => {
               onClick={() => setSettingsTab("preferences")}
               className={`flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg transition-colors text-left ${settingsTab === "preferences" ? "bg-gray-200 dark:bg-[#333333] text-black dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
             >
-              <AccountSetting03Icon className="w-4 h-4 text-gray-500" />
+              <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-500">manage_accounts</span>
               <span className="text-[13px]">Preferences</span>
             </button>
             
@@ -1008,7 +1031,7 @@ const Sidebar = () => {
               onClick={() => setSettingsTab("typography")}
               className={`flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg transition-colors text-left ${settingsTab === "typography" ? "bg-gray-200 dark:bg-[#333333] text-black dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
             >
-              <TextIcon className="w-4 h-4 text-gray-500" />
+              <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-500">description</span>
               <span className="text-[13px]">Typography</span>
             </button>
             
@@ -1017,7 +1040,7 @@ const Sidebar = () => {
                 onClick={logout}
                 className="w-full flex items-center px-2 py-1.5 text-sm rounded-md transition-colors text-red-500 hover:bg-red-500/10 dark:hover:bg-red-500/20"
               >
-                <Logout01Icon className="w-[18px] h-[18px] mr-2" /> Log out
+                <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">logout</span> Log out
               </button>
             </div>
           </div>
@@ -1096,7 +1119,7 @@ const Sidebar = () => {
                           className="flex items-center justify-between w-full bg-[#f7f6f3] dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] px-3 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
                         >
                           <span className="capitalize">{theme === 'system' ? 'Use system setting' : theme}</span>
-                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showThemeDropdown ? "rotate-180" : ""}`} />
+                          <span className={`material-symbols-outlined text-[16px] leading-none select-none text-gray-400 transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         
                         {showThemeDropdown && (
@@ -1115,7 +1138,7 @@ const Sidebar = () => {
                                 className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
                               >
                                 <span>{t.label}</span>
-                                {theme === t.id && <Check className="w-4 h-4" />}
+                                {theme === t.id && <span className="material-symbols-outlined text-[16px] leading-none select-none">check</span>}
                               </button>
                             ))}
                           </div>
@@ -1150,7 +1173,7 @@ const Sidebar = () => {
                           <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium group-hover:text-black dark:group-hover:text-white transition-colors">Cookie Settings</span>
                           <span className="text-[13px] text-gray-500">Manage your cookie preferences</span>
                         </div>
-                        <ChevronRight className={`w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-transform ${showCookiePanel ? "rotate-90" : ""}`} />
+                        <span className={`material-symbols-outlined text-[20px] leading-none select-none text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-transform ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
                       </div>
                       
                       {showCookiePanel && (
@@ -1239,7 +1262,7 @@ const Sidebar = () => {
                           className="flex items-center justify-between w-full bg-[#f7f6f3] dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] px-3 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
                         >
                           <span className="capitalize">{fontFamily === 'sans' ? 'Sans-serif' : fontFamily === 'serif' ? 'Serif' : fontFamily === 'system' ? 'System Default' : 'Monospace'}</span>
-                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showFontDropdown ? "rotate-180" : ""}`} />
+                          <span className={`material-symbols-outlined text-[16px] leading-none select-none text-gray-400 transition-transform ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         
                         {showFontDropdown && (
@@ -1259,7 +1282,7 @@ const Sidebar = () => {
                                 className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
                               >
                                 <span>{f.label}</span>
-                                {fontFamily === f.id && <Check className="w-4 h-4" />}
+                                {fontFamily === f.id && <span className="material-symbols-outlined text-[16px] leading-none select-none">check</span>}
                               </button>
                             ))}
                           </div>
@@ -1373,8 +1396,8 @@ const Sidebar = () => {
 
   const renderTree = (nodes, level = 0, expansionState = expandedFolders, onToggle = toggleFolder) => {
     return nodes.map((node) => {
-      // Clear visual indentation hierarchy per level
-      const paddingLeft = `${14 + level * 14}px`;
+      // Clear visual indentation hierarchy per level matching Notion / Linear
+      const paddingLeft = `${10 + level * 14}px`;
       const isExpanded = debouncedSearchQuery ? true : expansionState[node.id];
 
       if (node.type === "page") {
@@ -1386,28 +1409,29 @@ const Sidebar = () => {
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `flex items-center w-full py-1 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-colors ${
+                `group/row relative flex items-center w-full py-1.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 ${
                   isActive
-                    ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
-                    : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                    ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
+                    : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
                 }`
               }
               style={{ paddingLeft }}
             >
-              <div className="flex items-center overflow-hidden">
-                <NotebookIcon
-                  className="w-4 h-4 mr-2 text-current shrink-0"
-                  strokeWidth={1.6}
-                />
+              <div className="flex items-center gap-2 overflow-hidden w-full">
+                <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-[#8a8883]">
+                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
+                    assignment
+                  </span>
+                </div>
                 <span className="truncate">{node.name}</span>
               </div>
             </NavLink>
             <button
               onClick={(e) => handleMenuClick(e, node.id)}
-              className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
               aria-label={`More options for ${node.name}`}
             >
-              <MoreHorizontal className="w-3.5 h-3.5" />
+              <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
             </button>
           </div>
         );
@@ -1421,35 +1445,34 @@ const Sidebar = () => {
           {(() => {
             return (
               <div
-                className="group flex items-center justify-between w-full py-1 pr-2 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] mb-0.5 transition-colors cursor-pointer"
+                className="group flex items-center justify-between w-full py-1.5 pr-1.5 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] mb-0.5 transition-all duration-150 cursor-pointer"
                 style={{ paddingLeft }}
                 onClick={() => onToggle(node.id)}
               >
-                <div className="flex items-center overflow-hidden min-w-0">
-                  {node.type === "workspace" ? (
-                    <ArtboardToolIcon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={1.6}
-                    />
-                  ) : isExpanded ? (
-                    <Folder02Icon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={1.6}
-                    />
-                  ) : (
-                    <Folder01Icon
-                      className="w-4 h-4 mr-2 shrink-0 text-current"
-                      strokeWidth={1.6}
-                    />
-                  )}
-                  <span className="truncate select-none mr-1.5">
+                <div className="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
+                  <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-[#8a8883]">
+                    {node.type === "workspace" ? (
+                      <span className="material-symbols-outlined text-[15px] leading-none text-current select-none">
+                        dashboard_2_add
+                      </span>
+                    ) : isExpanded ? (
+                      <span className="material-symbols-outlined text-[15px] leading-none text-gray-500 dark:text-gray-400 select-none">
+                        folder_open
+                      </span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[15px] leading-none text-gray-400 dark:text-gray-500 select-none">
+                        folder
+                      </span>
+                    )}
+                  </div>
+                  <span className="truncate select-none font-normal text-gray-700 dark:text-[#d4d2cd]">
                     {node.name}
                   </span>
-                  <ChevronRight
-                    className={`w-3 h-3 shrink-0 transition-all duration-300 opacity-0 group-hover:opacity-100 ${isExpanded ? "rotate-90 opacity-70" : ""}`}
-                  />
+                  <span className={`material-symbols-outlined text-[13px] leading-none select-none transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-70 ${isExpanded ? "rotate-90 !opacity-70" : ""} shrink-0`}>
+                    chevron_right
+                  </span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center gap-0.5">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -1464,17 +1487,17 @@ const Sidebar = () => {
                       );
                       setActiveMenu(null);
                     }}
-                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity mr-0.5`}
+                    className={`w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="Add..."
                   >
-                    <Add01Icon className="w-3.5 h-3.5" />
+                    <span className="material-symbols-outlined text-[14px] leading-none select-none">add_2</span>
                   </button>
                   <button
                     onClick={(e) => handleMenuClick(e, node.id)}
-                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                    className={`w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="More Options"
                   >
-                    <MoreHorizontal className="w-3.5 h-3.5" />
+                    <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
                   </button>
                 </div>
               </div>
@@ -1541,51 +1564,47 @@ const Sidebar = () => {
         onMouseDown={handleMouseDown}
         className="absolute top-0 right-[-4px] w-[8px] h-full cursor-col-resize z-50 hover:bg-gray-300/50 transition-colors"
       />
-      {/* Animated Quick Actions Bar */}
-      <div className="px-3 pt-5 pb-3 flex items-center justify-start gap-1">
+      {/* Top Header & Search Bar (Notion Style) */}
+      <div className="px-3 pt-3 pb-1 flex flex-col gap-2 shrink-0">
+        {/* Top Controls Row */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setIsCollapsed(true)}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+            title="Close sidebar"
+            aria-label="Close sidebar"
+          >
+            <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
+          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleCreateRootPage}
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+              title="New page"
+              aria-label="New page"
+            >
+              <SquarePen className="w-4 h-4" strokeWidth={1.8} />
+            </button>
+          </div>
+        </div>
+
+        {/* Search or Ask Bar */}
+        <button
+          onClick={() => setIsSearchActive(true)}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-transparent hover:border-black/25 dark:hover:border-white/25 transition-colors text-left group cursor-pointer"
+        >
+          <span className="text-[13px] text-gray-400 dark:text-[#7d7a75] group-hover:text-gray-600 dark:group-hover:text-[#a8a6a1] select-none">
+            Search or ask
+          </span>
+          <kbd className="text-[11px] font-sans font-medium text-gray-400 dark:text-[#6e6b66] bg-transparent border border-black/[0.08] dark:border-white/[0.1] rounded px-1.5 py-0.5 leading-none select-none">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+
+      {/* Animated Quick Actions Bar (3 pills: Home, Chat, Tasks) */}
+      <div className="px-3 pt-2 pb-2 flex items-center justify-start gap-1">
         {topNavItems.map((item) => {
-          if (item.id === "search") {
-            return (
-              <button
-                key={item.id}
-                onClick={() => setIsSearchActive(true)}
-                className="block cursor-pointer"
-              >
-                <motion.div
-                  layout
-                  className={`flex items-center h-8 rounded-full overflow-hidden ${
-                    isSearchActive
-                      ? "bg-[#ecebe9] dark:bg-[#333333] text-black dark:text-white px-3"
-                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 w-8 justify-center"
-                  }`}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                >
-                  <motion.div
-                    layout="position"
-                    className="shrink-0 flex items-center justify-center"
-                  >
-                    <item.icon className="w-[19px] h-[19px]" />
-                  </motion.div>
-                  <AnimatePresence initial={false}>
-                    {isSearchActive && (
-                      <motion.div
-                        initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 8 }}
-                        exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center gap-2 overflow-hidden whitespace-nowrap"
-                      >
-                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                          <OptionIcon className="w-[14px] h-[14px]" />
-                          <span className="text-[13px] font-medium font-sans ml-0.5">S</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              </button>
-            );
-          }
 
           if (item.id === "chat") {
             const isChatActive =
@@ -1598,10 +1617,10 @@ const Sidebar = () => {
               >
                 <motion.div
                   layout
-                  className={`flex items-center h-8 rounded-full overflow-hidden ${
+                  className={`flex items-center h-7 rounded-[6px] overflow-hidden ${
                     isChatActive
-                      ? "bg-[#ecebe9] dark:bg-[#333333] text-black dark:text-white px-3"
-                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 w-8 justify-center"
+                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2 font-medium"
+                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
                   }`}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 >
@@ -1609,16 +1628,16 @@ const Sidebar = () => {
                     layout="position"
                     className="shrink-0 flex items-center justify-center"
                   >
-                    <item.icon className="w-[19px] h-[19px]" />
+                    <item.icon className="w-[17px] h-[17px]" />
                   </motion.div>
                   <AnimatePresence initial={false}>
                     {isChatActive && (
                       <motion.span
                         initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 8 }}
+                        animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
                         exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="text-[15px] font-semibold whitespace-nowrap overflow-hidden"
+                        className="text-[13px] font-medium whitespace-nowrap overflow-hidden"
                       >
                         {item.label}
                       </motion.span>
@@ -1638,10 +1657,10 @@ const Sidebar = () => {
                 return (
                   <motion.div
                     layout
-                    className={`flex items-center h-8 rounded-full overflow-hidden ${
+                    className={`flex items-center h-7 rounded-[6px] overflow-hidden ${
                       active
-                        ? "bg-[#ecebe9] dark:bg-[#333333] text-black dark:text-white px-3"
-                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 w-8 justify-center"
+                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2 font-medium"
+                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
                     }`}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
@@ -1649,16 +1668,16 @@ const Sidebar = () => {
                       layout="position"
                       className="shrink-0 flex items-center justify-center"
                     >
-                      <item.icon className="w-[19px] h-[19px]" />
+                      <item.icon className="w-[17px] h-[17px]" />
                     </motion.div>
                     <AnimatePresence initial={false}>
                       {active && (
                         <motion.span
                           initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 8 }}
+                          animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
                           exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[15px] font-semibold whitespace-nowrap overflow-hidden"
+                          className="text-[13px] font-medium whitespace-nowrap overflow-hidden"
                         >
                           {item.label}
                         </motion.span>
@@ -1675,29 +1694,29 @@ const Sidebar = () => {
       {/* Tree Navigation */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-2 py-2 min-h-0">
         {/* Recent Section */}
-        <div className="flex flex-col mb-2.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
+        <div className="flex flex-col mb-3 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
-              <FolderClockIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
-              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Recents</span>
-              <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
-              />
+              <span className="material-symbols-outlined text-[14px] leading-none shrink-0 opacity-70 select-none">tab_recent</span>
+              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Recents</span>
+              <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
           </div>
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["recent-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 pb-1">
+            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-1">
               <button
                 onClick={handleCreateRootPage}
-                className="group flex items-center gap-2.5 w-full py-1 px-3 mb-0.5 text-[13px] font-normal text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full py-1.5 px-2.5 mb-0.5 text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
-                <File02Icon className="w-4 h-4 shrink-0 text-current" strokeWidth={1.6} />
-                New Page
+                <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
+                  <span className="material-symbols-outlined text-[15px] leading-none select-none">add_2</span>
+                </div>
+                <span>New Page</span>
               </button>
 
               {sectionStates["recent-section"]?.isLoading ? (
@@ -1720,27 +1739,28 @@ const Sidebar = () => {
                     <NavLink
                       to={recent.path}
                       className={({ isActive }) =>
-                        `flex items-center w-full py-1 px-3 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-colors ${
+                        `group/row relative flex items-center w-full py-1.5 px-2.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 ${
                           isActive
-                            ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
-                            : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                            ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
+                            : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
                         }`
                       }
                     >
-                      <div className="flex items-center overflow-hidden gap-2">
-                        <NotebookIcon
-                          className="w-4 h-4 text-current shrink-0"
-                          strokeWidth={1.6}
-                        />
+                      <div className="flex items-center gap-2 overflow-hidden w-full">
+                        <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-[#8a8883]">
+                          <span className="material-symbols-outlined text-[15px] leading-none text-current select-none">
+                            assignment
+                          </span>
+                        </div>
                         <span className="truncate">{recent.name}</span>
                       </div>
                     </NavLink>
                     <button
                       onClick={(e) => handleMenuClick(e, recent.id)}
-                      className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                      className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                       aria-label={`More options for ${recent.name}`}
                     >
-                      <MoreHorizontal className="w-3.5 h-3.5" />
+                      <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
                     </button>
                   </div>
                 ))
@@ -1753,20 +1773,18 @@ const Sidebar = () => {
         </div>
 
         {/* Workspaces Section */}
-        <div className="flex flex-col mb-2.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
+        <div className="flex flex-col mb-3 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
             <div
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
-              <ArtboardToolIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
-              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Workspaces</span>
-              <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
-              />
+              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">dashboard_2_add</span>
+              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Workspaces</span>
+              <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
             <button
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100"
               title="Create new workspace"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1775,7 +1793,7 @@ const Sidebar = () => {
                 setShowNewWorkspaceModal(true);
               }}
             >
-              <Add01Icon className="w-3.5 h-3.5" />
+              <span className="material-symbols-outlined text-[14px] leading-none select-none">add_2</span>
             </button>
           </div>
           <div
@@ -1785,7 +1803,7 @@ const Sidebar = () => {
                 : "grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-1 pt-1.5 pb-1">
+            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-1">
               {sectionStates["workspaces-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
@@ -1809,23 +1827,21 @@ const Sidebar = () => {
         </div>
 
         {/* Favorites Section */}
-        <div className="flex flex-col mb-2.5 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
+        <div className="flex flex-col mb-3 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
-              <FolderFavouriteIcon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
-              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Favorites</span>
-              <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
-              />
+              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">star</span>
+              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Favorites</span>
+              <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
           </div>
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col px-0.5 pt-1.5 pb-1">
+            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-1">
               {sectionStates["favorites-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
@@ -1853,32 +1869,32 @@ const Sidebar = () => {
 
         {/* Chat History Section */}
         <div
-          className={`flex flex-col mb-1 transition-all ${
+          className={`flex flex-col mb-2 transition-all ${
             debouncedSearchQuery || expandedFolders["chat-history-section"]
               ? "flex-1 min-h-[120px]"
               : "shrink-0"
           }`}
         >
-          <div className="group flex items-center justify-between w-full pt-2 px-2 pb-1.5 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1.5 py-1 rounded-md text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
-              <ChatFeedback01Icon className="w-4 h-4 shrink-0 opacity-80" strokeWidth={1.6} />
-              <span className="text-[11.5px] font-semibold tracking-wider uppercase">Chat History</span>
-              <ChevronRight
-                className={`w-3 h-3 shrink-0 transition-transform duration-200 text-gray-400 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
-              />
+              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">chat</span>
+              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Chat History</span>
+              <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
             <button
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100"
               title="New Chat"
               onClick={(e) => {
                 e.stopPropagation();
                 handleStartNewChat();
               }}
             >
-              <Add01Icon className="w-3.5 h-3.5" />
+              <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                add_2
+              </span>
             </button>
           </div>
           <div
@@ -1888,13 +1904,17 @@ const Sidebar = () => {
                 : "grid-rows-[0fr] opacity-0"
             }`}
           >
-            <div className="overflow-hidden w-full h-full flex flex-col px-0.5 pt-1.5 pb-1 min-h-0">
+            <div className="overflow-hidden w-full h-full flex flex-col pt-0.5 pb-1 min-h-0">
               <button
                 onClick={handleStartNewChat}
-                className="group flex items-center gap-2.5 w-full py-1 px-3 mb-1 text-[13px] font-normal text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] rounded-[6px] transition-colors bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full py-1.5 px-2.5 mb-0.5 text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
-                <Add01Icon className="w-4 h-4 shrink-0 text-current" strokeWidth={1.6} />
-                New Chat
+                <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
+                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
+                    add_2
+                  </span>
+                </div>
+                <span>New Chat</span>
               </button>
 
               <div className="w-full flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain">
@@ -1913,40 +1933,44 @@ const Sidebar = () => {
                   chatSessions.map((session) => (
                     <div
                       key={session.sessionId}
-                      className={`w-full relative ${activeMenu === session.sessionId ? "z-50" : "z-auto"}`}
+                      className={`group w-full relative ${activeMenu === session.sessionId ? "z-50" : "z-auto"}`}
                     >
                       {(() => {
                         const isChatActive = sessionId === session.sessionId;
                         return (
-                          <div
-                            className={`group flex items-center justify-between w-full py-1 px-3 text-[13px] rounded-[6px] mb-0.5 transition-colors cursor-pointer ${
-                              isChatActive
-                                ? "bg-[#ecebe9] dark:bg-white/[0.12] text-black dark:text-white font-medium"
-                                : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
-                            }`}
-                            onClick={() => {
-                              loadSession(session.sessionId);
-                              navigate("/dashboard/chat");
-                            }}
-                          >
-                            <div className="flex items-center overflow-hidden gap-2">
-                              <ChatFeedback01Icon
-                                className="w-4 h-4 text-current shrink-0"
-                                strokeWidth={1.6}
-                              />
-                              <span className="truncate">
-                                {session.title || "Untitled Chat"}
-                              </span>
+                          <>
+                            <div
+                              className={`relative flex items-center w-full py-1.5 px-2.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 cursor-pointer ${
+                                isChatActive
+                                  ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
+                                  : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
+                              }`}
+                              onClick={() => {
+                                loadSession(session.sessionId);
+                                navigate("/dashboard/chat");
+                              }}
+                            >
+                              <div className="flex items-center gap-2 overflow-hidden w-full">
+                                <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-[#7d7b76]">
+                                  <span className="material-symbols-outlined text-[15px] leading-none text-current select-none">
+                                    chat
+                                  </span>
+                                </div>
+                                <span className="truncate">
+                                  {session.title || "Untitled Chat"}
+                                </span>
+                              </div>
                             </div>
                             <button
                               onClick={(e) =>
                                 handleMenuClick(e, session.sessionId)
                               }
-                              className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                              className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                              aria-label={`More options for ${session.title || "chat"}`}
                             >
-                              <MoreHorizontal className="w-3.5 h-3.5" />
+                              <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
                             </button>
-                          </div>
+                          </>
                         );
                       })()}
                     </div>
@@ -1964,36 +1988,40 @@ const Sidebar = () => {
       </div>
 
       {/* Footer */}
-      <div className="h-16 px-3 flex items-center border-t border-gray-200 dark:border-[var(--color-dark-border)] justify-between shrink-0">
+      <div className="h-11 px-2.5 flex items-center border-t border-gray-200/80 dark:border-[var(--color-dark-border)] justify-between shrink-0">
         <div
           onClick={(e) => {
             e.stopPropagation();
             setShowSettingsCard(true);
           }}
-          className="flex items-center gap-3 overflow-hidden cursor-pointer hover:bg-gray-200/50 p-1.5 rounded-lg transition-colors flex-1 mr-2"
+          className="flex items-center gap-2 overflow-hidden cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] py-1 px-1.5 rounded-[6px] transition-colors min-w-0"
         >
           {user?.avatar ? (
             <img
               src={user.avatar}
               alt="User"
-              className="w-8 h-8 rounded-full object-cover shrink-0"
+              className="w-[22px] h-[22px] rounded-[5px] object-cover shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-[#ecebe9] dark:bg-gray-800 flex items-center justify-center text-black dark:text-gray-200 font-semibold shrink-0">
-              {(user?.username || user?.name || "U").charAt(0).toUpperCase()}
+            <div className="w-[22px] h-[22px] rounded-[5px] bg-[#2e2e2e] dark:bg-[#2b2b2b] flex items-center justify-center text-gray-200 dark:text-gray-100 font-semibold text-[12px] shrink-0 select-none">
+              {(user?.username || user?.name || "M").charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="text-[14px] font-medium text-gray-800 dark:text-gray-200 truncate">
+          <span className="text-[13.5px] font-medium text-gray-800 dark:text-[#d4d2cd] truncate max-w-[140px]">
             {user?.username || user?.name || "User"}
+          </span>
+          <span className="material-symbols-outlined text-[15px] leading-none text-gray-400 dark:text-[#888580] shrink-0 select-none">
+            expand_more
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-
           <button
             onClick={() => setIsCollapsed(true)}
-            className="p-1.5 hover:bg-gray-200/50 dark:hover:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400 transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:text-[#7d7a75] dark:hover:text-gray-200 transition-colors shrink-0"
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <span className="material-symbols-outlined text-[18px] leading-none select-none">chevron_left</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircleIcon, RefreshIcon } from 'hugeicons-react';
+
 
 /**
  * SectionErrorState
@@ -17,7 +17,7 @@ const SectionErrorState = ({
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 mb-1">
-        <AlertCircleIcon className="w-3.5 h-3.5 shrink-0" />
+        <span className="material-symbols-outlined text-[14px] leading-none select-none shrink-0">error</span>
         <span className="text-[12px] font-medium">{message}</span>
       </div>
       {onRetry && (
@@ -29,7 +29,7 @@ const SectionErrorState = ({
           }}
           className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded transition-all cursor-pointer"
         >
-          <RefreshIcon className="w-3 h-3" />
+          <span className="material-symbols-outlined text-[12px] leading-none select-none">refresh</span>
           <span>Retry</span>
         </button>
       )}

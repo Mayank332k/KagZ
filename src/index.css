@@ -28,6 +28,11 @@ html {
   font-size: var(--noema-font-size, 16px);
 }
 
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 20 !important;
+  font-weight: 200 !important;
+}
+
 @layer base {
   body {
     @apply bg-white text-gray-800 dark:bg-[#16171d] dark:text-gray-300;

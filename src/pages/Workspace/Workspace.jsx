@@ -4,15 +4,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import {
   Folder01Icon,
-  NotebookIcon,
   AppleReminderIcon,
-  ArtboardToolIcon,
 } from "hugeicons-react";
 import { foldersAPI, pagesAPI, workspacesAPI } from "../../services/api";
 
+const PageIcon = () => (
+  <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-500 shrink-0">
+    assignment
+  </span>
+);
+
 const getIcon = (type) => {
   if (type === "code" || type === "todo") return AppleReminderIcon;
-  return NotebookIcon;
+  return PageIcon;
 };
 
 const TreeNode = ({ node, level, navigate }) => {
@@ -187,7 +191,9 @@ const Workspace = () => {
           <>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-[12px] flex items-center justify-center border border-blue-100">
-                <ArtboardToolIcon className="w-6 h-6 stroke-[1.5]" />
+                <span className="material-symbols-outlined text-[24px] leading-none select-none">
+                  dashboard_2_add
+                </span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-[var(--color-dark-title)]">
                 {workspace?.name || "Workspace"}

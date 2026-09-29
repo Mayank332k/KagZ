@@ -371,6 +371,7 @@ export const taskBoardsAPI = {
       invalidateCache('tasks:boards');
       return res;
     }),
+  renameBoard: (id, name) => taskBoardsAPI.updateBoard(id, { name }),
   deleteBoard: (id) =>
     api.delete(`/tasks/boards/${id}`).then((res) => {
       invalidateCache('tasks:boards');

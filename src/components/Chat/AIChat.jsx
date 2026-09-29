@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
-import { ArrowUp, ArrowDown, Plus, X, FileText, Copy, Check, MoreVertical, ArrowLeft, RotateCcw, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react';
-import { FolderLibraryIcon, Brain03Icon, ClaudeIcon, NotebookIcon, SidebarLeft01Icon, Loading03Icon, Add01Icon, ArrowExpand01Icon } from 'hugeicons-react';
+import { Loading03Icon } from "hugeicons-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
@@ -242,7 +241,7 @@ const SourcesPill = ({ sources, align = 'side' }) => {
                           }}
                         />
                       ) : (
-                        <NotebookIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 shrink-0" />
+                        <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-500 dark:text-gray-400 shrink-0">book</span>
                       )}
                       <span className="text-[11px] text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 truncate">
                         {item.siteName}
@@ -269,16 +268,6 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
   const { isPageOpen, appendContent, workspaceTree, triggerSidebarRefresh } = useContext(EditorContext);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
-    };
-    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMenu]);
 
   const handleCopy = async () => {
     try {
@@ -316,7 +305,6 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         if (resPage.data?.success) {
            const newPage = resPage.data.page;
            triggerSidebarRefresh?.();
-           // Notify optimistic UI if needed, but triggerSidebarRefresh usually handles it
            const event = new CustomEvent("optimistic-add-page", { detail: { ...newPage, type: 'page', path: `/dashboard/page/${newPage._id}` } });
            window.dispatchEvent(event);
            navigate(`/dashboard/page/${newPage._id}`);
@@ -327,46 +315,49 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
     }
   };
 
+  const formattedTime = (() => {
+    if (!timestamp) return "";
+    try {
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return "";
+    }
+  })();
+
   return (
-    <div className={`flex items-center gap-1 mt-2 transition-opacity duration-200 ${isLatest ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
+    <div className={`flex items-center gap-1.5 mt-2 select-none transition-opacity duration-200 ${isLatest ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
       {/* Copy */}
       <button
         onClick={handleCopy}
-        className="flex items-center gap-1 px-2 py-1 text-[12px] text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-        title="Copy"
+        className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+        title={copied ? "Copied!" : "Copy"}
+        aria-label="Copy"
       >
-        {copied ? (
-          <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-500">Copied</span></>
-        ) : (
-          <><Copy className="w-3.5 h-3.5" /><span>Copy</span></>
-        )}
+        <span className={`material-symbols-outlined text-[15px] leading-none select-none ${copied ? 'text-green-500' : ''}`}>
+          {copied ? 'check' : 'content_copy'}
+        </span>
       </button>
 
       {/* Add to page */}
       <button
         onClick={handleAdd}
-        className={`flex items-center gap-1 px-2 py-1 text-[12px] rounded-lg transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer`}
-        title={isPageOpen ? 'Add to current page' : 'Create new page with this content'}
+        className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+        title={isPageOpen ? 'Add to current page' : 'Create new page with this note'}
+        aria-label="Add to page"
       >
-        <Plus className="w-3.5 h-3.5" />
-        <span>Add</span>
+        <span className="material-symbols-outlined text-[17px] leading-none select-none">
+          add
+        </span>
       </button>
 
-      {/* More menu with timestamp */}
-      <div className="relative" ref={menuRef}>
-        <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="flex items-center px-1.5 py-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          title="More"
-        >
-          <MoreVertical className="w-3.5 h-3.5" />
-        </button>
-        {showMenu && (
-          <div className="absolute left-0 bottom-full mb-1 bg-white rounded-[10px] shadow-lg border border-gray-200 py-1.5 px-3 z-50 whitespace-nowrap text-[12px] text-gray-500">
-            {timeAgo(timestamp) || 'Just now'}
-          </div>
-        )}
-      </div>
+      {/* Timestamp */}
+      {formattedTime && (
+        <span className="text-[12px] text-gray-400 dark:text-[#7d7a75] font-normal tracking-tight ml-1 select-none">
+          {formattedTime}
+        </span>
+      )}
     </div>
   );
 };
@@ -634,7 +625,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
             className="flex items-center justify-between mb-2 px-3.5 py-2 rounded-[16px] bg-[var(--sources-card-bg)] border border-[var(--border)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] text-[13.5px] backdrop-blur-md"
           >
             <div className="flex items-center gap-2 min-w-0 pr-2">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="material-symbols-outlined text-[16px] leading-none select-none text-red-500 shrink-0">error</span>
               <span className="truncate font-medium text-[var(--composer-text)]">
                 {chatError.message || "Failed to generate response"}
               </span>
@@ -646,7 +637,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 onClick={retryLastMessage}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12.5px] font-medium bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-colors shadow-sm cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span className="material-symbols-outlined text-[14px] leading-none select-none">refresh</span>
                 <span>Retry</span>
               </button>
               <button
@@ -655,7 +646,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
                 title="Dismiss"
               >
-                <X className="w-3.5 h-3.5" />
+                <span className="material-symbols-outlined text-[14px] leading-none select-none">close</span>
               </button>
             </div>
           </motion.div>
@@ -688,7 +679,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
               }`}
               title="Toggle Deep Thinking"
             >
-              <Brain03Icon className={isThinking ? "w-[18px] h-[18px]" : "w-[22px] h-[22px]"} />
+              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[18px]" : "text-[22px]"}`}>psychology</span>
               {isThinking && <span>Thinking</span>}
             </button>
           </div>
@@ -702,7 +693,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <span>{activeModel.label}</span>
-                <ChevronUp className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className={`material-symbols-outlined text-[14px] leading-none select-none text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
               </button>
 
               <AnimatePresence>
@@ -730,7 +721,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                           >
                             <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
                               {isActive && (
-                                <Check className="w-4 h-4 text-gray-900 dark:text-white stroke-[2.2]" />
+                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-900 dark:text-white stroke-[2.2]">check</span>
                               )}
                             </div>
                             <div className="flex flex-col ml-3 min-w-0 flex-1">
@@ -761,7 +752,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                       >
                         <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
                           {isThinking && (
-                            <Check className="w-4 h-4 text-gray-900 dark:text-white stroke-[2.2]" />
+                            <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-900 dark:text-white stroke-[2.2]">check</span>
                           )}
                         </div>
                         <div className="flex flex-col ml-3 min-w-0">
@@ -794,7 +785,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 disabled={!query.trim()}
                 className="w-[36px] h-[36px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1"
               >
-                <ArrowUp className="w-[20px] h-[20px]" />
+                <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_upward</span>
               </button>
             )}
           </div>
@@ -810,7 +801,6 @@ const AIChat = ({ isRightPanel = false }) => {
     query,
     setQuery,
     isStreaming,
-    currentSources,
     sendMessage,
     clearChat,
     setIsRightChatOpen,
@@ -818,8 +808,6 @@ const AIChat = ({ isRightPanel = false }) => {
     hasMore,
     fetchMoreMessages
   } = useContext(ChatContext);
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const textareaRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -912,11 +900,6 @@ const AIChat = ({ isRightPanel = false }) => {
     }
   };
 
-  const handleOpenDoc = (pageId) => {
-    setIsRightChatOpen(true);
-    navigate(`/dashboard/editor/${pageId}`);
-  };
-
   // If rendered as a Right Sidebar Panel in Dashboard
   if (isRightPanel) {
     return (
@@ -926,24 +909,26 @@ const AIChat = ({ isRightPanel = false }) => {
           <div className="flex items-center gap-1">
             <button
               onClick={() => clearChat()}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
-              <Add01Icon className="w-4 h-4" />
+              <span className="material-symbols-outlined text-[18px] leading-none select-none">
+                chat_add_on
+              </span>
             </button>
             <button
               onClick={() => navigate('/dashboard/chat')}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Expand Chat"
             >
-              <ArrowExpand01Icon className="w-4 h-4" />
+              <span className="material-symbols-outlined text-[18px] leading-none select-none">open_in_full</span>
             </button>
             <button
               onClick={() => setIsRightChatOpen(false)}
-              className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Close Chat"
             >
-              <X className="w-4 h-4" />
+              <span className="material-symbols-outlined text-[18px] leading-none select-none">close</span>
             </button>
           </div>
         </div>
@@ -996,7 +981,7 @@ const AIChat = ({ isRightPanel = false }) => {
                 className="absolute -top-12 left-1/2 z-50 p-2 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
                 title="Scroll to bottom"
               >
-                <ArrowDown className="w-5 h-5" />
+                <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_downward</span>
               </motion.button>
             )}
           </AnimatePresence>
@@ -1019,45 +1004,37 @@ const AIChat = ({ isRightPanel = false }) => {
     <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
       <div className="chat-container flex-1">
         {/* Header with Blurs & Actions */}
-        <div className="chat-header relative flex justify-between items-start p-4 z-50 pointer-events-none">
+        <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
           <button 
             onClick={() => navigate(-1)}
-            className="pointer-events-auto relative z-10 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors p-1"
+            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title="Go back"
           >
-            <ArrowLeft className="w-5 h-5 stroke-[2]" />
+            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           
-          <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className={`pointer-events-auto relative z-10 flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium border rounded-full shadow-sm transition-all ${
-              isSidebarOpen 
-                ? "bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100" 
-                : "bg-[var(--composer-bg)] border-[var(--border)] text-[var(--composer-text)] hover:border-[var(--accent-warm)]"
-            }`}
-          >
-            <FolderLibraryIcon className="w-4 h-4" />
-            Sources
-          </button>
-
-          <button 
-            onClick={() => {
-              setIsRightChatOpen(true);
-              navigate('/dashboard');
-            }}
-            className="pointer-events-auto relative z-10 flex items-center justify-center w-[34px] h-[34px] bg-[var(--composer-bg)] border border-[var(--border)] text-[var(--composer-text)] rounded-full shadow-sm hover:border-[var(--accent-warm)] transition-all"
-            title="Open in Sidebar"
-          >
-            <SidebarLeft01Icon className="w-[18px] h-[18px]" />
-          </button>
-          
+          <div className="flex items-center gap-1 pointer-events-auto">
             <button 
               onClick={clearChat}
-              className="pointer-events-auto relative z-10 flex items-center justify-center w-[34px] h-[34px] bg-[var(--composer-bg)] border border-[var(--border)] text-[var(--composer-text)] rounded-full shadow-sm hover:border-[var(--accent-warm)] transition-all"
+              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
-              <Add01Icon className="w-5 h-5" />
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                chat_add_on
+              </span>
+            </button>
+
+            <button 
+              onClick={() => {
+                setIsRightChatOpen(true);
+                navigate('/dashboard');
+              }}
+              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              title="Open in Sidebar"
+            >
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                view_sidebar
+              </span>
             </button>
           </div>
         </div>
@@ -1134,7 +1111,7 @@ const AIChat = ({ isRightPanel = false }) => {
                       className="absolute -top-16 left-1/2 z-50 p-2.5 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
                       title="Scroll to bottom"
                     >
-                      <ArrowDown className="w-5 h-5" />
+                      <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_downward</span>
                     </motion.button>
                   )}
                 </AnimatePresence>
@@ -1151,58 +1128,6 @@ const AIChat = ({ isRightPanel = false }) => {
           </>
         )}
       </div>
-
-      {/* Right Sidebar for Sources */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-gray-100 dark:border-[var(--color-dark-border)] flex flex-col shrink-0 overflow-hidden relative z-50"
-          >
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 w-[320px]">
-              <h2 className="text-[14px] font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                Sources
-              </h2>
-              <button 
-                onClick={() => setIsSidebarOpen(false)} 
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 w-[320px] custom-scrollbar">
-              {currentSources.length > 0 ? (
-                currentSources.map((src, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => src.pageId && handleOpenDoc(src.pageId)}
-                    className={`flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-[var(--color-dark-border)] hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm transition-all bg-gray-50/50 dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#202020] ${src.pageId ? 'cursor-pointer' : ''}`}
-                  >
-                    <div className="flex-1">
-                      <h3 className="text-[13px] font-medium text-gray-800 dark:text-gray-200 leading-snug">{src.title}</h3>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 tracking-wide flex items-center">
-                        Document
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                    <FolderLibraryIcon className="w-5 h-5 text-gray-300 dark:text-gray-600" />
-                  </div>
-                  <h3 className="text-[13px] font-medium text-gray-600 dark:text-gray-300 mb-1">No Sources Yet</h3>
-                  <p className="text-[12px] text-gray-400 dark:text-gray-500">Sources used by the AI will appear here.</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

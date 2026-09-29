@@ -1,18 +1,30 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, Plus, ChevronRight, Edit2, Trash2 } from 'lucide-react';
-import { ArtboardToolIcon, NotebookIcon, AppleReminderIcon, Time02Icon, Folder01Icon, DashboardSquare02Icon } from 'hugeicons-react';
+
 import ActionModal from '../../components/UI/ActionModal';
 import { workspacesAPI, pagesAPI, tasksAPI, foldersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContextDefinition';
 import KanbanBoard from '../../components/Tasks/KanbanBoard';
 
 
+const PageIcon = () => (
+  <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-400 shrink-0">
+    assignment
+  </span>
+);
+
+const FolderIcon = () => (
+  <span className="material-symbols-outlined text-[16px] leading-none select-none text-blue-500 shrink-0">
+    folder
+  </span>
+);
+
 const getIcon = (type) => {
-  if (type === 'workspace') return ArtboardToolIcon;
-  if (type === 'code') return AppleReminderIcon;
-  if (type === 'todo') return AppleReminderIcon;
-  return NotebookIcon;
+  if (type === 'workspace') return () => <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-400 shrink-0">dashboard_2_add</span>;
+  if (type === 'folder') return FolderIcon;
+  if (type === 'code') return () => <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-400 shrink-0">fact_check</span>;
+  if (type === 'todo') return () => <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-400 shrink-0">task_alt</span>;
+  return PageIcon;
 };
 
 
@@ -275,7 +287,7 @@ const Home = () => {
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-[#0F0F0F] dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-2.5 rounded-lg text-[14px] font-medium hover:bg-black dark:hover:bg-white transition-colors"
           >
-            <Plus className="w-4 h-4" />
+            <span className="material-symbols-outlined text-[16px] leading-none select-none">add_2</span>
             New workspace
           </button>
         </div>
@@ -286,7 +298,9 @@ const Home = () => {
         <section className="mb-10 relative">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <DashboardSquare02Icon className="w-[26px] h-[26px] stroke-[2]" />
+              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                checklist
+              </span>
               <h2 className="text-[16px] md:text-[17px] font-semibold">Task Overview</h2>
             </div>
             <button 
@@ -294,7 +308,7 @@ const Home = () => {
               className="text-[14px] font-medium text-gray-400 hover:text-gray-800 transition-colors flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 group"
               title="Go to Tasks"
             >
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              <span className="material-symbols-outlined text-[20px] leading-none select-none group-hover:translate-x-0.5 transition-transform">chevron_right</span>
             </button>
           </div>
 
@@ -316,11 +330,11 @@ const Home = () => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Folder01Icon className="w-[26px] h-[26px] stroke-[2]" />
+              <span className="material-symbols-outlined text-[26px] leading-none select-none">folder</span>
               <h2 className="text-[16px] md:text-[17px] font-semibold">Workspaces</h2>
             </div>
             <button className="text-[14px] font-medium text-gray-400 hover:text-gray-800 transition-colors flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 group">
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              <span className="material-symbols-outlined text-[20px] leading-none select-none group-hover:translate-x-0.5 transition-transform">chevron_right</span>
             </button>
           </div>
 
@@ -331,7 +345,7 @@ const Home = () => {
               className="flex flex-col items-center justify-center p-5 bg-[#FAFAFA] dark:bg-[var(--color-dark-surface)] border-2 border-dashed border-gray-200/80 dark:border-gray-700 rounded-[16px] cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#202020] transition-colors h-[260px]"
             >
               <div className="w-10 h-10 flex items-center justify-center mb-1">
-                <Plus className="w-6 h-6 text-gray-500 stroke-[1.5]" />
+                <span className="material-symbols-outlined text-[24px] leading-none select-none text-gray-500">add_2</span>
               </div>
               <span className="text-[14.5px] font-semibold text-gray-900 dark:text-gray-100">New workspace</span>
               <span className="text-[13px] text-gray-500 mt-1 font-medium">Create a new workspace</span>
@@ -353,7 +367,7 @@ const Home = () => {
                       {/* Top: Icon + Name */}
                       <div className="flex items-center gap-3.5 mb-4">
                         <div className={`flex items-center justify-center ${colorClass}`}>
-                          <ArtboardToolIcon className="w-[26px] h-[26px] stroke-[2.5]" />
+                          <span className="material-symbols-outlined text-[26px] leading-none select-none">dashboard_2_add</span>
                         </div>
                         <h3 className="text-[20px] font-bold text-gray-900 dark:text-gray-100 tracking-tight truncate pr-8">
                           {workspace.name}
@@ -363,11 +377,11 @@ const Home = () => {
                       {/* Tags: Pages + Date */}
                       <div className="flex items-center gap-2.5 mb-6">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
-                          <NotebookIcon className="w-4 h-4" />
+                          <span className="material-symbols-outlined text-[14px] leading-none select-none">assignment</span>
                           <span>{workspace.pagesCount === 1 ? '1 page' : `${workspace.pagesCount} pages`}</span>
                         </div>
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
-                          <Time02Icon className="w-4 h-4" />
+                          <span className="material-symbols-outlined text-[16px] leading-none select-none">schedule</span>
                           <span>{timeAgo(workspace.updatedAt)}</span>
                         </div>
                       </div>
@@ -377,7 +391,7 @@ const Home = () => {
                         {workspace.topItems && workspace.topItems.length > 0 ? (
                           <>
                             {workspace.topItems.map((item) => {
-                              const Icon = item.type === 'folder' ? Folder01Icon : getIcon(item.type);
+                              const Icon = getIcon(item.type);
                               return (
                                 <div 
                                   key={item._id} 
@@ -387,7 +401,7 @@ const Home = () => {
                                   {item.depth > 0 && (
                                     <div className="absolute -left-3 top-[50%] w-2 h-[1.5px] bg-gray-200 dark:bg-gray-600"></div>
                                   )}
-                                  <Icon className={`w-[18px] h-[18px] stroke-[2] shrink-0 ${item.type === 'folder' ? 'text-blue-500' : 'text-gray-400'}`} />
+                                  <Icon />
                                   <span className="truncate">{item.name}</span>
                                 </div>
                               );
@@ -415,7 +429,7 @@ const Home = () => {
                           }}
                           className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors opacity-0 group-hover:opacity-100"
                         >
-                          <MoreHorizontal className="w-5 h-5" />
+                          <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">more_horiz</span>
                         </button>
                         
                         {activeMenu === workspace._id && (
@@ -431,7 +445,7 @@ const Home = () => {
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
                               >
-                                <Edit2 className="w-4 h-4 text-gray-400" />
+                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-400">edit</span>
                                 <span className="font-medium">Rename</span>
                               </button>
                               <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5" />
@@ -442,7 +456,7 @@ const Home = () => {
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                               >
-                                <Trash2 className="w-4 h-4 text-red-400" />
+                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-red-400">delete</span>
                                 <span className="font-medium">Delete</span>
                               </button>
                             </div>

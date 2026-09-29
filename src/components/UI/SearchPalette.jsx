@@ -2,15 +2,7 @@ import React, { useEffect, useRef, useState, useContext, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search01Icon, 
-  ArtboardToolIcon, 
-  Folder01Icon, 
-  TextIcon, 
-  FilterIcon,
-  NotebookIcon,
-  ChatFeedback01Icon
-} from 'hugeicons-react';
+
 import { EditorContext } from '../../context/EditorContext';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { chatAPI } from '../../services/api';
@@ -25,10 +17,42 @@ const springConfig = {
 };
 
 const circlesData = [
-  { id: 'workspace', icon: ArtboardToolIcon, label: 'Workspace' },
-  { id: 'folder', icon: Folder01Icon, label: 'Folder' },
-  { id: 'page', icon: NotebookIcon, label: 'Page' },
-  { id: 'chat', icon: ChatFeedback01Icon, label: 'Chat' }
+  { 
+    id: 'workspace', 
+    icon: ({ className }) => (
+      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
+        dashboard_2_add
+      </span>
+    ), 
+    label: 'Workspace' 
+  },
+  { 
+    id: 'folder', 
+    icon: ({ className }) => (
+      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
+        folder
+      </span>
+    ), 
+    label: 'Folder' 
+  },
+  { 
+    id: 'page', 
+    icon: ({ className }) => (
+      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
+        assignment
+      </span>
+    ), 
+    label: 'Page' 
+  },
+  { 
+    id: 'chat', 
+    icon: ({ className }) => (
+      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
+        chat
+      </span>
+    ), 
+    label: 'Chat' 
+  }
 ];
 
 const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
@@ -184,6 +208,13 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
     const handleKeyDown = (e) => {
       if (!isOpen) return;
 
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key?.toLowerCase() === 'k')) {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (isExpanded && !hasQuery) {
           setIsExpanded(false);
@@ -299,7 +330,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <Search01Icon className="w-6 h-6 text-gray-500 dark:text-gray-300 shrink-0" />
+                  <i className="hgi hgi-stroke hgi-rounded hgi-search-01 text-[22px] leading-none text-gray-500 dark:text-gray-300 shrink-0 select-none"></i>
                 </motion.div>
               ) : (
                 <motion.div
@@ -308,10 +339,14 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
+                  onClick={() => setSelectedCircle(null)}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  title="Clear filter"
                 >
-                  {selectedCircle === 'workspace' && <ArtboardToolIcon className="w-6 h-6 text-blue-500 shrink-0" />}
-                  {selectedCircle === 'folder' && <Folder01Icon className="w-6 h-6 text-blue-500 shrink-0" />}
-                  {selectedCircle === 'page' && <NotebookIcon className="w-6 h-6 text-blue-500 shrink-0" />}
+                  {selectedCircle === 'workspace' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">dashboard_2_add</span>}
+                  {selectedCircle === 'folder' && <span className="material-symbols-outlined text-[20px] leading-none select-none text-blue-500 shrink-0">folder</span>}
+                  {selectedCircle === 'page' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">assignment</span>}
+                  {selectedCircle === 'chat' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">chat</span>}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -370,21 +405,23 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                     }}
                     className="flex items-center flex-wrap gap-2 px-2 pb-3 mb-2 border-b border-gray-200 dark:border-gray-600/30"
                   >
-                    {['Workspace', 'Folder', 'Page'].map((tag) => {
-                      const id = tag.toLowerCase();
-                      const isActive = selectedCircle === id;
+                    {circlesData.map((item) => {
+                      const isActive = selectedCircle === item.id;
+                      const Icon = item.icon;
                       return (
-                        <div 
-                          key={tag} 
-                          onClick={() => setSelectedCircle(isActive ? null : id)}
-                          className={`px-3 py-1.5 leading-normal rounded-[8px] border-[0.1px] text-[13px] font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                        <button 
+                          key={item.id} 
+                          type="button"
+                          onClick={() => setSelectedCircle(isActive ? null : item.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 leading-normal rounded-[8px] border-[0.1px] text-[13px] font-medium whitespace-nowrap cursor-pointer transition-colors ${
                             isActive 
                               ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400' 
                               : 'bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 border-gray-300 dark:border-gray-400/20 text-gray-600 dark:text-gray-400'
                           }`}
                         >
-                          {tag}
-                        </div>
+                          <Icon className="text-[14px] shrink-0" />
+                          <span>{item.label}</span>
+                        </button>
                       );
                     })}
                   </motion.div>
@@ -424,8 +461,8 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                               isWsSelected ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-900 dark:text-blue-100' : 'hover:bg-gray-100 dark:hover:bg-white/10'
                             }`}
                           >
-                            <div className={`mr-4 flex items-center justify-center ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                              <ArtboardToolIcon className="w-6 h-6" />
+                            <div className={`mr-3 w-[20px] h-[20px] flex items-center justify-center shrink-0 ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                              <span className="material-symbols-outlined text-[18px] leading-none select-none">dashboard_2_add</span>
                             </div>
                             <div className="flex flex-col">
                               <span className={`truncate text-[15px] font-medium ${isWsSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{ws.name}</span>
@@ -437,13 +474,15 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}
                             className="relative z-10 flex items-center px-4 py-2 text-gray-500 dark:text-gray-400 bg-white/40 dark:bg-black/40 rounded-lg"
                           >
-                            {ws.id === 'recent_pages' ? (
-                              <NotebookIcon className="w-4 h-4 mr-2 opacity-70" />
-                            ) : ws.id === 'chat_history' ? (
-                              <ChatFeedback01Icon className="w-4 h-4 mr-2 opacity-70" />
-                            ) : (
-                              <ArtboardToolIcon className="w-4 h-4 mr-2 opacity-70" />
-                            )}
+                            <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 mr-2 opacity-70">
+                              {ws.id === 'recent_pages' ? (
+                                <span className="material-symbols-outlined text-[14px] leading-none select-none">assignment</span>
+                              ) : ws.id === 'chat_history' ? (
+                                <span className="material-symbols-outlined text-[14px] leading-none select-none">chat</span>
+                              ) : (
+                                <span className="material-symbols-outlined text-[14px] leading-none select-none">dashboard_2_add</span>
+                              )}
+                            </div>
                             <span className="text-[13px] font-medium tracking-wide">{ws.name}</span>
                             <span className="ml-2 text-[11px] uppercase tracking-wider opacity-50">Context</span>
                           </motion.div>
@@ -480,10 +519,11 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                     isSelected ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-900 dark:text-blue-100' : 'hover:bg-gray-100 dark:hover:bg-white/10'
                                   }`}
                                 >
-                                  <div className={`mr-4 flex items-center justify-center ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                    {item.type === 'folder' && <Folder01Icon className="w-5 h-5" />}
-                                    {(item.type === 'page' || item.type === 'document') && <NotebookIcon className="w-5 h-5" />}
-                                    {item.type === 'chat' && <ChatFeedback01Icon className="w-5 h-5" />}
+                                  <div className={`mr-3 w-[18px] h-[18px] flex items-center justify-center shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    {item.type === 'workspace' && <span className="material-symbols-outlined text-[15px] leading-none select-none">dashboard_2_add</span>}
+                                    {item.type === 'folder' && <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>}
+                                    {(item.type === 'page' || item.type === 'document') && <span className="material-symbols-outlined text-[15px] leading-none select-none">assignment</span>}
+                                    {item.type === 'chat' && <span className="material-symbols-outlined text-[15px] leading-none select-none">chat</span>}
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>
@@ -535,7 +575,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                     }`}
                     title={item.label}
                   >
-                    <item.icon className="w-6 h-6" />
+                    <item.icon className="text-[22px]" />
                   </motion.button>
                 );
               })}

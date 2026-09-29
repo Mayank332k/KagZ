@@ -1,14 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { ChevronRight, Plus } from "lucide-react";
-import { ArtboardToolIcon, Folder01Icon, NotebookIcon, ArrowDown01Icon } from "hugeicons-react";
+
 
 
 
 const NodeIcon = ({ type, className = "w-3.5 h-3.5 shrink-0 text-gray-500" }) => {
-  if (type === "workspace") return <ArtboardToolIcon className={className} />;
-  if (type === "folder") return <Folder01Icon className={className} />;
-  return <NotebookIcon className={className} />;
+  if (type === "workspace") return (
+    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-500 shrink-0">
+      dashboard_2_add
+    </span>
+  );
+  if (type === "folder") return <span className={`material-symbols-outlined leading-none select-none ${className || ''}`}>folder</span>;
+  return (
+    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-500 shrink-0">
+      assignment
+    </span>
+  );
 };
 
 const PanelHeader = ({ breadcrumb }) => (
@@ -16,7 +23,7 @@ const PanelHeader = ({ breadcrumb }) => (
     <div className="flex items-center gap-1 flex-wrap">
       {breadcrumb.map((crumb, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <ChevronRight className="w-2.5 h-2.5 shrink-0 text-gray-400 dark:text-white/50" />}
+          {i > 0 && <span className="material-symbols-outlined text-[10px] leading-none select-none shrink-0 text-gray-400 dark:text-white/50">chevron_right</span>}
           <span className={`text-[10px] font-semibold tracking-wider uppercase ${i === breadcrumb.length - 1 ? "text-gray-700 dark:text-[rgba(174,172,167,0.9)]" : "text-gray-400 dark:text-white/40"}`}>
             {crumb}
           </span>
@@ -99,10 +106,10 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
                   onClick={(e) => { e.stopPropagation(); onSelect(child, childPath); onClose(); }}
                   title="Save here"
                 >
-                  <Plus className="w-3 h-3" />
+                  <span className="material-symbols-outlined text-[12px] leading-none select-none">add</span>
                 </button>
               )}
-              {hasKids && <ChevronRight className="w-3 h-3 text-gray-400 dark:text-gray-600" />}
+              {hasKids && <span className="material-symbols-outlined text-[12px] leading-none select-none text-gray-400 dark:text-gray-600">chevron_right</span>}
             </div>
           </div>
         );
@@ -210,10 +217,10 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
                   onClick={(e) => { e.stopPropagation(); onSelect(node, nodePath); onClose(); }}
                   title="Save here"
                 >
-                  <Plus className="w-3 h-3" />
+                  <span className="material-symbols-outlined text-[12px] leading-none select-none">add</span>
                 </button>
               )}
-              {hasKids && <ChevronRight className="w-3 h-3 text-gray-400 dark:text-gray-600" />}
+              {hasKids && <span className="material-symbols-outlined text-[12px] leading-none select-none text-gray-400 dark:text-gray-600">chevron_right</span>}
             </div>
           </div>
         );
@@ -294,7 +301,7 @@ const LocationDropdown = ({
               isHeader ? (
                 <span className="text-gray-300 dark:text-white/20 mx-1">/</span>
               ) : (
-                <ChevronRight className="w-3 h-3 shrink-0 text-gray-400 dark:text-gray-600" />
+                <span className="material-symbols-outlined text-[12px] leading-none select-none shrink-0 text-gray-400 dark:text-gray-600">chevron_right</span>
               )
             )}
             <span className={`flex items-center ${isHeader ? "gap-1.5" : ""} ${
@@ -321,7 +328,7 @@ const LocationDropdown = ({
     </>
   );
 
-  const chevron = <ArrowDown01Icon aria-hidden="true" className={`w-3.5 h-3.5 shrink-0 ${locked ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-white"}`} />;
+  const chevron = <span aria-hidden="true" className={`material-symbols-outlined text-[14px] leading-none select-none shrink-0 ${locked ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-white"}`}>keyboard_arrow_down</span>;
 
   // ── STATE 2: location selected; existing pages may lock this breadcrumb ──
   if (hasSelection) {

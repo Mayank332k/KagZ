@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Plus, Edit2, Trash2 } from 'lucide-react';
-import { Loading03Icon, Delete01Icon } from 'hugeicons-react';
+
 
 const STATUSES = [
   {
@@ -55,10 +55,46 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
   const [isDraggingOverDelete, setIsDraggingOverDelete] = useState(false);
 
   useEffect(() => {
-    const handleClickOutside = () => setActiveTaskMenu(null);
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
+    const handleClose = () => setActiveTaskMenu(null);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
+    return () => {
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
   }, []);
+
+  const handleOpenTaskMenu = (e, task) => {
+    e.stopPropagation();
+    const taskId = task._id || task.id;
+    if (activeTaskMenu?.taskId === taskId) {
+      setActiveTaskMenu(null);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 180;
+    const menuHeight = 88;
+
+    let left = rect.right - menuWidth;
+    if (left < 10) left = 10;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+
+    let top = rect.bottom + 4;
+    // If opening downwards would overflow screen bottom, flip above
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = Math.max(10, rect.top - menuHeight - 4);
+    }
+
+    setActiveTaskMenu({
+      taskId,
+      task,
+      top,
+      left,
+    });
+  };
 
   const handleDragStart = (e, taskId) => {
     setDraggedTaskId(taskId);
@@ -139,11 +175,13 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                   : "bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10"
               }`}
             >
-              <Delete01Icon
-                className={`w-7 h-7 transition-colors duration-300 ${
+              <span
+                className={`material-symbols-outlined text-[28px] leading-none select-none transition-colors duration-300 ${
                   isDraggingOverDelete ? "text-white" : "text-red-500"
                 }`}
-              />
+              >
+                delete
+              </span>
             </div>
           </motion.div>
         )}
@@ -229,47 +267,14 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                         <p className="text-[14px] leading-[1.4] font-medium text-gray-800 dark:text-gray-200 break-words">
                           {task.task || task.title}
                         </p>
-                        <div className="relative">
+                        <div className="relative shrink-0">
                           <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTaskMenu(activeTaskMenu === (task._id || task.id) ? null : (task._id || task.id));
-                            }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-opacity p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#333]"
+                            onClick={(e) => handleOpenTaskMenu(e, task)}
+                            className={`opacity-0 group-hover:opacity-100 ${activeTaskMenu?.taskId === (task._id || task.id) ? 'opacity-100' : ''} text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-opacity p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#333]`}
+                            title="Task options"
                           >
-                            <MoreHorizontal className="w-4 h-4" />
+                            <span className="material-symbols-outlined text-[16px] leading-none select-none">more_horiz</span>
                           </button>
-                          
-                          {activeTaskMenu === (task._id || task.id) && (
-                            <div 
-                              className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#202020] rounded-[10px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 dark:border-white/10 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="py-1">
-                                <button
-                                  onClick={() => {
-                                    setActiveTaskMenu(null);
-                                    if (onTaskEdit) onTaskEdit(task);
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
-                                >
-                                  <Edit2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                                  <span className="font-medium">Edit task</span>
-                                </button>
-                                <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5" />
-                                <button
-                                  onClick={() => {
-                                    setActiveTaskMenu(null);
-                                    if (onTaskDelete) onTaskDelete(task._id || task.id);
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-400 dark:text-red-400/80" />
-                                  <span className="font-medium">Delete task</span>
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -305,7 +310,9 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                     }}
                     className={`flex items-center text-[13px] font-medium w-full px-2 py-1.5 rounded-[8px] transition-colors ${status.buttonClass}`}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <span className="material-symbols-outlined text-[16px] mr-1.5 leading-none select-none">
+                      assignment_add
+                    </span>
                     New task
                   </button>
                 </div>
@@ -315,6 +322,56 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
         })}
       </div>
     </div>
+
+      {activeTaskMenu && createPortal(
+        <>
+          <div 
+            className="fixed inset-0 z-[99998]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTaskMenu(null);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setActiveTaskMenu(null);
+            }}
+          />
+          <div 
+            className="fixed z-[99999] w-[180px] bg-white dark:bg-[#202020] rounded-[10px] shadow-[0_8px_30px_rgb(0,0,0,0.18)] border border-gray-100 dark:border-white/10 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: activeTaskMenu.top,
+              left: activeTaskMenu.left,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                const task = activeTaskMenu.task;
+                setActiveTaskMenu(null);
+                if (onTaskEdit) onTaskEdit(task);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
+            >
+              <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-400 dark:text-gray-500">edit</span>
+              <span className="font-medium">Edit task</span>
+            </button>
+            <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
+            <button
+              onClick={() => {
+                const taskId = activeTaskMenu.task._id || activeTaskMenu.task.id;
+                setActiveTaskMenu(null);
+                if (onTaskDelete) onTaskDelete(taskId);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[14px] leading-none select-none text-red-400 dark:text-red-400/80">delete</span>
+              <span className="font-medium">Delete task</span>
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
     </>
   );
 };

@@ -21,6 +21,32 @@ const Login = () => {
     const { user, loginWithGoogle, login, register, loading, error } = useAuth();
     const navigate = useNavigate();
 
+    const { execute: runAuthSubmit, isLoading: isSubmitting, retryCount } = useAsyncAction(
+        async () => {
+            if (isSignUp) {
+                await register(username, password);
+            } else {
+                await login(username, password);
+            }
+            navigate('/dashboard/page/new', { replace: true });
+        },
+        {
+            maxRetries: 3,
+            onError: (err) => {
+                console.error(err);
+                if (err?.response?.status === 400 && err?.response?.data?.errors) {
+                    const formErrors = {};
+                    err.response.data.errors.forEach(e => {
+                        formErrors[e.path] = e.msg;
+                    });
+                    setFieldErrors(formErrors);
+                } else {
+                    setLocalError(err?.response?.data?.message || 'Authentication failed. Please check your credentials.');
+                }
+            }
+        }
+    );
+
     if (!loading && user) {
         return <Navigate to="/dashboard/page/new" replace />;
     }
@@ -75,32 +101,6 @@ const Login = () => {
         if (!/[^A-Za-z0-9]/.test(pass)) return "Must contain at least one special character.";
         return null;
     };
-
-    const { execute: runAuthSubmit, isLoading: isSubmitting, retryCount } = useAsyncAction(
-        async () => {
-            if (isSignUp) {
-                await register(username, password);
-            } else {
-                await login(username, password);
-            }
-            navigate('/dashboard/page/new', { replace: true });
-        },
-        {
-            maxRetries: 3,
-            onError: (err) => {
-                console.error(err);
-                if (err?.response?.status === 400 && err?.response?.data?.errors) {
-                    const formErrors = {};
-                    err.response.data.errors.forEach(e => {
-                        formErrors[e.path] = e.msg;
-                    });
-                    setFieldErrors(formErrors);
-                } else {
-                    setLocalError(err?.response?.data?.message || 'Authentication failed. Please check your credentials.');
-                }
-            }
-        }
-    );
 
     const handleSubmit = async (e) => {
         e.preventDefault();
