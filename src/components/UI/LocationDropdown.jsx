@@ -4,37 +4,34 @@ import ReactDOM from "react-dom";
 
 
 
-const NodeIcon = ({ type, className = "w-3.5 h-3.5 shrink-0 text-gray-500" }) => {
+const NodeIcon = ({ type, className = "" }) => {
   if (type === "workspace") return (
-    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-500 shrink-0">
-      dashboard_2_add
+    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-500 dark:text-neutral-400 shrink-0 ${className}`}>
+      space_dashboard
     </span>
   );
-  if (type === "folder") return <span className={`material-symbols-outlined leading-none select-none ${className || ''}`}>folder</span>;
+  if (type === "folder") return (
+    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-amber-500/90 dark:text-amber-400/90 shrink-0 ${className}`}>
+      folder
+    </span>
+  );
   return (
-    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-500 shrink-0">
-      assignment
+    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-400 dark:text-neutral-500 shrink-0 ${className}`}>
+      description
     </span>
   );
 };
 
-const PanelHeader = ({ breadcrumb }) => (
-  <div className="px-2 pt-1.5 pb-2 border-b border-gray-100 dark:border-white/[0.12] mb-1">
-    <div className="flex items-center gap-1 flex-wrap">
-      {breadcrumb.map((crumb, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <span className="material-symbols-outlined text-[10px] leading-none select-none shrink-0 text-gray-400 dark:text-white/50">chevron_right</span>}
-          <span className={`text-[10px] font-semibold tracking-wider uppercase ${i === breadcrumb.length - 1 ? "text-gray-700 dark:text-[rgba(174,172,167,0.9)]" : "text-gray-400 dark:text-white/40"}`}>
-            {crumb}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
+const PanelHeader = ({ title }) => (
+  <div className="px-2 pt-1 pb-1.5 border-b border-black/[0.05] dark:border-white/[0.06] mb-1">
+    <span className="text-[10px] font-medium tracking-wider uppercase text-gray-400 dark:text-neutral-500 select-none">
+      {title}
+    </span>
   </div>
 );
 
 // Nested panel — spawns to the right of a hovered row
-const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectableTypes }) => {
+const NestedPanel = ({ node, anchorEl, onSelect, onClose, selectableTypes }) => {
   const panelRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const [hoveredId, setHoveredId] = useState(null);
@@ -45,11 +42,12 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
   useEffect(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    const panelWidth = 210;
-    const left = rect.right + 6 + panelWidth > window.innerWidth
-      ? rect.left - panelWidth - 6
-      : rect.right + 6;
-    setPos({ top: rect.top, left });
+    const panelWidth = 200;
+    const left = rect.right + 4 + panelWidth > window.innerWidth
+      ? rect.left - panelWidth - 4
+      : rect.right + 4;
+    const top = Math.max(8, Math.min(rect.top - 4, window.innerHeight - 300));
+    setPos({ top, left });
   }, [anchorEl]);
 
   const handleHover = (e, child) => {
@@ -60,7 +58,7 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
         setHoveredId(child.id);
         setHoveredNode(child);
         setHoveredAnchor(el);
-      }, 130);
+      }, 100);
     } else {
       setHoveredId(null);
       setHoveredNode(null);
@@ -68,52 +66,66 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
     }
   };
 
-  const thisBreadcrumb = [...breadcrumb, node.name];
+  const children = (node.children || []).filter(
+    (child) => !selectableTypes || selectableTypes.includes(child.type)
+  );
 
   return ReactDOM.createPortal(
     <div
       ref={panelRef}
-      className="fixed bg-white dark:bg-[#232323] border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-[15px]"
-      style={{ top: pos.top, left: pos.left, zIndex: 99999 + breadcrumb.length, minWidth: 210, padding: "4px" }}
+      className="nested-location-panel fixed bg-white/95 dark:bg-[#181818]/95 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-[10px] p-1"
+      style={{ top: pos.top, left: pos.left, zIndex: 99999, minWidth: 190, maxWidth: 240 }}
     >
-      <PanelHeader breadcrumb={thisBreadcrumb} />
+      <PanelHeader title={node.name} />
 
-      {(node.children || [])
-        .filter((child) => !selectableTypes || selectableTypes.includes(child.type))
-        .map((child) => {
-        const hasKids = child.children && child.children.length > 0;
-        const isHov = hoveredId === child.id;
-        const canSelect = !selectableTypes || selectableTypes.includes(child.type);
-        const canSave = canSelect && (child.type === "workspace" || child.type === "folder");
-        const childPath = [...thisBreadcrumb, child.name];
+      {children.length === 0 ? (
+        <div className="py-2 px-2 text-[11.5px] text-gray-400 dark:text-neutral-500 text-center select-none">
+          Empty folder
+        </div>
+      ) : (
+        children.map((child) => {
+          const hasKids = child.children && child.children.length > 0;
+          const isHov = hoveredId === child.id;
+          const canSelect = !selectableTypes || selectableTypes.includes(child.type);
+          const canSave = canSelect && (child.type === "workspace" || child.type === "folder");
 
-        return (
-          <div
-            key={child.id}
-            className={`group relative flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${isHov ? "bg-gray-100 dark:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
-            onMouseEnter={(e) => handleHover(e, child)}
-            onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-            onClick={() => { if (canSelect) { onSelect(child, childPath); onClose(); } }}
-          >
-            <NodeIcon type={child.type} />
-            <span className="flex-1 truncate text-[13px] text-gray-600 dark:text-[rgb(174,172,167)] group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
-              {child.name}
-            </span>
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              {canSave && (
-                <button
-                  className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-white"
-                  onClick={(e) => { e.stopPropagation(); onSelect(child, childPath); onClose(); }}
-                  title="Save here"
-                >
-                  <span className="material-symbols-outlined text-[12px] leading-none select-none">add</span>
-                </button>
-              )}
-              {hasKids && <span className="material-symbols-outlined text-[12px] leading-none select-none text-gray-400 dark:text-gray-600">chevron_right</span>}
+          return (
+            <div
+              key={child.id}
+              className={`group relative flex items-center gap-2 rounded-[6px] px-2 py-1.5 cursor-pointer transition-colors text-[12px] ${
+                isHov
+                  ? "bg-black/[0.05] dark:bg-white/[0.08] text-gray-900 dark:text-white"
+                  : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+              }`}
+              onMouseEnter={(e) => handleHover(e, child)}
+              onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+              onClick={() => { if (canSelect) { onSelect(child, [node.name, child.name]); onClose(); } }}
+            >
+              <NodeIcon type={child.type} />
+              <span className="flex-1 truncate font-normal leading-tight">
+                {child.name}
+              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {canSave && (
+                  <button
+                    type="button"
+                    className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); onSelect(child, [node.name, child.name]); onClose(); }}
+                    title="Select this location"
+                  >
+                    <span className="material-symbols-outlined text-[13px] leading-none select-none">add</span>
+                  </button>
+                )}
+                {hasKids && (
+                  <span className="material-symbols-outlined text-[13px] leading-none select-none text-gray-400 dark:text-neutral-500">
+                    chevron_right
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
 
       {hoveredId && hoveredNode && hoveredAnchor && (
         <NestedPanel
@@ -121,7 +133,6 @@ const NestedPanel = ({ node, anchorEl, onSelect, onClose, breadcrumb, selectable
           anchorEl={hoveredAnchor}
           onSelect={onSelect}
           onClose={onClose}
-          breadcrumb={thisBreadcrumb}
           selectableTypes={selectableTypes}
         />
       )}
@@ -142,7 +153,9 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
   useEffect(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    setPos({ top: rect.bottom + 6, left: rect.left });
+    const top = rect.bottom + 4;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 220));
+    setPos({ top, left });
   }, [anchorEl]);
 
   useEffect(() => {
@@ -150,7 +163,8 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
       if (
         panelRef.current &&
         !panelRef.current.contains(e.target) &&
-        !anchorEl?.contains(e.target)
+        !anchorEl?.contains(e.target) &&
+        !e.target.closest('.nested-location-panel')
       ) {
         onClose();
       }
@@ -167,7 +181,7 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
         setHoveredId(node.id);
         setHoveredNode(node);
         setHoveredAnchor(el);
-      }, 130);
+      }, 100);
     } else {
       setHoveredId(null);
       setHoveredNode(null);
@@ -175,56 +189,64 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
     }
   };
 
+  const filteredTree = treeData.filter((node) => !selectableTypes || selectableTypes.includes(node.type));
+
   return ReactDOM.createPortal(
     <div
       ref={panelRef}
-      className="fixed bg-white dark:bg-[#232323] border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-[8px]"
-      style={{ top: pos.top, left: pos.left, zIndex: 99999, minWidth: 220, maxWidth: 300, maxHeight: "60vh", overflowY: "auto", padding: "4px" }}
+      className="fixed bg-white/95 dark:bg-[#181818]/95 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-[10px] p-1"
+      style={{ top: pos.top, left: pos.left, zIndex: 99999, minWidth: 200, maxWidth: 250, maxHeight: "60vh", overflowY: "auto" }}
     >
-      <PanelHeader breadcrumb={["Save Location", "Workspaces"]} />
+      <PanelHeader title="Workspaces" />
 
-      {treeData.length === 0 && (
-        <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "12px 8px" }}>
+      {filteredTree.length === 0 ? (
+        <div className="py-3 px-2 text-[11.5px] text-gray-400 dark:text-neutral-500 text-center select-none">
           No workspaces found
         </div>
-      )}
+      ) : (
+        filteredTree.map((node) => {
+          const hasKids = node.children && node.children.length > 0;
+          const isHov = hoveredId === node.id;
+          const canSelect = !selectableTypes || selectableTypes.includes(node.type);
+          const canSave = canSelect && (node.type === "workspace" || node.type === "folder");
 
-      {treeData
-        .filter((node) => !selectableTypes || selectableTypes.includes(node.type))
-        .map((node) => {
-        const hasKids = node.children && node.children.length > 0;
-        const isHov = hoveredId === node.id;
-        const canSelect = !selectableTypes || selectableTypes.includes(node.type);
-        const canSave = canSelect && (node.type === "workspace" || node.type === "folder");
-        const nodePath = [node.name];
-
-        return (
-          <div
-            key={node.id}
-            className={`group relative flex items-center gap-1.5 rounded-md px-2 py-1.5 cursor-pointer transition-colors ${isHov ? "bg-gray-100 dark:bg-white/[0.06]" : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}
-            onMouseEnter={(e) => handleHover(e, node)}
-            onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-            onClick={() => { if (canSelect) { onSelect(node, nodePath); onClose(); } }}
-          >
-            <NodeIcon type={node.type} />
-            <span className="flex-1 truncate text-[13px] text-gray-600 dark:text-[rgb(174,172,167)] group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
-              {node.name}
-            </span>
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              {canSave && (
-                <button
-                  className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-white"
-                  onClick={(e) => { e.stopPropagation(); onSelect(node, nodePath); onClose(); }}
-                  title="Save here"
-                >
-                  <span className="material-symbols-outlined text-[12px] leading-none select-none">add</span>
-                </button>
-              )}
-              {hasKids && <span className="material-symbols-outlined text-[12px] leading-none select-none text-gray-400 dark:text-gray-600">chevron_right</span>}
+          return (
+            <div
+              key={node.id}
+              className={`group relative flex items-center gap-2 rounded-[6px] px-2 py-1.5 cursor-pointer transition-colors text-[12px] ${
+                isHov
+                  ? "bg-black/[0.05] dark:bg-white/[0.08] text-gray-900 dark:text-white"
+                  : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+              }`}
+              onMouseEnter={(e) => handleHover(e, node)}
+              onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+              onClick={() => { if (canSelect) { onSelect(node, [node.name]); onClose(); } }}
+            >
+              <NodeIcon type={node.type} />
+              <span className="flex-1 truncate font-normal leading-tight">
+                {node.name}
+              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {canSave && (
+                  <button
+                    type="button"
+                    className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); onSelect(node, [node.name]); onClose(); }}
+                    title="Select this workspace"
+                  >
+                    <span className="material-symbols-outlined text-[13px] leading-none select-none">add</span>
+                  </button>
+                )}
+                {hasKids && (
+                  <span className="material-symbols-outlined text-[13px] leading-none select-none text-gray-400 dark:text-neutral-500">
+                    chevron_right
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
 
       {hoveredId && hoveredNode && hoveredAnchor && (
         <NestedPanel
@@ -232,7 +254,6 @@ const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) =
           anchorEl={hoveredAnchor}
           onSelect={onSelect}
           onClose={onClose}
-          breadcrumb={["Save Location"]}
           selectableTypes={selectableTypes}
         />
       )}
@@ -312,9 +333,7 @@ const LocationDropdown = ({
                 : "text-black dark:text-white"
             }`}>
               {isHeader && (
-                <div className={`flex items-center justify-center ${i === selectedPath.length - 1 ? "text-blue-500 bg-blue-50 dark:bg-blue-500/20 dark:text-blue-400 w-6 h-6 rounded" : "text-gray-500 dark:text-gray-400"}`}>
-                   <NodeIcon type={type} className={i === selectedPath.length - 1 ? "w-3.5 h-3.5 shrink-0" : "w-4 h-4 shrink-0"} />
-                </div>
+                <NodeIcon type={type} />
               )}
               {crumb}
             </span>

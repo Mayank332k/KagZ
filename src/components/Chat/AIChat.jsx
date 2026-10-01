@@ -153,9 +153,9 @@ const SourcesPill = ({ sources, align = 'side' }) => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, x: isTopAlign ? 0 : -6, y: isTopAlign ? 6 : 0 }}
-            animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, x: isTopAlign ? 0 : -6, y: isTopAlign ? 6 : 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className={`sources-popover-card absolute z-[120] w-[330px] sm:w-[350px] p-4 text-gray-800 dark:text-gray-200 ${
               isTopAlign
@@ -395,9 +395,8 @@ const StatusScrollReveal = React.memo(({ text }) => {
       animate="visible"
       exit={{
         opacity: 0,
-        y: -8,
-        filter: 'blur(6px)',
-        transition: { duration: 0.45, ease: 'easeInOut' },
+        filter: 'blur(4px)',
+        transition: { duration: 0.25, ease: 'easeInOut' },
       }}
       variants={{
         hidden: { opacity: 0 },
@@ -421,16 +420,14 @@ const StatusScrollReveal = React.memo(({ text }) => {
             variants={{
               hidden: {
                 opacity: 0,
-                y: 14,
-                filter: 'blur(8px)',
+                filter: 'blur(4px)',
               },
               visible: {
                 opacity: 1,
-                y: 0,
                 filter: 'blur(0px)',
                 transition: {
-                  duration: 1.0,
-                  ease: [0.22, 1, 0.36, 1],
+                  duration: 0.6,
+                  ease: 'easeOut',
                 },
               },
             }}
@@ -506,6 +503,62 @@ const ThinkingAnimation = ({ status = 'Thinking...' }) => {
   );
 };
 
+const UserMessageActions = ({ content, timestamp }) => {
+  const { setQuery } = useContext(ChatContext);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
+
+  const formattedTime = (() => {
+    if (!timestamp) return "";
+    try {
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return "";
+    }
+  })();
+
+  return (
+    <div className="flex items-center gap-1 mt-1 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200 select-none">
+      {formattedTime && (
+        <span className="text-[11px] font-sans text-gray-400 dark:text-neutral-500 mr-0.5">
+          {formattedTime}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => setQuery(content)}
+        className="p-1 rounded-[5px] text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+        title="Edit message"
+        aria-label="Edit message"
+      >
+        <span className="material-symbols-outlined text-[14px] leading-none select-none">edit</span>
+      </button>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="p-1 rounded-[5px] text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+        title={copied ? "Copied!" : "Copy"}
+        aria-label="Copy message"
+      >
+        <span className="material-symbols-outlined text-[14px] leading-none select-none">
+          {copied ? "check" : "content_copy"}
+        </span>
+      </button>
+    </div>
+  );
+};
+
 const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
 
@@ -513,8 +566,15 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
     return (
       <div className="flex flex-col items-end group/msg">
         <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[14.5px] px-4 py-2 rounded-[14px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
+          {msg.pageContext?.title && (
+            <div className="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[11.5px] font-medium text-gray-600 dark:text-gray-300 select-none">
+              <span className="material-symbols-outlined text-[13px] leading-none text-current">description</span>
+              <span className="truncate max-w-[200px]">{msg.pageContext.title}</span>
+            </div>
+          )}
           <MarkdownRenderer content={msg.content} />
         </div>
+        <UserMessageActions content={msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </div>
     );
   }
@@ -549,10 +609,17 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
   if (msg.role === 'user') {
     return (
-      <div className="message-row user group/msg">
+      <div className="message-row user group/msg flex flex-col items-end">
         <div className="message-bubble-user">
+          {msg.pageContext?.title && (
+            <div className="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[11.5px] font-medium text-gray-600 dark:text-gray-300 select-none">
+              <span className="material-symbols-outlined text-[13px] leading-none text-current">description</span>
+              <span className="truncate max-w-[200px]">{msg.pageContext.title}</span>
+            </div>
+          )}
           <MarkdownRenderer content={msg.content} />
         </div>
+        <UserMessageActions content={msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </div>
     );
   }
@@ -584,6 +651,8 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
 const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend, isStreaming }) => {
   const { isThinking, setIsThinking, selectedModel, setSelectedModel, stopGeneration, chatError, clearChatError, retryLastMessage } = useContext(ChatContext);
+  const { activePage } = useContext(EditorContext);
+  const [attachedPage, setAttachedPage] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -596,6 +665,37 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Auto-add the open page into textarea context
+  useEffect(() => {
+    if (activePage && activePage.id) {
+      setAttachedPage(activePage);
+    } else {
+      setAttachedPage(null);
+    }
+  }, [activePage?.id]);
+
+  // Keep attached page in sync with live title/content updates in NoteEditor
+  useEffect(() => {
+    if (attachedPage && activePage && attachedPage.id === activePage.id) {
+      setAttachedPage(activePage);
+    }
+  }, [activePage?.title, activePage?.content]);
+
+  const onFormSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!query.trim() || isStreaming) return;
+    handleSend(attachedPage);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onFormSubmit(e);
+    } else if (handleKeyDown) {
+      handleKeyDown(e);
+    }
+  };
 
   const models = [
     { 
@@ -653,13 +753,40 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
         )}
       </AnimatePresence>
 
-      <form onSubmit={handleSend} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[21px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 p-2.5 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[21px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 p-2.5 mx-auto">
+        {/* Minimal Context Pill inside textarea container */}
+        {attachedPage && (
+          <div className="flex items-center px-2 pt-0.5 pb-1">
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[7px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] text-[11.5px] text-gray-700 dark:text-gray-300 font-medium select-none">
+              <span className="material-symbols-outlined text-[13px] leading-none text-gray-400 dark:text-gray-400">
+                description
+              </span>
+              <span className="max-w-[180px] truncate leading-none">
+                {attachedPage.title || "Untitled"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachedPage(null)}
+                className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer"
+                title="Remove page context"
+                aria-label="Remove page context"
+              >
+                <span className="material-symbols-outlined text-[11px] leading-none">close</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         <textarea
           ref={textareaRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Do anything..."
+          onKeyDown={onKeyDown}
+          placeholder={
+            attachedPage
+              ? `Ask anything about "${attachedPage.title || 'this page'}"...`
+              : "Search anything across your workspace..."
+          }
           rows={1}
           autoFocus
           className="w-full bg-transparent resize-none outline-none text-[16px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-2 py-1 custom-scrollbar leading-relaxed"
@@ -887,10 +1014,9 @@ const AIChat = ({ isRightPanel = false }) => {
     }
   }, [messages]);
 
-  const handleSend = async (e) => {
-    if (e) e.preventDefault();
+  const handleSend = async (pageCtx = null) => {
     if (!query.trim() || isStreaming) return;
-    await sendMessage(query.trim());
+    await sendMessage(query.trim(), null, pageCtx);
   };
 
   const handleKeyDown = (e) => {

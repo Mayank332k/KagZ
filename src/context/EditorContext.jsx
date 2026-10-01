@@ -5,6 +5,7 @@ export const EditorContext = createContext();
 
 export const EditorProvider = ({ children }) => {
   const [isPageOpen, setIsPageOpen] = useState(false);
+  const [activePage, setActivePage] = useState(null); // { id, title, content }
   const appendContentRef = useRef(null);
 
   // Workspace tree (set by background fetch or Sidebar)
@@ -166,6 +167,8 @@ export const EditorProvider = ({ children }) => {
       value={{
         isPageOpen,
         setIsPageOpen,
+        activePage,
+        setActivePage,
         appendContent,
         registerAppendContent,
         unregisterAppendContent,

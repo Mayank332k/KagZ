@@ -112,6 +112,7 @@ const NoteEditor = () => {
   const routeLocation = useLocation();
   const {
     setIsPageOpen,
+    setActivePage,
     registerAppendContent,
     unregisterAppendContent,
     workspaceTree,
@@ -525,9 +526,21 @@ const NoteEditor = () => {
     });
     return () => {
       setIsPageOpen(false);
+      setActivePage(null);
       unregisterAppendContent();
     };
-  }, [pageId, setIsPageOpen, registerAppendContent, unregisterAppendContent]);
+  }, [pageId, setIsPageOpen, setActivePage, registerAppendContent, unregisterAppendContent]);
+
+  // Continuously sync open page details (id, title, content) for AIChat reflection
+  useEffect(() => {
+    if (pageId) {
+      setActivePage({
+        id: pageId,
+        title: title || "Untitled",
+        content: content || "",
+      });
+    }
+  }, [pageId, title, content, setActivePage]);
 
   const getId = useCallback((value) => {
     if (!value) return null;

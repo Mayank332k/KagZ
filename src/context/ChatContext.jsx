@@ -50,7 +50,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendMessage = async (userQuery, historyOverride = null) => {
+  const sendMessage = async (userQuery, historyOverride = null, pageContext = null) => {
     if (!userQuery.trim() || isStreaming) return;
 
     // Validate chat input before proceeding
@@ -66,11 +66,30 @@ export const ChatProvider = ({ children }) => {
 
     // Capture history before appending new user message
     const history = historyOverride || messages;
-    const chatHistory = history.map(msg => ({ role: msg.role, content: msg.content }));
+    let chatHistory = history.map(msg => ({ role: msg.role, content: msg.content }));
+
+    // If pageContext is provided, prepend a system context with open page details
+    if (pageContext && pageContext.title) {
+      const truncatedContent = pageContext.content && pageContext.content.length > 15000
+        ? pageContext.content.slice(0, 15000) + "\n...[truncated]"
+        : (pageContext.content || "(Empty page)");
+
+      chatHistory = [
+        {
+          role: 'system',
+          content: `The user currently has this note/page open in the editor and attached as context:\nTitle: "${pageContext.title}"\nContent:\n${truncatedContent}`
+        },
+        ...chatHistory
+      ];
+    }
 
     setMessages((prev) => [
       ...prev,
-      { role: 'user', content: userQuery },
+      {
+        role: 'user',
+        content: userQuery,
+        pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null
+      },
       { role: 'assistant', content: '', sources: [], status: 'Thinking...' },
     ]);
     setIsStreaming(true);
