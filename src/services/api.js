@@ -29,9 +29,64 @@ axiosRetry(api, {
   },
 });
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Intercept 401 Unauthorized errors to attempt silent token refresh
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      const url = originalRequest.url || '';
+      const isAuthEndpoint =
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/refresh') ||
+        url.includes('/auth/google');
+
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post('/auth/refresh');
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     const message = error.response?.data?.message || error.message;
     console.error('API Error:', message);
     return Promise.reject(error);
@@ -98,6 +153,8 @@ export const authAPI = {
     });
   },
   me: () => api.get('/auth/me'),  // Auth check — never cached
+  refreshToken: () => api.post('/auth/refresh'),
+  updatePreferences: (preferences) => api.put('/auth/preferences', preferences),
   logout: () => {
     invalidateAll(); // clear everything on logout
     return api.post('/auth/logout').finally(() => invalidateAll());

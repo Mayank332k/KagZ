@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
+import ThinkingOrb from './ThinkingOrb';
 import './AIChat.css';
 
 // Time ago utility
@@ -335,7 +336,7 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         title={copied ? "Copied!" : "Copy"}
         aria-label="Copy"
       >
-        <span className={`material-symbols-outlined text-[15px] leading-none select-none ${copied ? 'text-green-500' : ''}`}>
+        <span className={`material-symbols-outlined text-[13px] leading-none select-none ${copied ? 'text-green-500' : ''}`}>
           {copied ? 'check' : 'content_copy'}
         </span>
       </button>
@@ -347,7 +348,7 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         title={isPageOpen ? 'Add to current page' : 'Create new page with this note'}
         aria-label="Add to page"
       >
-        <span className="material-symbols-outlined text-[17px] leading-none select-none">
+        <span className="material-symbols-outlined text-[14px] leading-none select-none">
           add
         </span>
       </button>
@@ -362,92 +363,54 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
   );
 };
 
-const ThinkingSparkle = React.memo(() => {
-  const [frame, setFrame] = useState(0);
-  const frames = [
-    '❄', '+', '❆', '✻', '❇', '❈', '❊', '❋', 
-    '✧', '✦', '✥', '❂', '✴', '✵', '✶', '✸', '✹'
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((prev) => (prev + 1) % frames.length);
-    }, 150);
-    return () => clearInterval(interval);
-  }, [frames.length]);
-
-  return (
-    <span className="w-5 h-5 flex items-center justify-center text-[16px] leading-none mr-2 select-none opacity-80 shrink-0">
-      {frames[frame]}
-    </span>
-  );
-});
-
 const StatusScrollReveal = React.memo(({ text }) => {
-  const words = useMemo(() => {
-    return (text || '').split(/(\s+)/).filter(Boolean);
-  }, [text]);
-
   return (
     <motion.div
       key={text}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0, y: 3, filter: 'blur(3px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       exit={{
         opacity: 0,
-        filter: 'blur(4px)',
-        transition: { duration: 0.25, ease: 'easeInOut' },
+        y: -3,
+        filter: 'blur(3px)',
+        transition: { duration: 0.2, ease: 'easeIn' },
       }}
-      variants={{
-        hidden: { opacity: 0 },
-        visible: {
-          opacity: 1,
-          transition: {
-            staggerChildren: 0.09,
-            delayChildren: 0.04,
-          },
-        },
-      }}
-      className="flex items-center flex-wrap leading-none"
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="flex items-center select-none py-0.5"
     >
-      {words.map((word, i) => {
-        if (/^\s+$/.test(word)) {
-          return <span key={i} className="inline-block w-1" />;
-        }
-        return (
-          <motion.span
-            key={i}
-            variants={{
-              hidden: {
-                opacity: 0,
-                filter: 'blur(4px)',
-              },
-              visible: {
-                opacity: 1,
-                filter: 'blur(0px)',
-                transition: {
-                  duration: 0.6,
-                  ease: 'easeOut',
-                },
-              },
-            }}
-            className="inline-block select-none"
-          >
-            <span className="shimmer-text text-[15px] font-medium leading-none select-none">
-              {word}
-            </span>
-          </motion.span>
-        );
-      })}
+      <span className="shimmer-sentence text-[14.5px] font-medium leading-none tracking-tight select-none">
+        {text}
+      </span>
     </motion.div>
   );
 });
 
 const MIN_STATE_DISPLAY_MS = 2800; // Guaranteed 2.8s per state
 
-const ThinkingAnimation = ({ status = 'Thinking...' }) => {
-  const incomingStatus = (!status || /connecting to ai/i.test(status)) ? 'Thinking...' : status;
-  const [displayStatus, setDisplayStatus] = useState(incomingStatus);
+const resolveStateType = (type, text) => {
+  if (type === 'web_search' || type === 'workspace_search' || type === 'reconnecting') return type;
+  if (!text) return 'thinking';
+  const lower = text.toLowerCase();
+  if (lower.includes('reconnect') || lower.includes('trying to reconnect') || lower.includes('wifi')) {
+    return 'reconnecting';
+  }
+  if (lower.includes('file') || lower.includes('workspace') || lower.includes('note') || lower.includes('document')) {
+    return 'workspace_search';
+  }
+  if (lower.includes('web') || lower.includes('google') || lower.includes('internet') || lower.includes('search')) {
+    return 'web_search';
+  }
+  return 'thinking';
+};
+
+const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
+  const incomingStatus = status || null;
+  const currentType = resolveStateType(stateType, incomingStatus);
+
+  const [activeItem, setActiveItem] = useState({
+    status: incomingStatus,
+    stateType: currentType,
+  });
   const queueRef = useRef([]);
   const timerRef = useRef(null);
   const isPacingRef = useRef(false);
@@ -457,8 +420,8 @@ const ThinkingAnimation = ({ status = 'Thinking...' }) => {
 
     // Deduplicate against currently displayed or last queued status
     const lastInQueue = queueRef.current[queueRef.current.length - 1];
-    if (incomingStatus !== displayStatus && incomingStatus !== lastInQueue) {
-      queueRef.current.push(incomingStatus);
+    if (incomingStatus !== activeItem.status && (!lastInQueue || lastInQueue.status !== incomingStatus)) {
+      queueRef.current.push({ status: incomingStatus, stateType: currentType });
       // Keep queue concise (max 2 pending states) so it never lags indefinitely
       if (queueRef.current.length > 2) {
         queueRef.current = [queueRef.current[queueRef.current.length - 1]];
@@ -472,7 +435,7 @@ const ThinkingAnimation = ({ status = 'Thinking...' }) => {
       }
       isPacingRef.current = true;
       const next = queueRef.current.shift();
-      setDisplayStatus(next);
+      setActiveItem(next);
 
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
@@ -483,7 +446,7 @@ const ThinkingAnimation = ({ status = 'Thinking...' }) => {
     if (!isPacingRef.current && queueRef.current.length > 0) {
       drainQueue();
     }
-  }, [incomingStatus, displayStatus]);
+  }, [incomingStatus, currentType, activeItem.status]);
 
   useEffect(() => {
     return () => {
@@ -491,14 +454,33 @@ const ThinkingAnimation = ({ status = 'Thinking...' }) => {
     };
   }, []);
 
+  const hasStatus = Boolean(activeItem.status);
+  const activeStateType = activeItem.status ? activeItem.stateType : currentType;
+
   return (
-    <div className="flex items-center text-[var(--text-secondary)] font-medium py-1 min-h-[28px]">
-      <ThinkingSparkle />
-      <div className="overflow-visible flex items-center py-0.5">
-        <AnimatePresence mode="wait">
-          <StatusScrollReveal key={displayStatus} text={displayStatus} />
-        </AnimatePresence>
-      </div>
+    <div className="flex items-center text-[var(--text-secondary)] font-medium py-0.5 min-h-[28px]">
+      <motion.div
+        animate={{ x: hasStatus ? 0 : 4 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+        className="flex items-center shrink-0"
+      >
+        <ThinkingOrb size={24} stateType={activeStateType} />
+      </motion.div>
+      <AnimatePresence>
+        {hasStatus && (
+          <motion.div
+            initial={{ opacity: 0, x: 4, filter: 'blur(3px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, x: -4, filter: 'blur(3px)' }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-visible flex items-center py-0.5 ml-1"
+          >
+            <AnimatePresence mode="wait">
+              <StatusScrollReveal key={activeItem.status} text={activeItem.status} />
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -542,7 +524,7 @@ const UserMessageActions = ({ content, timestamp }) => {
         title="Edit message"
         aria-label="Edit message"
       >
-        <span className="material-symbols-outlined text-[14px] leading-none select-none">edit</span>
+        <span className="material-symbols-outlined text-[12.5px] leading-none select-none">edit</span>
       </button>
       <button
         type="button"
@@ -551,7 +533,7 @@ const UserMessageActions = ({ content, timestamp }) => {
         title={copied ? "Copied!" : "Copy"}
         aria-label="Copy message"
       >
-        <span className="material-symbols-outlined text-[14px] leading-none select-none">
+        <span className="material-symbols-outlined text-[12.5px] leading-none select-none">
           {copied ? "check" : "content_copy"}
         </span>
       </button>
@@ -583,7 +565,7 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
     <div className="flex flex-col items-start group/msg">
       <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[14px] py-1 max-w-[100%] leading-relaxed w-full">
         {msg.content === '' && isLatestStreaming ? (
-          <ThinkingAnimation status={msg.status || 'Thinking...'} />
+          <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
         ) : (
           <div className="markdown-content text-[14px] leading-relaxed">
             <MarkdownRenderer content={msg.content} />
@@ -629,7 +611,7 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
       <div className="message-bubble-assistant">
         <div className="markdown-content">
           {msg.content === '' && isLatestStreaming ? (
-            <ThinkingAnimation status={msg.status || 'Thinking...'} />
+            <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
           ) : (
             <MarkdownRenderer content={msg.content} />
           )}
@@ -806,7 +788,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
               }`}
               title="Toggle Deep Thinking"
             >
-              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[18px]" : "text-[22px]"}`}>psychology</span>
+              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[15px]" : "text-[18px]"}`}>psychology</span>
               {isThinking && <span>Thinking</span>}
             </button>
           </div>
@@ -904,7 +886,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 className="w-[36px] h-[36px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1"
                 title="Stop generation"
               >
-                <div className="w-3.5 h-3.5 bg-white rounded-[3px]" />
+                <div className="w-3 h-3 bg-white rounded-[2px]" />
               </button>
             ) : (
               <button
@@ -912,7 +894,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
                 disabled={!query.trim()}
                 className="w-[36px] h-[36px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1"
               >
-                <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_upward</span>
+                <span className="material-symbols-outlined text-[17px] leading-none select-none">arrow_upward</span>
               </button>
             )}
           </div>
@@ -971,6 +953,7 @@ const AIChat = ({ isRightPanel = false }) => {
 
   const prevScrollHeightRef = useRef(0);
   const wasLoadingMoreRef = useRef(false);
+  const prevMessagesCountRef = useRef(messages.length);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -989,11 +972,11 @@ const AIChat = ({ isRightPanel = false }) => {
     }
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior = 'smooth') => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTo({
         top: chatScrollRef.current.scrollHeight,
-        behavior: 'smooth'
+        behavior
       });
     }
   };
@@ -1006,17 +989,37 @@ const AIChat = ({ isRightPanel = false }) => {
         wasLoadingMoreRef.current = false;
       } else {
         const container = chatScrollRef.current;
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-        if (isNearBottom) {
+        const isNewMessage = messages.length > prevMessagesCountRef.current;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 250;
+
+        if (isNewMessage) {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+          });
+          setTimeout(() => {
+            if (chatScrollRef.current) {
+              chatScrollRef.current.scrollTo({
+                top: chatScrollRef.current.scrollHeight,
+                behavior: 'smooth'
+              });
+            }
+          }, 80);
+        } else if (isNearBottom) {
           container.scrollTop = container.scrollHeight;
         }
       }
+      prevMessagesCountRef.current = messages.length;
     }
   }, [messages]);
 
   const handleSend = async (pageCtx = null) => {
     if (!query.trim() || isStreaming) return;
-    await sendMessage(query.trim(), null, pageCtx);
+    const text = query.trim();
+    sendMessage(text, null, pageCtx);
+    setTimeout(() => {
+      scrollToBottom('smooth');
+    }, 40);
   };
 
   const handleKeyDown = (e) => {
@@ -1038,7 +1041,7 @@ const AIChat = ({ isRightPanel = false }) => {
               className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
-              <span className="material-symbols-outlined text-[18px] leading-none select-none">
+              <span className="material-symbols-outlined text-[15px] leading-none select-none">
                 chat_add_on
               </span>
             </button>
@@ -1047,14 +1050,14 @@ const AIChat = ({ isRightPanel = false }) => {
               className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Expand Chat"
             >
-              <span className="material-symbols-outlined text-[18px] leading-none select-none">open_in_full</span>
+              <span className="material-symbols-outlined text-[15px] leading-none select-none">open_in_full</span>
             </button>
             <button
               onClick={() => setIsRightChatOpen(false)}
               className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Close Chat"
             >
-              <span className="material-symbols-outlined text-[18px] leading-none select-none">close</span>
+              <span className="material-symbols-outlined text-[15px] leading-none select-none">close</span>
             </button>
           </div>
         </div>
@@ -1100,14 +1103,20 @@ const AIChat = ({ isRightPanel = false }) => {
           <AnimatePresence>
             {showScrollButton && (
               <motion.button
-                initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                onClick={scrollToBottom}
-                className="absolute -top-12 left-1/2 z-50 p-2 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
+                type="button"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => {
+                  setShowScrollButton(false);
+                  scrollToBottom('smooth');
+                }}
+                className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
                 title="Scroll to bottom"
+                aria-label="Scroll to bottom"
               >
-                <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_downward</span>
+                <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
               </motion.button>
             )}
           </AnimatePresence>
@@ -1136,7 +1145,7 @@ const AIChat = ({ isRightPanel = false }) => {
             className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title="Go back"
           >
-            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
+            <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           
           <div className="flex items-center gap-1 pointer-events-auto">
@@ -1145,7 +1154,7 @@ const AIChat = ({ isRightPanel = false }) => {
               className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
-              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+              <span className="material-symbols-outlined text-[17px] leading-none select-none">
                 chat_add_on
               </span>
             </button>
@@ -1158,7 +1167,7 @@ const AIChat = ({ isRightPanel = false }) => {
               className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Open in Sidebar"
             >
-              <span className="material-symbols-outlined text-[20px] leading-none select-none">
+              <span className="material-symbols-outlined text-[17px] leading-none select-none">
                 view_sidebar
               </span>
             </button>
@@ -1220,24 +1229,26 @@ const AIChat = ({ isRightPanel = false }) => {
               </div>
             </div>
 
-            {/* Footer with Blurs & Composer */}
+            {/* Footer with Composer */}
             <div className="chat-footer">
-              <div className="footer-blur-layer-1" />
-              <div className="footer-blur-layer-2" />
-              <div className="footer-blur-layer-3" />
-              
-              <div className="w-full max-w-[770px] mx-auto px-4 relative z-20">
+              <div className="w-full max-w-[770px] mx-auto px-4 relative z-20 pointer-events-auto">
                 <AnimatePresence>
                   {showScrollButton && (
                     <motion.button
-                      initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                      animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                      exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                      onClick={scrollToBottom}
-                      className="absolute -top-16 left-1/2 z-50 p-2.5 bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-600 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white dark:hover:bg-[#333] transition-all hover:scale-105"
+                      type="button"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => {
+                        setShowScrollButton(false);
+                        scrollToBottom('smooth');
+                      }}
+                      className="absolute -top-13 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
                       title="Scroll to bottom"
+                      aria-label="Scroll to bottom"
                     >
-                      <span className="material-symbols-outlined text-[20px] leading-none select-none">arrow_downward</span>
+                      <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
                     </motion.button>
                   )}
                 </AnimatePresence>

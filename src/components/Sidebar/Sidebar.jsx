@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useContext, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContextDefinition";
 import { EditorContext } from "../../context/EditorContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
-import { PanelLeft, SquarePen } from "lucide-react";
+import { PanelLeft, SquarePen, Sparkles } from "lucide-react";
+import { CursorTextIcon, SlidersHorizontalIcon } from "hugeicons-react";
 
 import ActionModal from "../UI/ActionModal";
 import LocationDropdown from "../UI/LocationDropdown";
@@ -20,6 +22,44 @@ import { useToast } from "../../context/ToastContext";
 import useSectionLoader from "../../hooks/useSectionLoader";
 import SectionErrorState from "../UI/SectionErrorState";
 
+const AI_PERSONA_OPTIONS = [
+  {
+    id: "professional",
+    label: "Professional",
+    badge: "Default",
+    desc: "Direct, structured, concise, and professional. Zero filler words or conversational pleasantries.",
+    icon: "work",
+  },
+  {
+    id: "playful_friend",
+    label: "Playful Friend",
+    badge: "Warm & Witty",
+    desc: "Warm, witty, and conversational like an insightful close friend. Natural phrasing and fitting humor.",
+    icon: "sentiment_very_satisfied",
+  },
+  {
+    id: "concise",
+    label: "Concise",
+    badge: "Dense & Crisp",
+    desc: "Extremely dense, bullet-point focused, 1-2 sentence answers. Straight to the point.",
+    icon: "bolt",
+  },
+  {
+    id: "socratic_mentor",
+    label: "Socratic Mentor",
+    badge: "Pedagogical",
+    desc: "Encouraging teacher. Guides step-by-step using mental models, analogies, and intuitive questions.",
+    icon: "school",
+  },
+  {
+    id: "creative",
+    label: "Creative Partner",
+    badge: "Exploratory",
+    desc: "Imaginative and enthusiastic. Offers novel angles, vivid phrasing, and creative brainstorming.",
+    icon: "lightbulb",
+  },
+];
+
 const SidebarSkeletonItem = () => (
   <div className="flex items-center w-full py-1.5 px-3 mb-0.5 animate-pulse">
     <div className="w-[18px] h-[18px] rounded bg-gray-200/60 dark:bg-white/10 mr-2.5 shrink-0" />
@@ -28,17 +68,21 @@ const SidebarSkeletonItem = () => (
 );
 
 const Sidebar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updatePreferences } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const {
     isRightChatOpen,
     setIsRightChatOpen,
     loadSession,
     sessionId,
     clearChat,
+    chatStartupMode,
+    setChatStartupMode,
+    isThinking,
+    setIsThinking,
   } = useContext(ChatContext);
   const {
     isPageOpen,
@@ -134,7 +178,8 @@ const Sidebar = () => {
 
   const [showSettingsCard, setShowSettingsCard] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
-  const [settingsTab, setSettingsTab] = useState("account");
+  const [settingsTab, setSettingsTab] = useState("preferences");
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState("");
   const [extraContrast, setExtraContrast] = useState(() => localStorage.getItem("noema-high-contrast") === "true");
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem("noema-font-size") || "16", 10));
   const [cookiePrefs, setCookiePrefs] = useState(() => {
@@ -142,11 +187,44 @@ const Sidebar = () => {
     catch { return { essential: true, analytics: false, marketing: false }; }
   });
   const [showCookiePanel, setShowCookiePanel] = useState(false);
-  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [showFontDropdown, setShowFontDropdown] = useState(false);
+  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+  const [showStartupDropdown, setShowStartupDropdown] = useState(false);
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const [fontFamily, setFontFamily] = useState(() => localStorage.getItem("noema-font-family") || "sans");
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem("noema-spellcheck") === "true");
   const [storageUsage, setStorageUsage] = useState("0 B");
+  const [aiPersona, setAiPersona] = useState(() => user?.preferences?.aiPersona || "professional");
+  const [aiCustomInstructions, setAiCustomInstructions] = useState(() => user?.preferences?.customInstructions || "");
+  const [isSavingAiPrefs, setIsSavingAiPrefs] = useState(false);
+
+  useEffect(() => {
+    if (user?.preferences) {
+      if (user.preferences.aiPersona) setAiPersona(user.preferences.aiPersona);
+      if (user.preferences.customInstructions !== undefined) setAiCustomInstructions(user.preferences.customInstructions);
+    }
+  }, [user?.preferences]);
+
+  const countWords = (text) => {
+    if (!text || !text.trim()) return 0;
+    return text.trim().split(/\s+/).length;
+  };
+
+  const handleSaveAiPrefs = async () => {
+    if (isSavingAiPrefs) return;
+    setIsSavingAiPrefs(true);
+    try {
+      await updatePreferences({
+        aiPersona,
+        customInstructions: aiCustomInstructions,
+      });
+      showToast("AI preferences saved successfully!", "success");
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to save AI preferences", "error");
+    } finally {
+      setIsSavingAiPrefs(false);
+    }
+  };
 
   // Calculate real localStorage usage
   const calcStorageUsage = () => {
@@ -232,6 +310,7 @@ const Sidebar = () => {
       "noema-spellcheck",
       "noema-chat-model",
       "noema-chat-thinking",
+      "noema-chat-startup-mode",
       "noema-last-route",
       "noema-sidebar-width",
     ];
@@ -265,7 +344,6 @@ const Sidebar = () => {
       setActiveAddMenu(null);
       setShowNewWorkspaceModal(false);
       setShowSettingsCard(false);
-      setShowThemeDropdown(false);
       setShowFontDropdown(false);
       setIsNewMenuOpen(false);
     };
@@ -984,95 +1062,176 @@ const Sidebar = () => {
     const avatar = user?.avatar || user?.profilePicture || null;
     const displayName = user?.username || user?.name || "User";
 
-    return (
+    const query = settingsSearchQuery.toLowerCase().trim();
+    const matchesQuery = (text, desc = "") => {
+      if (!query) return true;
+      return text.toLowerCase().includes(query) || desc.toLowerCase().includes(query);
+    };
+
+    return createPortal(
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-[4px]"
         onClick={() => setShowSettingsCard(false)}
       >
         <div
-          className="bg-[#ffffff] dark:bg-[var(--color-dark-sidebar)] rounded-xl shadow-2xl border border-gray-200 dark:border-[var(--color-dark-border)] flex w-full max-w-[900px] h-[76vh] max-h-[640px] overflow-hidden text-sm font-sans relative"
-          onClick={(e) => e.stopPropagation()}
+          className="bg-[#191919] text-[#F0EFED] rounded-[12px] shadow-2xl border border-white/[0.06] flex w-[94vw] max-w-[1180px] h-[90vh] max-h-[820px] overflow-hidden text-sm relative"
+          style={{ fontFamily: 'ui-sans-serif, -apple-system, system-ui, "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowThemeDropdown(false);
+            setShowStartupDropdown(false);
+            setShowFontDropdown(false);
+            setShowPersonaDropdown(false);
+          }}
         >
           {/* Close button */}
           <button 
             onClick={() => setShowSettingsCard(false)} 
-            className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 z-10"
+            className="absolute top-4 right-4 p-1 hover:bg-white/[0.08] rounded-[5px] transition-colors text-[#7D7A75] hover:text-[#F0EFED] z-20 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px] leading-none select-none">close</span>
+            <span className="material-symbols-outlined text-[17px] leading-none select-none">close</span>
           </button>
 
           {/* Left Sidebar */}
-          <div className="w-[240px] bg-gray-50 dark:bg-black/10 border-r border-gray-200 dark:border-[var(--color-dark-border)] flex flex-col py-6 px-2 shrink-0">
-            <div className="px-3 mb-2">
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Account</span>
+          <div className="w-[270px] bg-[#202020] border-r border-white/[0.06] flex flex-col py-3.5 px-3 shrink-0 select-none">
+            {/* Search settings (Beta) */}
+            <div className="mb-2.5 px-0.5">
+              <div className="flex items-center gap-2 h-[32px] px-[8px] bg-white/[0.03] border border-white/[0.08] rounded-[6px] text-[#7D7A75] focus-within:border-white/20 transition-colors">
+                <span className="material-symbols-outlined text-[16px] select-none text-[#7D7A75] shrink-0">search</span>
+                <input
+                  type="text"
+                  value={settingsSearchQuery}
+                  onChange={(e) => setSettingsSearchQuery(e.target.value)}
+                  placeholder="Search settings"
+                  className="bg-transparent text-[13.5px] text-[#F0EFED] placeholder:text-[#7D7A75] outline-none w-full"
+                />
+                <span className="text-[10px] font-[500] text-[#7D7A75] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.06] select-none shrink-0">Beta</span>
+              </div>
             </div>
-            
-            <button
-              onClick={() => setSettingsTab("account")}
-              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors text-left ${settingsTab === "account" ? "bg-gray-200 dark:bg-[#333333] text-black dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
-            >
-              {avatar ? (
-                <img src={avatar} alt="Avatar" className="w-5 h-5 rounded-full object-cover shrink-0" />
-              ) : (
-                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px] shrink-0">
-                  {displayName.charAt(0).toUpperCase()}
+
+            {/* Categories */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-0.5">
+              {/* Account Group */}
+              <div className="flex flex-col gap-[2px]">
+                <div className="px-[8px] pt-1.5 pb-1">
+                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">Account</span>
                 </div>
-              )}
-              <span className="truncate text-[13px]">{displayName}</span>
-            </button>
-            
-            <button
-              onClick={() => setSettingsTab("preferences")}
-              className={`flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg transition-colors text-left ${settingsTab === "preferences" ? "bg-gray-200 dark:bg-[#333333] text-black dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
-            >
-              <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-500">manage_accounts</span>
-              <span className="text-[13px]">Preferences</span>
-            </button>
-            
-            <button
-              onClick={() => setSettingsTab("typography")}
-              className={`flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg transition-colors text-left ${settingsTab === "typography" ? "bg-gray-200 dark:bg-[#333333] text-black dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
-            >
-              <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-500">description</span>
-              <span className="text-[13px]">Typography</span>
-            </button>
-            
-            <div className="mt-auto px-1 pb-2">
+                <button
+                  onClick={() => setSettingsTab("account")}
+                  aria-current={settingsTab === "account" ? "page" : undefined}
+                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                    settingsTab === "account"
+                      ? "bg-white/[0.055] text-[#F0EFED]"
+                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                  }`}
+                >
+                  {avatar ? (
+                    <img src={avatar} alt="Avatar" className="w-[20px] h-[20px] rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-[20px] h-[20px] rounded-full bg-[#303030] text-[#F0EFED] border border-white/10 flex items-center justify-center font-medium text-[11px] shrink-0">
+                      {displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="truncate">{displayName}</span>
+                </button>
+                <button
+                  onClick={() => setSettingsTab("preferences")}
+                  aria-current={settingsTab === "preferences" ? "page" : undefined}
+                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                    settingsTab === "preferences"
+                      ? "bg-white/[0.055] text-[#F0EFED]"
+                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                  }`}
+                >
+                  <SlidersHorizontalIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "preferences" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <span className="truncate">Preferences</span>
+                </button>
+              </div>
+
+              {/* Workspace Group */}
+              <div className="flex flex-col gap-[2px]">
+                <div className="px-[8px] pt-1.5 pb-1">
+                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">Workspace</span>
+                </div>
+                <button
+                  onClick={() => setSettingsTab("typography")}
+                  aria-current={settingsTab === "typography" ? "page" : undefined}
+                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                    settingsTab === "typography"
+                      ? "bg-white/[0.055] text-[#F0EFED]"
+                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                  }`}
+                >
+                  <CursorTextIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "typography" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <span className="truncate">Typography & Editor</span>
+                </button>
+                <button
+                  onClick={() => setSettingsTab("privacy")}
+                  aria-current={settingsTab === "privacy" ? "page" : undefined}
+                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                    settingsTab === "privacy"
+                      ? "bg-white/[0.055] text-[#F0EFED]"
+                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[17px] leading-none select-none shrink-0 ${settingsTab === "privacy" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`}>security</span>
+                  <span className="truncate">Privacy & Data</span>
+                </button>
+                <button
+                  onClick={() => setSettingsTab("ai")}
+                  aria-current={settingsTab === "ai" ? "page" : undefined}
+                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                    settingsTab === "ai"
+                      ? "bg-white/[0.055] text-[#F0EFED]"
+                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                  }`}
+                >
+                  <Sparkles size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "ai" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <span className="truncate">KagZ AI</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Logout */}
+            <div className="mt-auto pt-2 border-t border-white/[0.06] px-0.5">
               <button
                 onClick={logout}
-                className="w-full flex items-center px-2 py-1.5 text-sm rounded-md transition-colors text-red-500 hover:bg-red-500/10 dark:hover:bg-red-500/20"
+                className="w-full flex items-center gap-2.5 px-[8px] py-[5px] h-[32px] text-[13.5px] font-[500] rounded-[6px] transition-colors text-[#7D7A75] hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">logout</span> Log out
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">logout</span> Log out
               </button>
             </div>
           </div>
 
           {/* Right Content */}
-          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-10 pt-12 relative bg-white dark:bg-[var(--color-dark-sidebar)]">
-            {settingsTab === "account" && (
-              <div className="flex flex-col max-w-2xl w-full mx-auto">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">My Account</h2>
-                <p className="text-[13px] text-gray-500 mb-8 border-b border-gray-200 dark:border-[var(--color-dark-border)] pb-4">Manage your account information and settings</p>
+          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-[57px] pt-[36px] pb-[40px] relative bg-[#191919]">
+            {/* Account Tab */}
+            {settingsTab === "account" && !settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight mb-1">My Account</h2>
+                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mb-8 pb-4 border-b border-white/[0.06]">
+                  Manage your account credentials and personal profile
+                </p>
                 
                 <div className="flex flex-col gap-6">
-                  <div className="flex items-center gap-5">
+                  <div className="flex items-center gap-5 p-4 rounded-[10px] bg-white/[0.02] border border-white/[0.06]">
                     {avatar ? (
-                      <img src={avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover shrink-0" />
+                      <img src={avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover shrink-0 ring-1 ring-white/10" />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-2xl shrink-0">
+                      <div className="w-14 h-14 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-xl shrink-0">
                         {displayName.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="flex flex-col">
-                      <span className="font-semibold text-gray-900 dark:text-white text-base">{displayName}</span>
-                      <span className="text-sm text-gray-500">{user?.email || "No email"}</span>
+                      <span className="font-[600] text-[#F0EFED] text-[16px]">{displayName}</span>
+                      <span className="text-[13px] text-[#BCBAB6] mt-0.5">{user?.email || "No email"}</span>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-white/5">
-                      <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Provider</span>
-                      <span className="text-[14px] text-gray-500 capitalize">
+                  <div className="flex flex-col divide-y divide-white/[0.04]">
+                    <div className="flex justify-between items-center py-3.5">
+                      <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Authentication Provider</span>
+                      <span className="text-[13px] text-[#BCBAB6] capitalize">
                         {user?.authProvider === 'google' ? (
                           <div className="flex items-center gap-1.5">
                             <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -1088,59 +1247,75 @@ const Sidebar = () => {
                         )}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-white/5">
-                      <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Joined Date</span>
-                      <span className="text-[14px] text-gray-500">{joinedDate}</span>
+                    <div className="flex justify-between items-center py-3.5">
+                      <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Joined Date</span>
+                      <span className="text-[13px] text-[#BCBAB6]">{joinedDate}</span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
             
-            {settingsTab === "preferences" && (
-              <div className="flex flex-col max-w-2xl w-full mx-auto">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Preferences</h2>
-                <p className="text-[13px] text-gray-500 mb-8 border-b border-gray-200 dark:border-[var(--color-dark-border)] pb-4">Choose how you want the app to look and behave</p>
+            {/* Preferences Tab (Appearance & Input/Startup options) */}
+            {settingsTab === "preferences" && !settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight">Preferences</h2>
+                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-1 mb-8">
+                  Choose how you want KagZ to look and behave
+                </p>
 
-                <div className="flex flex-col gap-10">
-                  {/* Appearance */}
-                  <div className="flex flex-col gap-5">
-                    <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Appearance</h3>
+                <div className="flex flex-col gap-6">
+                  {/* Appearance Section */}
+                  <div>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Appearance</h3>
                     
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Theme</span>
-                        <span className="text-[13px] text-gray-500">Choose a theme for the app on this device</span>
+                    {/* Theme Dropdown */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Theme</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
+                          Choose a theme for KagZ on this device
+                        </span>
                       </div>
-                      <div className="relative w-[180px] shrink-0">
+                      
+                      <div className="relative shrink-0">
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowThemeDropdown(!showThemeDropdown);
+                            setShowStartupDropdown(false);
+                            setShowFontDropdown(false);
+                            setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between w-full bg-[#f7f6f3] dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] px-3 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none"
                         >
-                          <span className="capitalize">{theme === 'system' ? 'Use system setting' : theme}</span>
-                          <span className={`material-symbols-outlined text-[16px] leading-none select-none text-gray-400 transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
-                        
                         {showThemeDropdown && (
-                          <div className="absolute top-full right-0 mt-1.5 w-full bg-white dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] shadow-xl overflow-hidden z-50 py-1">
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {[
-                              { id: "system", label: "Use system setting" },
-                              { id: "light", label: "Light" },
-                              { id: "dark", label: "Dark" }
-                            ].map((t) => (
+                              { id: 'system', label: 'Use system setting' },
+                              { id: 'light', label: 'Light' },
+                              { id: 'dark', label: 'Dark' }
+                            ].map((opt) => (
                               <button
-                                key={t.id}
+                                key={opt.id}
+                                type="button"
                                 onClick={() => {
-                                  setTheme(t.id);
+                                  setTheme(opt.id);
                                   setShowThemeDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
                               >
-                                <span>{t.label}</span>
-                                {theme === t.id && <span className="material-symbols-outlined text-[16px] leading-none select-none">check</span>}
+                                <span>{opt.label}</span>
+                                {theme === opt.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -1148,127 +1323,147 @@ const Sidebar = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">High Contrast</span>
-                        <span className="text-[13px] text-gray-500">Increase contrast for improved visibility</span>
+                    {/* High Contrast */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">High contrast</span>
+                          <span className="text-[9.5px] font-[500] text-[#7D7A75] bg-white/[0.06] px-1.5 py-0.5 rounded select-none">Beta</span>
+                        </div>
+                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">Increase contrast for improved interface visibility</span>
                       </div>
                       <button
+                        type="button"
+                        role="switch"
+                        aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
-                        className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${extraContrast ? "bg-blue-600 dark:bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600" : "bg-white/20"}`}
                       >
-                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Privacy & Data */}
-                  <div className="flex flex-col gap-5">
-                    <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Privacy & Data</h3>
+                  {/* Section Hairline Divider */}
+                  <div className="border-t border-white/[0.06] my-2" />
+
+                  {/* Input options Section */}
+                  <div>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Input options</h3>
                     
-                    <div>
-                      <div 
-                        className="flex items-center justify-between cursor-pointer group"
-                        onClick={() => setShowCookiePanel(!showCookiePanel)}
-                      >
-                        <div className="flex flex-col mr-4">
-                          <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium group-hover:text-black dark:group-hover:text-white transition-colors">Cookie Settings</span>
-                          <span className="text-[13px] text-gray-500">Manage your cookie preferences</span>
-                        </div>
-                        <span className={`material-symbols-outlined text-[20px] leading-none select-none text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-transform ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
+                    {/* On Startup & Reload Dropdown */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">On startup & reload</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5 max-w-[420px]">
+                          {chatStartupMode === 'resume'
+                            ? "Remembers last state and resumes previous chat on reload"
+                            : "Opens fresh on a new page with a clean new chat"}
+                        </span>
                       </div>
-                      
-                      {showCookiePanel && (
-                        <div className="mt-3 ml-1 flex flex-col gap-3 bg-[#f7f6f3] dark:bg-black/10 p-4 rounded-lg border border-gray-100 dark:border-white/5">
-                          {[
-                            { key: "essential", label: "Essential Cookies", desc: "Required for the app to function. Cannot be disabled.", locked: true },
-                            { key: "analytics", label: "Analytics Cookies", desc: "Help us understand how you use the app.", locked: false },
-                            { key: "marketing", label: "Marketing Cookies", desc: "Used to personalize content and ads.", locked: false },
-                          ].map((cookie) => (
-                            <div key={cookie.key} className="flex items-center justify-between">
-                              <div className="flex flex-col mr-4">
-                                <span className="text-[13px] text-gray-700 dark:text-gray-300 font-medium">{cookie.label}</span>
-                                <span className="text-[12px] text-gray-500">{cookie.desc}</span>
-                              </div>
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowStartupDropdown(!showStartupDropdown);
+                            setShowThemeDropdown(false);
+                            setShowFontDropdown(false);
+                            setShowPersonaDropdown(false);
+                          }}
+                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none"
+                        >
+                          <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                        </button>
+                        {showStartupDropdown && (
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {[
+                              { id: 'resume', label: 'Resume last chat' },
+                              { id: 'fresh', label: 'Fresh new chat' }
+                            ].map((opt) => (
                               <button
-                                onClick={() => handleCookieToggle(cookie.key)}
-                                disabled={cookie.locked}
-                                className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-blue-600 dark:bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  setChatStartupMode(opt.id);
+                                  setShowStartupDropdown(false);
+                                }}
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
                               >
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${cookiePrefs[cookie.key] ? "translate-x-4" : ""}`} />
+                                <span>{opt.label}</span>
+                                {chatStartupMode === opt.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>
+                                )}
                               </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Local Storage</span>
-                        <span className="text-[13px] text-gray-500">{storageUsage} used. Unsaved drafts are included.</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <button 
-                        onClick={() => setShowClearDataModal(true)}
-                        className="text-[13px] text-red-500 hover:text-red-600 font-medium px-4 py-1.5 rounded border border-gray-200 dark:border-gray-700 hover:border-red-100 hover:bg-red-50 dark:hover:border-red-900/30 dark:hover:bg-red-500/10 transition-colors shrink-0"
+                    </div>
+
+                    {/* Reasoning Process Toggle */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Reasoning process</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">Show step-by-step thinking orb animation when responding</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isThinking}
+                        onClick={() => setIsThinking(!isThinking)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-white/20"}`}
                       >
-                        Clear Local Data
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
-            {settingsTab === "typography" && (
-              <div className="flex flex-col max-w-2xl w-full mx-auto">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Typography & Editor</h2>
-                <p className="text-[13px] text-gray-500 mb-8 border-b border-gray-200 dark:border-[var(--color-dark-border)] pb-4">Customize your reading and writing experience</p>
 
-                <div className="flex flex-col gap-10">
-                  {/* Typography */}
-                  <div className="flex flex-col gap-5">
-                    <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Typography</h3>
+            {/* Dedicated Tab: Typography & Editor */}
+            {settingsTab === "typography" && !settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Typography & Editor</h2>
+                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+                  Customize your reading and writing experience across notes and documents
+                </p>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Font Size</span>
-                        <span className="text-[13px] text-gray-500">Adjust the interface text size ({fontSize}px)</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-500 bg-[#f7f6f3] dark:bg-black/20 rounded-md border border-gray-100 dark:border-white/5 p-1 w-24 justify-between shrink-0">
-                        <button 
-                          onClick={() => handleFontSizeChange(-1)}
-                          disabled={fontSize <= 12}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-white dark:hover:bg-[#333333] rounded hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >-</button>
-                        <span className="text-[13px] w-8 text-center font-medium">{fontSize}</span>
-                        <button 
-                          onClick={() => handleFontSizeChange(1)}
-                          disabled={fontSize >= 24}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-white dark:hover:bg-[#333333] rounded hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >+</button>
-                      </div>
-                    </div>
+                <div className="flex flex-col gap-6">
+                  {/* Editor typography */}
+                  <div>
+                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Editor typography</h3>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Font Style</span>
-                        <span className="text-[13px] text-gray-500">Choose the default typeface</span>
+                    {/* Font Family */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font family</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Choose the default typeface</span>
                       </div>
-                      <div className="relative w-[180px] shrink-0">
+                      <div className="relative shrink-0">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowFontDropdown(!showFontDropdown);
+                            setShowThemeDropdown(false);
+                            setShowStartupDropdown(false);
                           }}
-                          className="flex items-center justify-between w-full bg-[#f7f6f3] dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] px-3 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#d4d3cf] transition-colors cursor-pointer select-none"
                         >
                           <span className="capitalize">{fontFamily === 'sans' ? 'Sans-serif' : fontFamily === 'serif' ? 'Serif' : fontFamily === 'system' ? 'System Default' : 'Monospace'}</span>
-                          <span className={`material-symbols-outlined text-[16px] leading-none select-none text-gray-400 transition-transform ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-gray-400 select-none transition-transform ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         
                         {showFontDropdown && (
-                          <div className="absolute top-full right-0 mt-1.5 w-full bg-white dark:bg-[#1a1a1a] border-[0.5px] border-gray-400/50 dark:border-[#8a817c]/50 rounded-[10px] shadow-xl overflow-hidden z-50 py-1">
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {[
                               { id: "sans", label: "Sans-serif" },
                               { id: "serif", label: "Serif" },
@@ -1281,10 +1476,199 @@ const Sidebar = () => {
                                   setFontFamily(f.id);
                                   setShowFontDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-left"
                               >
                                 <span>{f.label}</span>
-                                {fontFamily === f.id && <span className="material-symbols-outlined text-[16px] leading-none select-none">check</span>}
+                                {fontFamily === f.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Font Size */}
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font size</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Adjust interface and editor text size ({fontSize}px)</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-600 dark:text-[#d4d3cf] bg-transparent rounded-[6px] border border-black/10 dark:border-white/10 px-1 py-0.5 shrink-0">
+                        <button 
+                          onClick={() => handleFontSizeChange(-1)}
+                          disabled={fontSize <= 12}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm"
+                        >-</button>
+                        <span className="text-[12px] w-7 text-center font-medium">{fontSize}</span>
+                        <button 
+                          onClick={() => handleFontSizeChange(1)}
+                          disabled={fontSize >= 24}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-black/[0.06] dark:border-[#262626] my-2" />
+
+                  {/* Writing assistance */}
+                  <div>
+                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Writing assistance</h3>
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Spell check</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Enable browser spell checker in notes</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={spellCheck}
+                        onClick={() => setSpellCheck(!spellCheck)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${spellCheck ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                      >
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${spellCheck ? "translate-x-3.5" : ""}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dedicated Tab: Privacy & Data */}
+            {settingsTab === "privacy" && !settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Privacy & Data</h2>
+                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+                  Manage cookies, storage quotas, and local data persistence
+                </p>
+
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Cookies & Storage</h3>
+                    <div className="py-2.5">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer group"
+                        onClick={() => setShowCookiePanel(!showCookiePanel)}
+                      >
+                        <div className="flex flex-col pr-4">
+                          <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium group-hover:text-black dark:group-hover:text-white transition-colors">Cookie preferences</span>
+                          <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Manage optional analytics and tracking cookies</span>
+                        </div>
+                        <span className={`material-symbols-outlined text-[17px] select-none text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-transform ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
+                      </div>
+                      
+                      {showCookiePanel && (
+                        <div className="mt-3 flex flex-col gap-2.5 bg-black/[0.02] dark:bg-[#202020] p-3.5 rounded-[6px] border border-black/10 dark:border-white/10">
+                          {[
+                            { key: "essential", label: "Essential Cookies", desc: "Required for the app to function. Cannot be disabled.", locked: true },
+                            { key: "analytics", label: "Analytics Cookies", desc: "Help us understand how you use KagZ.", locked: false },
+                            { key: "marketing", label: "Marketing Cookies", desc: "Used to personalize suggestions.", locked: false },
+                          ].map((cookie) => (
+                            <div key={cookie.key} className="flex items-center justify-between py-1">
+                              <div className="flex flex-col mr-4">
+                                <span className="text-[12.5px] text-gray-800 dark:text-gray-200 font-medium">{cookie.label}</span>
+                                <span className="text-[11px] text-gray-500 dark:text-[#84827e]">{cookie.desc}</span>
+                              </div>
+                              <button
+                                onClick={() => handleCookieToggle(cookie.key)}
+                                disabled={cookie.locked}
+                                className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                              >
+                                <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between py-2.5 mt-1">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Local storage cache</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">{storageUsage} used of local device quota</span>
+                      </div>
+                      <button 
+                        onClick={() => setShowClearDataModal(true)}
+                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
+                      >
+                        Clear local data
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dedicated Tab: KagZ AI */}
+            {settingsTab === "ai" && !settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight mb-1">KagZ AI</h2>
+                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mb-8">
+                  Customize AI personality, tone, and behavioral instructions
+                </p>
+
+                <div className="flex flex-col gap-6">
+                  {/* 1. Personality & Tone */}
+                  <div>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Personality & Tone</h3>
+                    <div className="flex items-center justify-between py-3">
+                      <div className="flex flex-col pr-6">
+                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">
+                          Active persona ({AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"})
+                        </span>
+                        <span className="text-[13px] text-[#BCBAB6] mt-0.5">
+                          {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc}
+                        </span>
+                      </div>
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPersonaDropdown(!showPersonaDropdown);
+                            setShowThemeDropdown(false);
+                            setShowStartupDropdown(false);
+                            setShowFontDropdown(false);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
+                        >
+                          <span>{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                        </button>
+                        {showPersonaDropdown && (
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-64 py-1.5 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {AI_PERSONA_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={async () => {
+                                  setAiPersona(opt.id);
+                                  setShowPersonaDropdown(false);
+                                  try {
+                                    await updatePreferences({
+                                      aiPersona: opt.id,
+                                      customInstructions: aiCustomInstructions,
+                                    });
+                                    showToast(`AI persona set to ${opt.label}`, "success");
+                                  } catch (err) {
+                                    showToast(err.response?.data?.message || "Failed to update persona", "error");
+                                  }
+                                }}
+                                className="w-full flex items-center justify-between px-3 py-2 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                              >
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-medium text-[#F0EFED]">{opt.label}</span>
+                                    <span className="text-[10px] text-[#7D7A75] bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
+                                  </div>
+                                  <span className="text-[11px] text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
+                                </div>
+                                {aiPersona === opt.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none shrink-0 ml-2">check</span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -1293,29 +1677,313 @@ const Sidebar = () => {
                     </div>
                   </div>
 
-                  {/* Editor */}
-                  <div className="flex flex-col gap-5">
-                    <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Editor</h3>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col mr-4">
-                        <span className="text-[14px] text-gray-700 dark:text-gray-300 font-medium">Spell Check</span>
-                        <span className="text-[13px] text-gray-500">Enable browser spell checker in notes</span>
+                  <div className="border-t border-white/[0.06] my-1" />
+
+                  {/* 2. Custom Instructions (Max 100 words) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED]">Custom instructions</h3>
+                        <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
+                          Provide specific instructions on how KagZ AI should behave, write, or format responses
+                        </p>
+                      </div>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${
+                        countWords(aiCustomInstructions) > 100
+                          ? "bg-red-500/10 text-red-500 font-semibold"
+                          : countWords(aiCustomInstructions) > 85
+                          ? "bg-amber-500/10 text-amber-400"
+                          : "text-[#7D7A75]"
+                      }`}>
+                        {countWords(aiCustomInstructions)} / 100 words
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2">
+                      <textarea
+                        value={aiCustomInstructions}
+                        onChange={(e) => setAiCustomInstructions(e.target.value)}
+                        placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
+                        rows={3}
+                        className="w-full p-2.5 text-[13px] text-[#F0EFED] bg-white/[0.02] border border-white/[0.08] rounded-[6px] focus:outline-none focus:border-white/20 transition-colors resize-none placeholder:text-[#7D7A75]"
+                      />
+                      {countWords(aiCustomInstructions) > 100 && (
+                        <p className="text-[11.5px] text-red-400 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">warning</span>
+                          Instructions exceed 100 words limit. Excess words will be trimmed.
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[11.5px] text-[#7D7A75]">
+                          Saved globally across all KagZ chats for your account.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleSaveAiPrefs}
+                          disabled={isSavingAiPrefs}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 rounded-[5px] transition-colors cursor-pointer shadow-sm"
+                        >
+                          {isSavingAiPrefs ? (
+                            <>
+                              <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[14px]">check</span>
+                              <span>Save preferences</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/[0.06] my-1" />
+
+                  {/* 3. Reasoning & Thinking Process */}
+                  <div>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Reasoning process</h3>
+                    <div className="flex items-center justify-between py-3">
+                      <div className="flex flex-col pr-6">
+                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Thinking orb visualization</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
+                          Show the step-by-step thinking orb animation while the AI generates responses
+                        </span>
                       </div>
                       <button
-                        onClick={() => setSpellCheck(!spellCheck)}
-                        className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${spellCheck ? "bg-blue-600 dark:bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                        type="button"
+                        role="switch"
+                        aria-checked={isThinking}
+                        onClick={() => setIsThinking(!isThinking)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-white/20"}`}
                       >
-                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${spellCheck ? "translate-x-5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Real-time Search Results View */}
+            {settingsSearchQuery && (
+              <div className="flex flex-col max-w-[760px] w-full mx-auto">
+                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Search Results</h2>
+                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+                  Settings matching &ldquo;{settingsSearchQuery}&rdquo;
+                </p>
+
+                <div className="flex flex-col gap-4">
+                  {matchesQuery("Theme", "theme") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Theme</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">System, Light, or Dark theme</span>
+                      </div>
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowThemeDropdown(!showThemeDropdown);
+                          }}
+                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent text-gray-800 dark:text-[#d4d3cf] cursor-pointer"
+                        >
+                          <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
+                          <span className="material-symbols-outlined text-[15px] text-gray-400 select-none">expand_more</span>
+                        </button>
+                        {showThemeDropdown && (
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {[
+                              { id: 'system', label: 'Use system setting' },
+                              { id: 'light', label: 'Light' },
+                              { id: 'dark', label: 'Dark' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  setTheme(opt.id);
+                                  setShowThemeDropdown(false);
+                                }}
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-left"
+                              >
+                                <span>{opt.label}</span>
+                                {theme === opt.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {matchesQuery("High contrast", "contrast") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">High contrast</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Increase contrast for improved visibility</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={extraContrast}
+                        onClick={() => setExtraContrast(!extraContrast)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                      >
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-3.5" : ""}`} />
+                      </button>
+                    </div>
+                  )}
+
+                  {matchesQuery("Startup", "Resume last chat reload") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">On startup & reload</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Resume last chat or start fresh on reload</span>
+                      </div>
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowStartupDropdown(!showStartupDropdown);
+                          }}
+                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent text-gray-800 dark:text-[#d4d3cf] cursor-pointer"
+                        >
+                          <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
+                          <span className="material-symbols-outlined text-[15px] text-gray-400 select-none">expand_more</span>
+                        </button>
+                        {showStartupDropdown && (
+                          <div 
+                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {[
+                              { id: 'resume', label: 'Resume last chat' },
+                              { id: 'fresh', label: 'Fresh new chat' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  setChatStartupMode(opt.id);
+                                  setShowStartupDropdown(false);
+                                }}
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-left"
+                              >
+                                <span>{opt.label}</span>
+                                {chatStartupMode === opt.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {matchesQuery("Reasoning", "Thinking mode") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Reasoning process</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Thinking orb animation</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isThinking}
+                        onClick={() => setIsThinking(!isThinking)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                      >
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
+                      </button>
+                    </div>
+                  )}
+
+                  {matchesQuery("Font", "Typography text size") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font size</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Interface text size ({fontSize}px)</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-600 dark:text-[#d4d3cf] bg-transparent rounded-[6px] border border-black/10 dark:border-white/10 px-1 py-0.5 shrink-0">
+                        <button 
+                          onClick={() => handleFontSizeChange(-1)}
+                          disabled={fontSize <= 12}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer text-sm"
+                        >-</button>
+                        <span className="text-[12px] w-7 text-center font-medium">{fontSize}</span>
+                        <button 
+                          onClick={() => handleFontSizeChange(1)}
+                          disabled={fontSize >= 24}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer text-sm"
+                        >+</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {matchesQuery("Spell", "Spell check") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Spell check</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Browser spell checker</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={spellCheck}
+                        onClick={() => setSpellCheck(!spellCheck)}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${spellCheck ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                      >
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${spellCheck ? "translate-x-3.5" : ""}`} />
+                      </button>
+                    </div>
+                  )}
+
+                  {matchesQuery("Storage", "Local data clear") && (
+                    <div className="flex items-center justify-between py-2.5">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Local storage</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">{storageUsage} used</span>
+                      </div>
+                      <button 
+                        onClick={() => setShowClearDataModal(true)}
+                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
+                      >
+                        Clear local data
+                      </button>
+                    </div>
+                  )}
+
+                  {matchesQuery("KagZ AI", "personality tone instructions friend prompt") && (
+                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                      <div className="flex flex-col pr-4">
+                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">KagZ AI Settings</span>
+                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Customize AI personality ({aiPersona.replace('_', ' ')}) and custom instructions</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettingsSearchQuery("");
+                          setSettingsTab("ai");
+                        }}
+                        className="px-3 py-1 text-[12px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-[5px] transition-colors cursor-pointer"
+                      >
+                        Configure
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -1653,7 +2321,12 @@ const Sidebar = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setIsRightChatOpen((prev) => !prev)}
+                onClick={() => {
+                  if (!isRightChatOpen && chatStartupMode === "fresh") {
+                    clearChat();
+                  }
+                  setIsRightChatOpen((prev) => !prev);
+                }}
                 className="block cursor-pointer"
               >
                 <motion.div

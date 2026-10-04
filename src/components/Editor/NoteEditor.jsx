@@ -388,6 +388,9 @@ const NoteEditor = () => {
        }
     },
     editorProps: {
+      attributes: {
+        spellcheck: localStorage.getItem("noema-spellcheck") === "true" ? "true" : "false",
+      },
       handleKeyDown: (view, event) => {
         const currentSlashMenu = slashMenuState.current;
         if (currentSlashMenu.isOpen) {
@@ -450,7 +453,11 @@ const NoteEditor = () => {
   // Listen to global spellcheck changes
   useEffect(() => {
     const handleSpellCheckChange = () => {
-      setGlobalSpellCheck(localStorage.getItem("noema-spellcheck") === "true");
+      const isEnabled = localStorage.getItem("noema-spellcheck") === "true";
+      setGlobalSpellCheck(isEnabled);
+      if (editor && !editor.isDestroyed && editor.view?.dom) {
+        editor.view.dom.setAttribute("spellcheck", isEnabled ? "true" : "false");
+      }
     };
     window.addEventListener("noema-spellcheck-changed", handleSpellCheckChange);
     return () =>
@@ -458,7 +465,14 @@ const NoteEditor = () => {
         "noema-spellcheck-changed",
         handleSpellCheckChange,
       );
-  }, []);
+  }, [editor]);
+
+  // Sync spellcheck attribute on editor view when available
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && editor.view?.dom) {
+      editor.view.dom.setAttribute("spellcheck", globalSpellCheck ? "true" : "false");
+    }
+  }, [editor, globalSpellCheck]);
 
   // Close menus on click outside
   useEffect(() => {

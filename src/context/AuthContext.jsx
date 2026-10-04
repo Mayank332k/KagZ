@@ -53,6 +53,16 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('storage', handleAuthEvent);
   }, []);
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUser(null);
+      setError('Your session has expired. Please log in again.');
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
+
   const loginWithGoogle = async (token) => {
     setLoading(true);
     setError(null);
@@ -122,8 +132,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updatePreferences = async (preferences) => {
+    try {
+      const res = await authService.updatePreferences(preferences);
+      if (res.success && res.user) {
+        setUser(res.user);
+      }
+      return res;
+    } catch (err) {
+      console.error('Failed to update preferences:', err);
+      throw err;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, login, register, logout, updatePreferences }}>
       {children}
     </AuthContext.Provider>
   );

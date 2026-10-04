@@ -9,8 +9,36 @@ const AIChat = lazy(() => import('../../components/Chat/AIChat'));
 const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isRightChatOpen } = useContext(ChatContext);
+  const { isRightChatOpen, chatStartupMode, clearChat } = useContext(ChatContext);
   const isChatRoute = location.pathname === '/dashboard/chat';
+
+  // Save current route for 'resume' mode
+  useEffect(() => {
+    if (location.pathname.startsWith('/dashboard/')) {
+      const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+      if (mode === 'resume') {
+        localStorage.setItem('noema-last-route', location.pathname + location.search);
+      }
+    }
+  }, [location.pathname, location.search]);
+
+  // Handle reload behavior: fresh reload on new page vs resume last state
+  useEffect(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    try {
+      const navEntries = performance.getEntriesByType?.('navigation');
+      const isReload = navEntries?.[0]?.type === 'reload' || performance.navigation?.type === 1;
+
+      if (isReload && mode === 'fresh') {
+        clearChat();
+        if (location.pathname !== '/dashboard/page/new') {
+          navigate('/dashboard/page/new', { replace: true });
+        }
+      }
+    } catch (err) {
+      console.warn('Navigation check failed:', err);
+    }
+  }, []);
 
 
   // Resizable Right Chat Panel State (min: 320, max: 750, default: 440)

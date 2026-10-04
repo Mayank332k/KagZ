@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { chatAPI } from '../services/api';
 import { useToast } from './ToastContext';
@@ -8,8 +8,34 @@ import { ChatContext } from './ChatContextDefinition';
 
 export const ChatProvider = ({ children }) => {
   const { showToast } = useToast();
-  const [sessionId, setSessionId] = useState(() => uuidv4());
-  const [messages, setMessages] = useState([]);
+
+  // Startup & Reload behavior: 'resume' (remember last chat/state) or 'fresh' (start fresh on new page)
+  const [chatStartupMode, setChatStartupModeState] = useState(
+    () => localStorage.getItem('noema-chat-startup-mode') || 'resume'
+  );
+
+  const [sessionId, setSessionId] = useState(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    if (mode === 'resume') {
+      const saved = localStorage.getItem('noema-last-chat-session');
+      if (saved) return saved;
+    }
+    return uuidv4();
+  });
+
+  const [messages, setMessages] = useState(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    if (mode === 'resume') {
+      try {
+        const saved = localStorage.getItem('noema-last-chat-messages');
+        if (saved) return JSON.parse(saved);
+      } catch (err) {
+        console.warn('Failed to parse cached chat messages:', err);
+      }
+    }
+    return [];
+  });
+
   const [nextCursor, setNextCursor] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -17,7 +43,47 @@ export const ChatProvider = ({ children }) => {
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentSources, setCurrentSources] = useState([]);
-  const [isRightChatOpen, setIsRightChatOpen] = useState(false);
+  
+  const [isRightChatOpen, setIsRightChatOpenState] = useState(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    if (mode === 'resume') {
+      return localStorage.getItem('noema-right-chat-open') === 'true';
+    }
+    return false;
+  });
+
+  const setIsRightChatOpen = (valOrFn) => {
+    setIsRightChatOpenState((prev) => {
+      const nextVal = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+      if (mode === 'resume') {
+        localStorage.setItem('noema-right-chat-open', String(nextVal));
+      } else {
+        localStorage.removeItem('noema-right-chat-open');
+      }
+      return nextVal;
+    });
+  };
+
+  const updateChatStartupMode = (mode) => {
+    setChatStartupModeState(mode);
+    localStorage.setItem('noema-chat-startup-mode', mode);
+    if (mode === 'fresh') {
+      localStorage.removeItem('noema-last-chat-session');
+      localStorage.removeItem('noema-last-chat-messages');
+      localStorage.removeItem('noema-right-chat-open');
+    } else {
+      if (messages.length > 0 && sessionId) {
+        localStorage.setItem('noema-last-chat-session', sessionId);
+        try {
+          localStorage.setItem('noema-last-chat-messages', JSON.stringify(messages));
+        } catch (e) {}
+      }
+      if (isRightChatOpen) {
+        localStorage.setItem('noema-right-chat-open', 'true');
+      }
+    }
+  };
   
   // Model & Thinking States
   const [selectedModel, setSelectedModel] = useState(
@@ -90,7 +156,7 @@ export const ChatProvider = ({ children }) => {
         content: userQuery,
         pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null
       },
-      { role: 'assistant', content: '', sources: [], status: 'Thinking...' },
+      { role: 'assistant', content: '', sources: [], status: null, stateType: 'thinking' },
     ]);
     setIsStreaming(true);
 
@@ -146,16 +212,12 @@ export const ChatProvider = ({ children }) => {
             rafId = null;
           }
           flushContentBuffer();
-          if (event.data && /connecting to ai/i.test(event.data)) {
-            // Ignore internal retry/connection state so it never displays on UI
-            continue;
-          }
           setMessages((prev) => {
             const lastIndex = prev.length - 1;
             if (lastIndex < 0) return prev;
             const lastMsg = prev[lastIndex];
             if (lastMsg.role !== 'assistant') return prev;
-            return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data }];
+            return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data, stateType: event.stateType || 'thinking' }];
           });
         } else if (event.type === 'content') {
           contentBuffer += event.data;
@@ -242,18 +304,60 @@ export const ChatProvider = ({ children }) => {
     try {
       const res = await chatAPI.getHistory(id);
       if (res.data.success) {
+        const msgs = res.data.messages || [];
         setSessionId(id);
-        setMessages(res.data.messages || []);
+        setMessages(msgs);
         setNextCursor(res.data.nextCursor || null);
         setHasMore(!!res.data.nextCursor);
         setQuery('');
         setCurrentSources([]);
         setChatError(null);
+
+        const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+        if (mode === 'resume') {
+          localStorage.setItem('noema-last-chat-session', id);
+          try {
+            localStorage.setItem('noema-last-chat-messages', JSON.stringify(msgs));
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.error('Failed to load session:', err);
     }
   };
+
+  // Sync latest chat messages to localStorage when streaming concludes
+  useEffect(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    if (mode === 'resume' && !isStreaming && messages.length > 0 && sessionId) {
+      localStorage.setItem('noema-last-chat-session', sessionId);
+      try {
+        localStorage.setItem('noema-last-chat-messages', JSON.stringify(messages));
+      } catch (err) {
+        console.warn('Could not save chat messages to localStorage', err);
+      }
+    }
+  }, [messages, sessionId, isStreaming]);
+
+  // Background sync on reload to reconcile cache with server state
+  useEffect(() => {
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    const savedSession = localStorage.getItem('noema-last-chat-session');
+    if (mode === 'resume' && savedSession) {
+      chatAPI.getHistory(savedSession).then((res) => {
+        if (res.data?.success && res.data.messages) {
+          setMessages(res.data.messages);
+          setNextCursor(res.data.nextCursor || null);
+          setHasMore(!!res.data.nextCursor);
+          try {
+            localStorage.setItem('noema-last-chat-messages', JSON.stringify(res.data.messages));
+          } catch (e) {}
+        }
+      }).catch((err) => {
+        console.debug('Background sync of last chat session:', err);
+      });
+    }
+  }, []);
 
   const fetchMoreMessages = async () => {
     if (!hasMore || isLoadingMore || !nextCursor) return;
@@ -281,6 +385,8 @@ export const ChatProvider = ({ children }) => {
     setNextCursor(null);
     setHasMore(false);
     setChatError(null);
+    localStorage.removeItem('noema-last-chat-session');
+    localStorage.removeItem('noema-last-chat-messages');
   };
 
   return (
@@ -313,7 +419,9 @@ export const ChatProvider = ({ children }) => {
         userClosedSidebar,
         chatError,
         clearChatError,
-        retryLastMessage
+        retryLastMessage,
+        chatStartupMode,
+        setChatStartupMode: updateChatStartupMode
       }}
     >
       {children}

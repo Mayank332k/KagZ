@@ -25,6 +25,17 @@ const RouteLoader = () => (
   </div>
 );
 
+const DashboardIndex = () => {
+  const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+  if (mode === 'resume') {
+    const savedRoute = localStorage.getItem('noema-last-route');
+    if (savedRoute && savedRoute.startsWith('/dashboard/') && savedRoute !== '/dashboard') {
+      return <Navigate to={savedRoute} replace />;
+    }
+  }
+  return <Navigate to="/dashboard/page/new" replace />;
+};
+
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -46,7 +57,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard/page/new" replace />,
+        element: <DashboardIndex />,
       },
       {
         path: "home",

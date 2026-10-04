@@ -18,6 +18,14 @@ const authService = {
     const res = await authAPI.me();
     return res.data;
   },
+  refreshToken: async () => {
+    const res = await authAPI.refreshToken();
+    return res.data;
+  },
+  updatePreferences: async (preferences) => {
+    const res = await authAPI.updatePreferences(preferences);
+    return res.data;
+  },
   logout: async () => {
     const res = await authAPI.logout();
     return res.data;
