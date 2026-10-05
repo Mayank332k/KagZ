@@ -249,13 +249,42 @@ export const pagesAPI = {
 // ── Chat (SSE — must use native fetch, NOT axios) ────────────────────────────
 const BASE_URL = API_BASE_URL;
 
+const fetchWithRefresh = async (url, options) => {
+  let response = await fetch(url, options);
+
+  if (response.status === 401) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+        processQueue(null);
+        response = await fetch(url, options);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+        throw refreshError;
+      } finally {
+        isRefreshing = false;
+      }
+    } else {
+      await new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      });
+      response = await fetch(url, options);
+    }
+  }
+  return response;
+};
+
 export const chatAPI = {
   /**
    * Streams an inline editor AI response via SSE.
    * Returns an async generator.
    */
   askInline: async function* (promptType, text, instruction, signal) {
-    const response = await fetch(`${BASE_URL}/chat/inline`, {
+    const response = await fetchWithRefresh(`${BASE_URL}/chat/inline`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -335,7 +364,7 @@ export const chatAPI = {
    *   }
    */
   ask: async function* (query, chatHistory, model, sessionId, isThinking, signal) {
-    const response = await fetch(`${BASE_URL}/chat/ask`, {
+    const response = await fetchWithRefresh(`${BASE_URL}/chat/ask`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
