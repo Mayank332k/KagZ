@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
 import { Loading03Icon } from "hugeicons-react";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
+import InteractiveChoiceCard from './InteractiveChoiceCard';
 import './AIChat.css';
 
 // Time ago utility
@@ -336,9 +339,13 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         title={copied ? "Copied!" : "Copy"}
         aria-label="Copy"
       >
-        <span className={`material-symbols-outlined text-[13px] leading-none select-none ${copied ? 'text-green-500' : ''}`}>
-          {copied ? 'check' : 'content_copy'}
-        </span>
+        {copied ? (
+          <span className="material-symbols-outlined text-[13px] leading-none select-none text-green-500">
+            check
+          </span>
+        ) : (
+          <HugeiconsIcon icon={Copy01Icon} size={14.5} className="select-none" />
+        )}
       </button>
 
       {/* Add to page */}
@@ -378,7 +385,7 @@ const StatusScrollReveal = React.memo(({ text }) => {
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex items-center select-none py-0.5"
     >
-      <span className="shimmer-sentence text-[14.5px] font-medium leading-none tracking-tight select-none">
+      <span className="shimmer-sentence text-[13px] font-medium leading-none tracking-tight select-none">
         {text}
       </span>
     </motion.div>
@@ -388,11 +395,16 @@ const StatusScrollReveal = React.memo(({ text }) => {
 const MIN_STATE_DISPLAY_MS = 2800; // Guaranteed 2.8s per state
 
 const resolveStateType = (type, text) => {
-  if (type === 'web_search' || type === 'workspace_search' || type === 'reconnecting') return type;
+  if (type === 'web_search' || type === 'workspace_search' || type === 'reconnecting' || type === 'task_management' || type === 'manage_tasks') {
+    return type === 'manage_tasks' ? 'task_management' : type;
+  }
   if (!text) return 'thinking';
   const lower = text.toLowerCase();
   if (lower.includes('reconnect') || lower.includes('trying to reconnect') || lower.includes('wifi')) {
     return 'reconnecting';
+  }
+  if (lower.includes('task') || lower.includes('fetching your task') || lower.includes('creating task') || lower.includes('updating task') || lower.includes('deleting task') || lower.includes('managing task') || lower.includes('kanban')) {
+    return 'task_management';
   }
   if (lower.includes('file') || lower.includes('workspace') || lower.includes('note') || lower.includes('document')) {
     return 'workspace_search';
@@ -417,6 +429,18 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
 
   useEffect(() => {
     if (!incomingStatus) return;
+
+    // High priority: if reconnecting, immediately show WiFi animation without queue delay
+    if (currentType === 'reconnecting') {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      queueRef.current = [];
+      isPacingRef.current = false;
+      setActiveItem({ status: incomingStatus, stateType: 'reconnecting' });
+      return;
+    }
 
     // Deduplicate against currently displayed or last queued status
     const lastInQueue = queueRef.current[queueRef.current.length - 1];
@@ -524,7 +548,7 @@ const UserMessageActions = ({ content, timestamp }) => {
         title="Edit message"
         aria-label="Edit message"
       >
-        <span className="material-symbols-outlined text-[12.5px] leading-none select-none">edit</span>
+        <HugeiconsIcon icon={Edit03Icon} size={14} className="select-none" />
       </button>
       <button
         type="button"
@@ -533,9 +557,13 @@ const UserMessageActions = ({ content, timestamp }) => {
         title={copied ? "Copied!" : "Copy"}
         aria-label="Copy message"
       >
-        <span className="material-symbols-outlined text-[12.5px] leading-none select-none">
-          {copied ? "check" : "content_copy"}
-        </span>
+        {copied ? (
+          <span className="material-symbols-outlined text-[12.5px] leading-none select-none text-green-500">
+            check
+          </span>
+        ) : (
+          <HugeiconsIcon icon={Copy01Icon} size={14} className="select-none" />
+        )}
       </button>
     </div>
   );
@@ -547,7 +575,7 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   if (msg.role === 'user') {
     return (
       <div className="flex flex-col items-end group/msg">
-        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[14.5px] px-4 py-2 rounded-[14px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
+        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[13px] px-3.5 py-1.5 rounded-[13px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
           {msg.pageContext?.title && (
             <div className="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[11.5px] font-medium text-gray-600 dark:text-gray-300 select-none">
               <span className="material-symbols-outlined text-[13px] leading-none text-current">description</span>
@@ -563,12 +591,12 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
   return (
     <div className="flex flex-col items-start group/msg">
-      <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[14px] py-1 max-w-[100%] leading-relaxed w-full">
+      <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[13.5px] py-0.5 max-w-[100%] leading-relaxed w-full">
         {msg.content === '' && isLatestStreaming ? (
           <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
         ) : (
-          <div className="markdown-content text-[14px] leading-relaxed">
-            <MarkdownRenderer content={msg.content} />
+          <div className="markdown-content text-[13.5px] leading-relaxed">
+            <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
           </div>
         )}
         {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
@@ -613,7 +641,7 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
           {msg.content === '' && isLatestStreaming ? (
             <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
           ) : (
-            <MarkdownRenderer content={msg.content} />
+            <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
           )}
         </div>
         {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
@@ -631,12 +659,134 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   );
 });
 
-const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend, isStreaming }) => {
-  const { isThinking, setIsThinking, selectedModel, setSelectedModel, stopGeneration, chatError, clearChatError, retryLastMessage } = useContext(ChatContext);
+const parseInteractiveChoice = (content) => {
+  if (!content || typeof content !== 'string') return null;
+
+  const tryParseJson = (str) => {
+    try {
+      let clean = str.trim();
+      if (clean.startsWith('```')) {
+        clean = clean.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+      }
+      const data = JSON.parse(clean);
+      if (data && (data.question || data.prompt) && Array.isArray(data.options) && data.options.length > 0) {
+        const normalizedOptions = data.options.map((opt) => {
+          if (typeof opt === 'string') {
+            return { title: opt, description: '' };
+          }
+          return {
+            title: opt.title || opt.text || opt.label || '',
+            description: opt.description || opt.desc || opt.subtitle || '',
+          };
+        }).filter((opt) => opt.title);
+
+        if (normalizedOptions.length > 0) {
+          return {
+            question: data.question || data.prompt,
+            options: normalizedOptions,
+          };
+        }
+      }
+    } catch {
+      // ignore JSON parse error
+    }
+    return null;
+  };
+
+  // 1. Tag format: <interactive_choice>...</interactive_choice>
+  const tagMatch = content.match(/<interactive_choice>([\s\S]*?)<\/interactive_choice>/i);
+  if (tagMatch) {
+    const result = tryParseJson(tagMatch[1]);
+    if (result) return result;
+  }
+
+  // 2. Code block format: ```interactive-choice ... ``` or ```interactive_choice ... ```
+  const codeBlockMatch = content.match(/```(?:interactive-choice|interactive_choice)\s*([\s\S]*?)```/i);
+  if (codeBlockMatch) {
+    const result = tryParseJson(codeBlockMatch[1]);
+    if (result) return result;
+  }
+
+  // 3. Fallback: Auto-detect delete confirmation
+  const isDeleteConfirmation = /(delete\s+(?:karna\s+chahte|kardun|karu|karein|karoon|this|these|task)|sure\s+you\s+want\s+to\s+delete|confirm\s+deletion)/i.test(content);
+  if (isDeleteConfirmation && content.length < 350) {
+    return {
+      question: content.trim(),
+      options: [
+        { title: 'Yes, delete', description: 'Confirm and proceed with deletion' },
+        { title: 'Cancel', description: 'Keep task and cancel deletion' },
+      ],
+    };
+  }
+
+  return null;
+};
+
+const ChatComposer = ({
+  textareaRef,
+  query,
+  setQuery,
+  handleKeyDown,
+  handleSend,
+  isStreaming,
+  dismissedChoiceId,
+  setDismissedChoiceId,
+}) => {
+  const {
+    messages = [],
+    isThinking,
+    setIsThinking,
+    selectedModel,
+    setSelectedModel,
+    stopGeneration,
+    chatError,
+    clearChatError,
+    retryLastMessage,
+  } = useContext(ChatContext);
   const { activePage } = useContext(EditorContext);
   const [attachedPage, setAttachedPage] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Derive active choice prompt from last message if it's from assistant and streaming is done
+  const activeChoicePrompt = useMemo(() => {
+    if (isStreaming || !messages || messages.length === 0) return null;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant') return null;
+
+    const parsed = parseInteractiveChoice(lastMsg.content);
+    if (!parsed) return null;
+
+    const promptId = lastMsg.id || lastMsg._id || `${lastMsg.createdAt || lastMsg.timestamp || (messages.length - 1)}`;
+    if (dismissedChoiceId === promptId) return null;
+
+    return {
+      id: promptId,
+      ...parsed,
+    };
+  }, [messages, isStreaming, dismissedChoiceId]);
+
+  const handleSelectChoice = (chosenAnswer) => {
+    if (activeChoicePrompt?.id && setDismissedChoiceId) {
+      setDismissedChoiceId(activeChoicePrompt.id);
+    }
+    let payload = chosenAnswer;
+    if (
+      activeChoicePrompt?.question &&
+      /delete/i.test(activeChoicePrompt.question) &&
+      !/^delete/i.test(chosenAnswer) &&
+      !/^(yes|no|cancel|skip)/i.test(chosenAnswer)
+    ) {
+      payload = `Delete task: ${chosenAnswer}`;
+    }
+    handleSend(attachedPage, payload);
+  };
+
+  const handleSkipChoice = () => {
+    if (activeChoicePrompt?.id && setDismissedChoiceId) {
+      setDismissedChoiceId(activeChoicePrompt.id);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -667,6 +817,9 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
   const onFormSubmit = (e) => {
     if (e) e.preventDefault();
     if (!query.trim() || isStreaming) return;
+    if (activeChoicePrompt?.id && setDismissedChoiceId) {
+      setDismissedChoiceId(activeChoicePrompt.id);
+    }
     handleSend(attachedPage);
   };
 
@@ -697,6 +850,19 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
 
   return (
     <div className="w-full">
+      {/* Floating Interactive Choices Card */}
+      <AnimatePresence>
+        {activeChoicePrompt && (
+          <InteractiveChoiceCard
+            question={activeChoicePrompt.question}
+            options={activeChoicePrompt.options}
+            onSelect={handleSelectChoice}
+            onSkip={handleSkipChoice}
+            onDismiss={handleSkipChoice}
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {chatError && (
           <motion.div
@@ -735,62 +901,62 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[21px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 p-2.5 mx-auto">
-        {/* Minimal Context Pill inside textarea container */}
-        {attachedPage && (
-          <div className="flex items-center px-2 pt-0.5 pb-1">
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[7px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] text-[11.5px] text-gray-700 dark:text-gray-300 font-medium select-none">
-              <span className="material-symbols-outlined text-[13px] leading-none text-gray-400 dark:text-gray-400">
-                description
-              </span>
-              <span className="max-w-[180px] truncate leading-none">
-                {attachedPage.title || "Untitled"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setAttachedPage(null)}
-                className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer"
-                title="Remove page context"
-                aria-label="Remove page context"
-              >
-                <span className="material-symbols-outlined text-[11px] leading-none">close</span>
-              </button>
-            </div>
-          </div>
-        )}
-
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 px-3 pt-2 pb-2 mx-auto">
         <textarea
           ref={textareaRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={
-            attachedPage
-              ? `Ask anything about "${attachedPage.title || 'this page'}"...`
+            activeChoicePrompt
+              ? "Or reply directly..."
+              : attachedPage && attachedPage.title && attachedPage.title !== "Untitled"
+              ? `Ask about "${attachedPage.title}"...`
+              : attachedPage
+              ? "Ask anything about this page..."
               : "Search anything across your workspace..."
           }
           rows={1}
           autoFocus
-          className="w-full bg-transparent resize-none outline-none text-[16px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-2 py-1 custom-scrollbar leading-relaxed"
+          className="w-full bg-transparent resize-none outline-none text-[14px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-[5.25px] custom-scrollbar leading-relaxed"
           style={{ maxHeight: '250px' }}
         />
         
-        <div className="flex items-center justify-between mt-2 px-1 relative">
+        <div className="flex items-center justify-between mt-1.5 px-0.5 relative">
           {/* Left Controls */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button 
               type="button"
               onClick={() => setIsThinking(!isThinking)}
-              className={`flex items-center justify-center gap-1.5 rounded-full text-[14px] font-medium transition-all duration-300 ${
+              className={`flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium transition-all duration-200 ${
                 isThinking 
-                  ? 'bg-blue-500/5 text-blue-600 px-3 py-1.5' 
-                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600 p-2'
+                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1' 
+                  : 'text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-600 dark:hover:text-gray-300 p-1.5'
               }`}
               title="Toggle Deep Thinking"
             >
-              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[15px]" : "text-[18px]"}`}>psychology</span>
+              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[14px]" : "text-[17px]"}`}>psychology</span>
               {isThinking && <span>Thinking</span>}
             </button>
+
+            {/* Page Context Chip matching Thinking pill */}
+            {attachedPage && (
+              <div className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.05] dark:border-white/[0.08] text-[12px] font-medium text-gray-700 dark:text-neutral-300 transition-colors select-none group">
+                <HugeiconsIcon icon={File02Icon} size={14} className="shrink-0 text-gray-400 dark:text-neutral-400" />
+                <span className="max-w-[130px] truncate leading-none">
+                  {attachedPage.title || "Untitled"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedPage(null)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                  title="Remove page context"
+                  aria-label="Remove page context"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right Controls */}
@@ -799,7 +965,7 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <span>{activeModel.label}</span>
                 <span className={`material-symbols-outlined text-[14px] leading-none select-none text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
@@ -900,6 +1066,24 @@ const ChatComposer = ({ textareaRef, query, setQuery, handleKeyDown, handleSend,
           </div>
         </div>
       </form>
+
+      {/* Subtle Bottom Keyboard Helper (matching Linear / Apple native spec) */}
+      {activeChoicePrompt && (
+        <div className="flex items-center justify-center gap-2 mt-2.5 text-[12px] text-[#777777] select-none font-sans">
+          <span className="inline-flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↑</kbd>
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↓</kbd>
+            <span>to navigate</span>
+          </span>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↵</kbd>
+            <span>to select</span>
+          </span>
+          <span>·</span>
+          <span>or type below</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -931,6 +1115,7 @@ const AIChat = ({ isRightPanel = false }) => {
   ];
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -1013,9 +1198,9 @@ const AIChat = ({ isRightPanel = false }) => {
     }
   }, [messages]);
 
-  const handleSend = async (pageCtx = null) => {
-    if (!query.trim() || isStreaming) return;
-    const text = query.trim();
+  const handleSend = async (pageCtx = null, overrideText = null) => {
+    const text = (overrideText !== null && overrideText !== undefined ? overrideText : query).trim();
+    if (!text || isStreaming) return;
     sendMessage(text, null, pageCtx);
     setTimeout(() => {
       scrollToBottom('smooth');
@@ -1038,7 +1223,7 @@ const AIChat = ({ isRightPanel = false }) => {
           <div className="flex items-center gap-1">
             <button
               onClick={() => clearChat()}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
               <span className="material-symbols-outlined text-[15px] leading-none select-none">
@@ -1047,14 +1232,14 @@ const AIChat = ({ isRightPanel = false }) => {
             </button>
             <button
               onClick={() => navigate('/dashboard/chat')}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Expand Chat"
             >
               <span className="material-symbols-outlined text-[15px] leading-none select-none">open_in_full</span>
             </button>
             <button
               onClick={() => setIsRightChatOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Close Chat"
             >
               <span className="material-symbols-outlined text-[15px] leading-none select-none">close</span>
@@ -1127,6 +1312,8 @@ const AIChat = ({ isRightPanel = false }) => {
             handleKeyDown={handleKeyDown}
             handleSend={handleSend}
             isStreaming={isStreaming}
+            dismissedChoiceId={dismissedChoiceId}
+            setDismissedChoiceId={setDismissedChoiceId}
           />
         </div>
       </div>
@@ -1142,7 +1329,7 @@ const AIChat = ({ isRightPanel = false }) => {
         <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
           <button 
             onClick={() => navigate(-1)}
-            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title="Go back"
           >
             <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
@@ -1151,7 +1338,7 @@ const AIChat = ({ isRightPanel = false }) => {
           <div className="flex items-center gap-1 pointer-events-auto">
             <button 
               onClick={clearChat}
-              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="New Chat"
             >
               <span className="material-symbols-outlined text-[17px] leading-none select-none">
@@ -1164,7 +1351,7 @@ const AIChat = ({ isRightPanel = false }) => {
                 setIsRightChatOpen(true);
                 navigate('/dashboard');
               }}
-              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-[8px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Open in Sidebar"
             >
               <span className="material-symbols-outlined text-[17px] leading-none select-none">
@@ -1189,7 +1376,7 @@ const AIChat = ({ isRightPanel = false }) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -15 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="text-[32px] font-bold text-gray-900 dark:text-[var(--color-dark-title)] tracking-tight absolute text-center w-full"
+                  className="text-[24px] font-semibold text-gray-900 dark:text-[var(--color-dark-title)] tracking-tight absolute text-center w-full"
                 >
                   {greetings[greetingIndex]}
                 </motion.h1>
@@ -1205,6 +1392,8 @@ const AIChat = ({ isRightPanel = false }) => {
                 handleKeyDown={handleKeyDown}
                 handleSend={handleSend}
                 isStreaming={isStreaming}
+                dismissedChoiceId={dismissedChoiceId}
+                setDismissedChoiceId={setDismissedChoiceId}
               />
             </div>
           </div>
@@ -1259,6 +1448,8 @@ const AIChat = ({ isRightPanel = false }) => {
                   handleKeyDown={handleKeyDown}
                   handleSend={handleSend}
                   isStreaming={isStreaming}
+                  dismissedChoiceId={dismissedChoiceId}
+                  setDismissedChoiceId={setDismissedChoiceId}
                 />
               </div>
             </div>

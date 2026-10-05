@@ -13,7 +13,6 @@ import { ThemeProvider } from 'next-themes';
 
 const Login = lazy(() => import('./pages/Login/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
-const Home = lazy(() => import('./pages/Home/Home'));
 const Workspace = lazy(() => import('./pages/Workspace/Workspace'));
 const Tasks = lazy(() => import('./pages/Tasks/Tasks'));
 const NoteEditor = lazy(() => import('./components/Editor/NoteEditor'));
@@ -61,11 +60,7 @@ const router = createBrowserRouter([
       },
       {
         path: "home",
-        element: (
-          <Suspense fallback={<RouteLoader />}>
-            <Home />
-          </Suspense>
-        ),
+        element: <Navigate to="/dashboard/page/new" replace />,
       },
       {
         path: "chat",

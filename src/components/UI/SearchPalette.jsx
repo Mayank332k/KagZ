@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { EditorContext } from '../../context/EditorContext';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { chatAPI } from '../../services/api';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { MessageCircle as MessageCircleIcon } from '@hugeicons/core-free-icons';
 
 // Spring config for Apple-like subtle, restrained liquid bounce
 const springConfig = {
@@ -346,7 +348,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                   {selectedCircle === 'workspace' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">dashboard_2_add</span>}
                   {selectedCircle === 'folder' && <span className="material-symbols-outlined text-[20px] leading-none select-none text-blue-500 shrink-0">folder</span>}
                   {selectedCircle === 'page' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">assignment</span>}
-                  {selectedCircle === 'chat' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">chat</span>}
+                  {selectedCircle === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={22} className="text-blue-500 shrink-0 select-none" />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -478,7 +480,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                               {ws.id === 'recent_pages' ? (
                                 <span className="material-symbols-outlined text-[14px] leading-none select-none">assignment</span>
                               ) : ws.id === 'chat_history' ? (
-                                <span className="material-symbols-outlined text-[14px] leading-none select-none">chat</span>
+                                <HugeiconsIcon icon={MessageCircleIcon} size={16} className="leading-none select-none" />
                               ) : (
                                 <span className="material-symbols-outlined text-[14px] leading-none select-none">dashboard_2_add</span>
                               )}
@@ -523,7 +525,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                     {item.type === 'workspace' && <span className="material-symbols-outlined text-[15px] leading-none select-none">dashboard_2_add</span>}
                                     {item.type === 'folder' && <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>}
                                     {(item.type === 'page' || item.type === 'document') && <span className="material-symbols-outlined text-[15px] leading-none select-none">assignment</span>}
-                                    {item.type === 'chat' && <span className="material-symbols-outlined text-[15px] leading-none select-none">chat</span>}
+                                    {item.type === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={16.5} className="leading-none select-none" />}
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>

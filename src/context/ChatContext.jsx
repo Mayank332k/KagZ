@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { chatAPI } from '../services/api';
+import { chatAPI, invalidateCache } from '../services/api';
 import { useToast } from './ToastContext';
 import { validateAiInput } from '../utils/aiValidation';
 
@@ -165,112 +165,267 @@ export const ChatProvider = ({ children }) => {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    let contentBuffer = '';
-    let rafId = null;
+    // Smooth Token-by-Token Streaming Pacer
+    let streamQueue = '';
+    let isStreamNetworkDone = false;
+    let tickTimeoutId = null;
+    let isPacerRunning = false;
     let streamError = false;
 
-    const flushContentBuffer = () => {
-      if (!contentBuffer) return;
-      const chunk = contentBuffer;
-      contentBuffer = '';
+    const pumpNextTokens = () => {
+      if (signal.aborted) {
+        streamQueue = '';
+        isPacerRunning = false;
+        return;
+      }
+
+      if (streamQueue.length === 0) {
+        isPacerRunning = false;
+        if (isStreamNetworkDone) {
+          setIsStreaming(false);
+        }
+        return;
+      }
+
+      isPacerRunning = true;
+
+      // Dynamic pacing:
+      // When queue is small (< 12 chars): take 1-2 chars for human-pace, organic token-by-token flow
+      // When large bursts arrive from backend SSE: smoothly divide over frames so it never drops all at once
+      let take = 1;
+      const qLen = streamQueue.length;
+      if (qLen > 100) {
+        take = Math.min(qLen, Math.ceil(qLen / 10));
+      } else if (qLen > 40) {
+        take = Math.min(qLen, Math.ceil(qLen / 14));
+      } else if (qLen > 12) {
+        take = 2;
+      } else {
+        take = 1;
+      }
+
+      const chunk = streamQueue.slice(0, take);
+      streamQueue = streamQueue.slice(take);
+
       setMessages((prev) => {
         const lastIndex = prev.length - 1;
         if (lastIndex < 0) return prev;
         const lastMsg = prev[lastIndex];
         if (lastMsg.role !== 'assistant') return prev;
-        return [...prev.slice(0, lastIndex), { ...lastMsg, content: lastMsg.content + chunk }];
+        return [
+          ...prev.slice(0, lastIndex),
+          { ...lastMsg, content: lastMsg.content + chunk }
+        ];
+      });
+
+      const delay = qLen > 60 ? 14 : 20;
+      tickTimeoutId = setTimeout(pumpNextTokens, delay);
+    };
+
+    const enqueueStreamContent = (text, immediate = false) => {
+      if (immediate) {
+        setMessages((prev) => {
+          const lastIndex = prev.length - 1;
+          if (lastIndex < 0) return prev;
+          const lastMsg = prev[lastIndex];
+          if (lastMsg.role !== 'assistant') return prev;
+          return [
+            ...prev.slice(0, lastIndex),
+            { ...lastMsg, content: lastMsg.content + text }
+          ];
+        });
+        return;
+      }
+
+      streamQueue += text;
+      if (!isPacerRunning) {
+        pumpNextTokens();
+      }
+    };
+
+    const flushQueueImmediately = () => {
+      if (tickTimeoutId) {
+        clearTimeout(tickTimeoutId);
+        tickTimeoutId = null;
+      }
+      isPacerRunning = false;
+      if (!streamQueue) return;
+      const remaining = streamQueue;
+      streamQueue = '';
+      setMessages((prev) => {
+        const lastIndex = prev.length - 1;
+        if (lastIndex < 0) return prev;
+        const lastMsg = prev[lastIndex];
+        if (lastMsg.role !== 'assistant') return prev;
+        return [
+          ...prev.slice(0, lastIndex),
+          { ...lastMsg, content: lastMsg.content + remaining }
+        ];
       });
     };
 
-    const scheduleContentFlush = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        flushContentBuffer();
-      });
-    };
+    const MAX_RECONNECT_ATTEMPTS = 3;
+    let attempt = 0;
+    let completedSuccessfully = false;
 
     try {
-      for await (const event of chatAPI.ask(userQuery, chatHistory, activeModel, sessionId, isThinking, signal)) {
-        if (event.type === 'sources') {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
+      while (attempt <= MAX_RECONNECT_ATTEMPTS && !signal.aborted) {
+        try {
+          for await (const event of chatAPI.ask(userQuery, chatHistory, activeModel, sessionId, isThinking, signal)) {
+            if (signal.aborted) break;
+
+            if (event.type === 'sources') {
+              flushQueueImmediately();
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+                return [...prev.slice(0, lastIndex), { ...lastMsg, sources: Array.isArray(event.data) ? event.data : [] }];
+              });
+              setCurrentSources(Array.isArray(event.data) ? event.data : []);
+            } else if (event.type === 'state') {
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+                return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data, stateType: event.stateType || 'thinking' }];
+              });
+            } else if (event.type === 'content') {
+              enqueueStreamContent(event.data);
+            } else if (event.type === 'ask_user') {
+              flushQueueImmediately();
+              enqueueStreamContent(`\n<interactive_choice>${JSON.stringify(event.data)}</interactive_choice>\n`, true);
+            } else if (event.type === 'tasks_updated') {
+              invalidateCache('tasks');
+              try {
+                localStorage.removeItem('noema_kanban_tasks');
+              } catch {}
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('tasks:refresh'));
+              }
+            } else if (event.type === 'done') {
+              completedSuccessfully = true;
+              isStreamNetworkDone = true;
+              // Smoothly let the remaining tokens drain into the chat before closing the stream
+              while (streamQueue.length > 0 && !signal.aborted) {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+              }
+              break;
+            } else if (event.type === 'error') {
+              const errText = event.error || event.data || "An error occurred.";
+              throw new Error(errText);
+            }
           }
-          flushContentBuffer();
-          setMessages((prev) => {
-            const lastIndex = prev.length - 1;
-            if (lastIndex < 0) return prev;
-            const lastMsg = prev[lastIndex];
-            if (lastMsg.role !== 'assistant') return prev;
-            return [...prev.slice(0, lastIndex), { ...lastMsg, sources: Array.isArray(event.data) ? event.data : [] }];
-          });
-          setCurrentSources(Array.isArray(event.data) ? event.data : []);
-        } else if (event.type === 'state') {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
+
+          if (completedSuccessfully) {
+            break;
           }
-          flushContentBuffer();
-          setMessages((prev) => {
-            const lastIndex = prev.length - 1;
-            if (lastIndex < 0) return prev;
-            const lastMsg = prev[lastIndex];
-            if (lastMsg.role !== 'assistant') return prev;
-            return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data, stateType: event.stateType || 'thinking' }];
-          });
-        } else if (event.type === 'content') {
-          contentBuffer += event.data;
-          scheduleContentFlush();
-        } else if (event.type === 'done') {
-          break;
-        } else if (event.type === 'error') {
-          const errText = event.error || event.data || "An error occurred.";
-          streamError = true;
-          showToast(errText, "error");
-          setChatError({ message: errText, query: userQuery });
-          break;
+        } catch (err) {
+          if (err.name === 'AbortError' || signal.aborted) {
+            console.log('Chat generation aborted by user.');
+            break;
+          }
+
+          attempt++;
+          if (attempt <= MAX_RECONNECT_ATTEMPTS && !signal.aborted) {
+            console.warn(`[Chat] Connection error, reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`, err);
+
+            if (tickTimeoutId) {
+              clearTimeout(tickTimeoutId);
+              tickTimeoutId = null;
+            }
+            streamQueue = '';
+            isPacerRunning = false;
+
+            setMessages((prev) => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex < 0) return prev;
+              const lastMsg = prev[lastIndex];
+              if (lastMsg.role !== 'assistant') return prev;
+              return [
+                ...prev.slice(0, lastIndex),
+                {
+                  ...lastMsg,
+                  content: '',
+                  status: `${attempt}/${MAX_RECONNECT_ATTEMPTS} trying to reconnect...`,
+                  stateType: 'reconnecting',
+                },
+              ];
+            });
+
+            // Wait with backoff or wait for 'online' event if offline
+            await new Promise((resolve) => {
+              let timer = null;
+              const cleanup = () => {
+                if (timer) clearTimeout(timer);
+                window.removeEventListener('online', onOnline);
+              };
+              const onOnline = () => {
+                cleanup();
+              };
+              window.addEventListener('online', onOnline);
+
+              const delay = !navigator.onLine ? 4000 : 1200 * attempt;
+              timer = setTimeout(() => {
+                cleanup();
+                resolve();
+              }, delay);
+            });
+
+            if (signal.aborted) break;
+
+            continue;
+          } else {
+            // All attempts exhausted
+            streamError = true;
+            console.error('[Chat] All reconnect attempts failed:', err);
+            const errText = !navigator.onLine
+              ? "No internet connection. Please check your network and try again."
+              : (err.message || "Failed to generate response.");
+            showToast(errText, "error");
+            setChatError({ message: errText, query: userQuery });
+            break;
+          }
         }
       }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.log('Chat generation aborted by user.');
-      } else {
-        console.error('Chat error:', err);
-        setChatError({ message: err.message || "Failed to generate response.", query: userQuery });
-      }
     } finally {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
+      if (tickTimeoutId) {
+        clearTimeout(tickTimeoutId);
+        tickTimeoutId = null;
       }
       if (signal.aborted) {
-        contentBuffer = '';
+        streamQueue = '';
+      } else if (streamQueue.length > 0) {
+        flushQueueImmediately();
       }
       if (abortControllerRef.current?.signal === signal) {
         abortControllerRef.current = null;
       }
-      if (!signal.aborted) {
-        flushContentBuffer();
-        setIsStreaming(false);
-        setMessages((prev) => {
-          const msgs = [...prev];
-          const lastIndex = msgs.length - 1;
-          if (lastIndex >= 0) {
-            const last = msgs[lastIndex];
-            if (last.role === 'assistant' && !last.content.trim()) {
-              msgs.pop(); // Remove the empty reply bubble
-              if (!streamError) {
-                setChatError({ message: "LLM failed to generate a response.", query: userQuery });
-                setTimeout(() => {
-                  showToast("LLM failed to generate a response. Please try again.", "error");
-                }, 10);
-              }
+      setIsStreaming(false);
+      setMessages((prev) => {
+        const msgs = [...prev];
+        const lastIndex = msgs.length - 1;
+        if (lastIndex >= 0) {
+          const last = msgs[lastIndex];
+          if (last.role === 'assistant' && !last.content.trim()) {
+            if (completedSuccessfully) {
+              // If stream completed successfully without text tokens, use status or safe fallback
+              const fallbackContent = last.status || "Completed.";
+              return [...msgs.slice(0, lastIndex), { ...last, content: fallbackContent }];
+            }
+            msgs.pop(); // Remove the empty reply bubble only on genuine unhandled failure
+            if (!streamError) {
+              setChatError({ message: "LLM failed to generate a response.", query: userQuery });
+              setTimeout(() => {
+                showToast("LLM failed to generate a response. Please try again.", "error");
+              }, 10);
             }
           }
-          return msgs;
-        });
-      }
+        }
+        return msgs;
+      });
     }
   };
 

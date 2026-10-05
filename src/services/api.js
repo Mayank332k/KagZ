@@ -118,7 +118,7 @@ const cachedGet = (key, fetcher) => {
  * Invalidate cache entries whose keys start with the given prefix.
  * @param {string} prefix - Key prefix to match (e.g. 'workspaces', 'pages')
  */
-const invalidateCache = (...prefixes) => {
+export const invalidateCache = (...prefixes) => {
   for (const [key] of cache) {
     if (prefixes.some((p) => key.startsWith(p))) {
       cache.delete(key);
@@ -127,7 +127,7 @@ const invalidateCache = (...prefixes) => {
 };
 
 /** Flush the entire cache */
-const invalidateAll = () => cache.clear();
+export const invalidateAll = () => cache.clear();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authAPI = {

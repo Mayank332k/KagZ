@@ -1,273 +1,482 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactDOM from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  DashboardSquare02Icon,
+  Folder01Icon,
+  File02Icon,
+  ArrowRight01Icon,
+  CheckmarkCircle01Icon,
+} from "@hugeicons/core-free-icons";
 
-
-
-
-const NodeIcon = ({ type, className = "" }) => {
-  if (type === "workspace") return (
-    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-500 dark:text-neutral-400 shrink-0 ${className}`}>
-      space_dashboard
-    </span>
-  );
-  if (type === "folder") return (
-    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-amber-500/90 dark:text-amber-400/90 shrink-0 ${className}`}>
-      folder
-    </span>
-  );
+const NodeIcon = ({ type, className = "", size = 15 }) => {
+  if (type === "workspace") {
+    return (
+      <HugeiconsIcon
+        icon={DashboardSquare02Icon}
+        size={size}
+        className={`text-gray-500 dark:text-neutral-400 shrink-0 ${className}`}
+      />
+    );
+  }
+  if (type === "folder") {
+    return (
+      <HugeiconsIcon
+        icon={Folder01Icon}
+        size={size}
+        className={`text-amber-500/90 dark:text-amber-400/90 shrink-0 ${className}`}
+      />
+    );
+  }
   return (
-    <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-400 dark:text-neutral-500 shrink-0 ${className}`}>
-      description
-    </span>
+    <HugeiconsIcon
+      icon={File02Icon}
+      size={size}
+      className={`text-gray-400 dark:text-neutral-400 shrink-0 ${className}`}
+    />
   );
 };
 
-const PanelHeader = ({ title }) => (
-  <div className="px-2 pt-1 pb-1.5 border-b border-black/[0.05] dark:border-white/[0.06] mb-1">
-    <span className="text-[10px] font-medium tracking-wider uppercase text-gray-400 dark:text-neutral-500 select-none">
-      {title}
-    </span>
-  </div>
-);
+// ── Cascading Multi-Column Popover ───────────────────────────────────────────
+const CascadingMenu = ({
+  treeData = [],
+  anchorEl,
+  onSelect,
+  onClose,
+  selectedLocation,
+  selectableTypes,
+  variant,
+}) => {
+  const containerRef = useRef(null);
+  const navigate = useNavigate();
 
-// Nested panel — spawns to the right of a hovered row
-const NestedPanel = ({ node, anchorEl, onSelect, onClose, selectableTypes }) => {
-  const panelRef = useRef(null);
+  // Filter workspaces
+  const workspaces = useMemo(() => {
+    return treeData.filter(
+      (node) => !selectableTypes || selectableTypes.includes(node.type) || node.type === "workspace"
+    );
+  }, [treeData, selectableTypes]);
+
+  // Initial state: starts with only workspaces; folders appear on hover!
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(null);
+  const [activeFolderId, setActiveFolderId] = useState(null);
+
+  // Active workspace object and its contents
+  const activeWorkspace = useMemo(() => {
+    if (!activeWorkspaceId) return null;
+    return workspaces.find((w) => (w._id || w.id) === activeWorkspaceId) || null;
+  }, [workspaces, activeWorkspaceId]);
+
+  const activeFolders = useMemo(() => {
+    if (!activeWorkspace?.children) return [];
+    return activeWorkspace.children.filter((child) => child.type === "folder");
+  }, [activeWorkspace]);
+
+  const activeRootPages = useMemo(() => {
+    if (!activeWorkspace?.children) return [];
+    return activeWorkspace.children.filter((child) => child.type === "page");
+  }, [activeWorkspace]);
+
+  // Active folder object and its contents
+  const activeFolder = useMemo(() => {
+    if (!activeFolders.length || !activeFolderId) return null;
+    return activeFolders.find((f) => (f._id || f.id) === activeFolderId) || null;
+  }, [activeFolders, activeFolderId]);
+
+  const activeSubfolders = useMemo(() => {
+    if (!activeFolder?.children) return [];
+    return activeFolder.children.filter((child) => child.type === "folder");
+  }, [activeFolder]);
+
+  const activePages = useMemo(() => {
+    if (!activeFolder?.children) return [];
+    return activeFolder.children.filter((child) => child.type === "page");
+  }, [activeFolder]);
+
+  // Calculate number of visible columns
+  const columnCount = 1 + (activeWorkspace ? 1 : 0) + (activeFolder ? 1 : 0);
+
+  // Position calculations
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [hoveredId, setHoveredId] = useState(null);
-  const [hoveredNode, setHoveredNode] = useState(null);
-  const [hoveredAnchor, setHoveredAnchor] = useState(null);
-  const hoverTimerRef = useRef(null);
 
-  useEffect(() => {
+  const updatePosition = useCallback(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    const panelWidth = 200;
-    const left = rect.right + 4 + panelWidth > window.innerWidth
-      ? rect.left - panelWidth - 4
-      : rect.right + 4;
-    const top = Math.max(8, Math.min(rect.top - 4, window.innerHeight - 300));
-    setPos({ top, left });
-  }, [anchorEl]);
+    const colWidth = 215;
+    const totalWidth = colWidth * columnCount;
 
-  const handleHover = (e, child) => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    const el = e.currentTarget;
-    if (child.children && child.children.length > 0) {
-      hoverTimerRef.current = setTimeout(() => {
-        setHoveredId(child.id);
-        setHoveredNode(child);
-        setHoveredAnchor(el);
-      }, 100);
-    } else {
-      setHoveredId(null);
-      setHoveredNode(null);
-      setHoveredAnchor(null);
+    let left = rect.left;
+    if (left + totalWidth > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - totalWidth - 16);
     }
-  };
 
-  const children = (node.children || []).filter(
-    (child) => !selectableTypes || selectableTypes.includes(child.type)
-  );
+    let top = rect.bottom + 6;
+    if (top + 330 > window.innerHeight - 16) {
+      top = Math.max(16, rect.top - 330 - 6);
+    }
 
-  return ReactDOM.createPortal(
-    <div
-      ref={panelRef}
-      className="nested-location-panel fixed bg-white/95 dark:bg-[#181818]/95 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-[10px] p-1"
-      style={{ top: pos.top, left: pos.left, zIndex: 99999, minWidth: 190, maxWidth: 240 }}
-    >
-      <PanelHeader title={node.name} />
-
-      {children.length === 0 ? (
-        <div className="py-2 px-2 text-[11.5px] text-gray-400 dark:text-neutral-500 text-center select-none">
-          Empty folder
-        </div>
-      ) : (
-        children.map((child) => {
-          const hasKids = child.children && child.children.length > 0;
-          const isHov = hoveredId === child.id;
-          const canSelect = !selectableTypes || selectableTypes.includes(child.type);
-          const canSave = canSelect && (child.type === "workspace" || child.type === "folder");
-
-          return (
-            <div
-              key={child.id}
-              className={`group relative flex items-center gap-2 rounded-[6px] px-2 py-1.5 cursor-pointer transition-colors text-[12px] ${
-                isHov
-                  ? "bg-black/[0.05] dark:bg-white/[0.08] text-gray-900 dark:text-white"
-                  : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-              }`}
-              onMouseEnter={(e) => handleHover(e, child)}
-              onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-              onClick={() => { if (canSelect) { onSelect(child, [node.name, child.name]); onClose(); } }}
-            >
-              <NodeIcon type={child.type} />
-              <span className="flex-1 truncate font-normal leading-tight">
-                {child.name}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                {canSave && (
-                  <button
-                    type="button"
-                    className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
-                    onClick={(e) => { e.stopPropagation(); onSelect(child, [node.name, child.name]); onClose(); }}
-                    title="Select this location"
-                  >
-                    <span className="material-symbols-outlined text-[13px] leading-none select-none">add</span>
-                  </button>
-                )}
-                {hasKids && (
-                  <span className="material-symbols-outlined text-[13px] leading-none select-none text-gray-400 dark:text-neutral-500">
-                    chevron_right
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })
-      )}
-
-      {hoveredId && hoveredNode && hoveredAnchor && (
-        <NestedPanel
-          node={hoveredNode}
-          anchorEl={hoveredAnchor}
-          onSelect={onSelect}
-          onClose={onClose}
-          selectableTypes={selectableTypes}
-        />
-      )}
-    </div>,
-    document.body
-  );
-};
-
-// Root panel — opens below the trigger
-const RootPanel = ({ treeData, anchorEl, onSelect, onClose, selectableTypes }) => {
-  const panelRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [hoveredId, setHoveredId] = useState(null);
-  const [hoveredNode, setHoveredNode] = useState(null);
-  const [hoveredAnchor, setHoveredAnchor] = useState(null);
-  const hoverTimerRef = useRef(null);
-
-  useEffect(() => {
-    if (!anchorEl) return;
-    const rect = anchorEl.getBoundingClientRect();
-    const top = rect.bottom + 4;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 220));
     setPos({ top, left });
-  }, [anchorEl]);
+  }, [anchorEl, columnCount]);
 
   useEffect(() => {
-    const handler = (e) => {
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [updatePosition]);
+
+  // Close handlers (outside click, escape key)
+  useEffect(() => {
+    const handleMouseDown = (e) => {
       if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target) &&
-        !anchorEl?.contains(e.target) &&
-        !e.target.closest('.nested-location-panel')
+        containerRef.current &&
+        !containerRef.current.contains(e.target) &&
+        !anchorEl?.contains(e.target)
       ) {
         onClose();
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [anchorEl, onClose]);
 
-  const handleHover = (e, node) => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    const el = e.currentTarget;
-    if (node.children && node.children.length > 0) {
-      hoverTimerRef.current = setTimeout(() => {
-        setHoveredId(node.id);
-        setHoveredNode(node);
-        setHoveredAnchor(el);
-      }, 100);
-    } else {
-      setHoveredId(null);
-      setHoveredNode(null);
-      setHoveredAnchor(null);
+  const isNodeSelected = (node) => {
+    if (!selectedLocation) return false;
+    return (selectedLocation._id || selectedLocation.id) === (node._id || node.id);
+  };
+
+  const handlePageClick = (page, path) => {
+    if (selectableTypes?.includes("page")) {
+      onSelect(page, path);
+      onClose();
+      return;
+    }
+    const pageTargetId = page.id || page._id;
+    if (pageTargetId) {
+      if (selectedLocation && (selectedLocation.id || selectedLocation._id) === pageTargetId) {
+        onClose();
+        return;
+      }
+      navigate(page.path || `/dashboard/page/${pageTargetId}`);
+      onClose();
     }
   };
 
-  const filteredTree = treeData.filter((node) => !selectableTypes || selectableTypes.includes(node.type));
-
   return ReactDOM.createPortal(
     <div
-      ref={panelRef}
-      className="fixed bg-white/95 dark:bg-[#181818]/95 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-[10px] p-1"
-      style={{ top: pos.top, left: pos.left, zIndex: 99999, minWidth: 200, maxWidth: 250, maxHeight: "60vh", overflowY: "auto" }}
+      ref={containerRef}
+      className="fixed flex flex-row items-stretch bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.65)] rounded-[14px] overflow-hidden z-[99999] animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+      style={{ top: pos.top, left: pos.left }}
     >
-      <PanelHeader title="Workspaces" />
-
-      {filteredTree.length === 0 ? (
-        <div className="py-3 px-2 text-[11.5px] text-gray-400 dark:text-neutral-500 text-center select-none">
-          No workspaces found
+      {/* ── Column 1: Workspaces ── */}
+      <div className="w-[215px] min-w-[215px] max-w-[230px] flex flex-col p-1.5 max-h-[320px]">
+        <div className="px-2.5 py-1.5 border-b border-black/[0.05] dark:border-white/[0.06] mb-1 flex items-center justify-between">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-400 select-none">
+            Workspaces
+          </span>
+          <span className="text-[10px] text-gray-400 dark:text-neutral-500 font-mono">
+            {workspaces.length}
+          </span>
         </div>
-      ) : (
-        filteredTree.map((node) => {
-          const hasKids = node.children && node.children.length > 0;
-          const isHov = hoveredId === node.id;
-          const canSelect = !selectableTypes || selectableTypes.includes(node.type);
-          const canSave = canSelect && (node.type === "workspace" || node.type === "folder");
 
-          return (
-            <div
-              key={node.id}
-              className={`group relative flex items-center gap-2 rounded-[6px] px-2 py-1.5 cursor-pointer transition-colors text-[12px] ${
-                isHov
-                  ? "bg-black/[0.05] dark:bg-white/[0.08] text-gray-900 dark:text-white"
-                  : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-              }`}
-              onMouseEnter={(e) => handleHover(e, node)}
-              onMouseLeave={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-              onClick={() => { if (canSelect) { onSelect(node, [node.name]); onClose(); } }}
-            >
-              <NodeIcon type={node.type} />
-              <span className="flex-1 truncate font-normal leading-tight">
-                {node.name}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                {canSave && (
-                  <button
-                    type="button"
-                    className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
-                    onClick={(e) => { e.stopPropagation(); onSelect(node, [node.name]); onClose(); }}
-                    title="Select this workspace"
-                  >
-                    <span className="material-symbols-outlined text-[13px] leading-none select-none">add</span>
-                  </button>
-                )}
-                {hasKids && (
-                  <span className="material-symbols-outlined text-[13px] leading-none select-none text-gray-400 dark:text-neutral-500">
-                    chevron_right
-                  </span>
-                )}
-              </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
+          {workspaces.length === 0 ? (
+            <div className="py-6 px-2 text-[12px] text-gray-400 dark:text-neutral-500 text-center select-none">
+              No workspaces found
             </div>
-          );
-        })
+          ) : (
+            workspaces.map((ws) => {
+              const wsId = ws._id || ws.id;
+              const isHov = activeWorkspaceId === wsId;
+              const isSelected = isNodeSelected(ws);
+              const folders = (ws.children || []).filter((c) => c.type === "folder");
+              const pages = (ws.children || []).filter((c) => c.type === "page");
+              const hasContent = folders.length > 0 || pages.length > 0;
+
+              return (
+                <div
+                  key={wsId}
+                  className={`group relative flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] cursor-pointer text-[12.5px] select-none transition-colors ${
+                    isHov
+                      ? "bg-black/[0.06] dark:bg-white/[0.1] text-gray-900 dark:text-white font-medium"
+                      : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                  }`}
+                  onMouseEnter={() => {
+                    setActiveWorkspaceId(wsId);
+                    setActiveFolderId(null);
+                  }}
+                  onClick={() => {
+                    onSelect(ws, [ws.name]);
+                    onClose();
+                  }}
+                >
+                  <NodeIcon type="workspace" />
+                  <span className="flex-1 truncate leading-tight">{ws.name}</span>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isSelected && (
+                      <HugeiconsIcon
+                        icon={CheckmarkCircle01Icon}
+                        size={14}
+                        className="text-blue-500"
+                      />
+                    )}
+                    {hasContent && (
+                      <HugeiconsIcon
+                        icon={ArrowRight01Icon}
+                        size={13}
+                        className={`transition-colors ${
+                          isHov
+                            ? "text-gray-700 dark:text-white"
+                            : "text-gray-400 dark:text-neutral-500"
+                        }`}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── Column 2: Folders of Active Workspace (Appears on Workspace Hover) ── */}
+      {activeWorkspace && (
+        <div className="w-[215px] min-w-[215px] max-w-[230px] flex flex-col p-1.5 max-h-[320px] border-l border-black/[0.06] dark:border-white/[0.08] bg-black/[0.015] dark:bg-white/[0.01] animate-in fade-in slide-in-from-left-2 duration-150">
+          <div className="px-2.5 py-1.5 border-b border-black/[0.05] dark:border-white/[0.06] mb-1 flex items-center justify-between">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-400 select-none truncate pr-2">
+              {activeWorkspace?.name || "Folders"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(activeWorkspace, [activeWorkspace.name]);
+                onClose();
+              }}
+              className="text-[10.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
+              title={`Select ${activeWorkspace?.name} root`}
+            >
+              Select
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
+            {activeFolders.length === 0 && activeRootPages.length === 0 ? (
+              <div className="py-6 px-2 text-[12px] text-gray-400 dark:text-neutral-500 text-center select-none">
+                No folders in workspace
+              </div>
+            ) : (
+              <>
+                {/* Folders List */}
+                {activeFolders.map((folder) => {
+                  const folderId = folder._id || folder.id;
+                  const isHov = activeFolderId === folderId;
+                  const isSelected = isNodeSelected(folder);
+                  const pages = (folder.children || []).filter((c) => c.type === "page");
+                  const subfolders = (folder.children || []).filter((c) => c.type === "folder");
+                  const hasPages = pages.length > 0 || subfolders.length > 0;
+
+                  return (
+                    <div
+                      key={folderId}
+                      className={`group relative flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] cursor-pointer text-[12.5px] select-none transition-colors ${
+                        isHov
+                          ? "bg-black/[0.06] dark:bg-white/[0.1] text-gray-900 dark:text-white font-medium"
+                          : "text-gray-700 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                      }`}
+                      onMouseEnter={() => setActiveFolderId(folderId)}
+                      onClick={() => {
+                        onSelect(folder, [activeWorkspace.name, folder.name]);
+                        onClose();
+                      }}
+                    >
+                      <NodeIcon type="folder" />
+                      <span className="flex-1 truncate leading-tight">{folder.name}</span>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isSelected && (
+                          <HugeiconsIcon
+                            icon={CheckmarkCircle01Icon}
+                            size={14}
+                            className="text-blue-500"
+                          />
+                        )}
+                        {hasPages && (
+                          <HugeiconsIcon
+                            icon={ArrowRight01Icon}
+                            size={13}
+                            className={`transition-colors ${
+                              isHov
+                                ? "text-gray-700 dark:text-white"
+                                : "text-gray-400 dark:text-neutral-500"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Workspace Root Pages (if any) */}
+                {activeRootPages.length > 0 && (
+                  <div className="pt-2">
+                    <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
+                      Pages
+                    </div>
+                    {activeRootPages.map((page) => {
+                      const pageId = page._id || page.id;
+                      const isSelected = isNodeSelected(page);
+
+                      return (
+                        <div
+                          key={pageId}
+                          className="group relative flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] cursor-pointer text-[12.5px] select-none transition-colors text-gray-700 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-gray-900 dark:hover:text-white"
+                          onMouseEnter={() => setActiveFolderId(null)}
+                          onClick={() =>
+                            handlePageClick(page, [
+                              activeWorkspace.name,
+                              page.name || "Untitled",
+                            ])
+                          }
+                        >
+                          <NodeIcon type="page" />
+                          <span className="flex-1 truncate leading-tight">
+                            {page.name || "Untitled"}
+                          </span>
+                          {isSelected && (
+                            <HugeiconsIcon
+                              icon={CheckmarkCircle01Icon}
+                              size={14}
+                              className="text-blue-500 shrink-0"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
 
-      {hoveredId && hoveredNode && hoveredAnchor && (
-        <NestedPanel
-          node={hoveredNode}
-          anchorEl={hoveredAnchor}
-          onSelect={onSelect}
-          onClose={onClose}
-          selectableTypes={selectableTypes}
-        />
+      {/* ── Column 3: Pages of Active Folder (Appears on Folder Hover) ── */}
+      {activeFolder && (
+        <div className="w-[215px] min-w-[215px] max-w-[230px] flex flex-col p-1.5 max-h-[320px] border-l border-black/[0.06] dark:border-white/[0.08] bg-black/[0.025] dark:bg-white/[0.02] animate-in fade-in slide-in-from-left-2 duration-150">
+          <div className="px-2.5 py-1.5 border-b border-black/[0.05] dark:border-white/[0.06] mb-1 flex items-center justify-between">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-400 select-none truncate pr-2">
+              {activeFolder?.name || "Pages"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(activeFolder, [activeWorkspace.name, activeFolder.name]);
+                onClose();
+              }}
+              className="text-[10.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
+              title={`Select ${activeFolder?.name} folder`}
+            >
+              Select
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
+            {/* Subfolders if any */}
+            {activeSubfolders.map((sub) => {
+              const subId = sub._id || sub.id;
+              const isSelected = isNodeSelected(sub);
+
+              return (
+                <div
+                  key={subId}
+                  className="group relative flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] cursor-pointer text-[12.5px] select-none transition-colors text-gray-700 dark:text-neutral-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-gray-900 dark:hover:text-white"
+                  onClick={() => {
+                    onSelect(sub, [
+                      activeWorkspace.name,
+                      activeFolder.name,
+                      sub.name,
+                    ]);
+                    onClose();
+                  }}
+                >
+                  <NodeIcon type="folder" />
+                  <span className="flex-1 truncate leading-tight">{sub.name}</span>
+                  {isSelected && (
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle01Icon}
+                      size={14}
+                      className="text-blue-500 shrink-0"
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Pages inside this folder */}
+            {activePages.map((page) => {
+              const pageId = page._id || page.id;
+              const isSelected = isNodeSelected(page);
+
+              return (
+                <div
+                  key={pageId}
+                  className="group relative flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] cursor-pointer text-[12.5px] select-none transition-colors text-gray-700 dark:text-neutral-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-gray-900 dark:hover:text-white"
+                  onClick={() =>
+                    handlePageClick(page, [
+                      activeWorkspace.name,
+                      activeFolder.name,
+                      page.name || "Untitled",
+                    ])
+                  }
+                >
+                  <NodeIcon type="page" />
+                  <span className="flex-1 truncate leading-tight">
+                    {page.name || "Untitled"}
+                  </span>
+                  {isSelected && (
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle01Icon}
+                      size={14}
+                      className="text-blue-500 shrink-0"
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {activeSubfolders.length === 0 && activePages.length === 0 && (
+              <div className="py-6 px-2 text-[12px] text-gray-400 dark:text-neutral-500 text-center select-none">
+                No pages in this folder
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>,
     document.body
   );
 };
 
-// ── Main export ──────────────────────────────────────────────────────────────
+// ── Main LocationDropdown Component ──────────────────────────────────────────
 const LocationDropdown = ({
   treeData = [],
   onSelectLocation,
-  selectedLocation = null,   // the selected node object
-  selectedPath = [],         // ["DSA", "Trees", "Binary Tree"]
+  selectedLocation = null,
+  selectedPath = [],
   variant = "sidebar",
   selectableTypes = null,
   locked = false,
@@ -277,133 +486,130 @@ const LocationDropdown = ({
   const triggerRef = useRef(null);
 
   const hasSelection = selectedLocation !== null && selectedPath.length > 0;
+  const isHeader = variant === "header";
 
-  const handleSelect = useCallback((node, path) => {
-    onSelectLocation?.(node, path);
-    setOpen(false);
-  }, [onSelectLocation]);
+  const handleSelect = useCallback(
+    (node, path) => {
+      onSelectLocation?.(node, path);
+      setOpen(false);
+    },
+    [onSelectLocation]
+  );
 
   const handleClose = useCallback(() => setOpen(false), []);
 
-  const isSidebar = variant === "sidebar";
-
-  const isHeader = variant === "header";
-
+  // Loading state in Note header
   if (isLoading && isHeader) {
     return (
-      <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-gray-100/70 dark:bg-white/5 animate-pulse text-[13px] text-gray-400 dark:text-gray-500 select-none">
+      <div className="flex items-center gap-1.5 px-2 py-1 text-[12.5px] text-gray-400 dark:text-neutral-500 animate-pulse select-none font-normal">
         <div className="w-3.5 h-3.5 rounded bg-gray-200 dark:bg-white/10 shrink-0" />
-        <span className="truncate">Select location...</span>
+        <span className="truncate">Loading locations...</span>
       </div>
     );
   }
 
-  const selectedContent = hasSelection ? (
-    <div className={`flex items-center flex-wrap ${isHeader ? "gap-1.5 text-[15px]" : ""}`}>
-      {selectedPath.map((crumb, i) => {
-        let type = "page";
-        if (isHeader) {
-          let currentNodes = treeData;
-          for (let j = 0; j <= i; j++) {
-            const node = currentNodes?.find((n) => n.name === selectedPath[j]);
-            if (node) {
-              type = node.type;
-              currentNodes = node.children;
-            } else {
-              type = (j === selectedPath.length - 1) ? "page" : "folder";
-              break;
-            }
-          }
-        }
-
-        return (
-          <React.Fragment key={i}>
-            {i > 0 && (
-              isHeader ? (
-                <span className="text-gray-300 dark:text-white/20 mx-1">/</span>
-              ) : (
-                <span className="material-symbols-outlined text-[12px] leading-none select-none shrink-0 text-gray-400 dark:text-gray-600">chevron_right</span>
-              )
-            )}
-            <span className={`flex items-center ${isHeader ? "gap-1.5" : ""} ${
-              locked
-                ? (i === selectedPath.length - 1
-                  ? "text-gray-800 dark:text-gray-200 font-medium"
-                  : "text-gray-500 dark:text-gray-400")
-                : "text-black dark:text-white"
-            }`}>
-              {isHeader && (
-                <NodeIcon type={type} />
-              )}
-              {crumb}
-            </span>
-          </React.Fragment>
-        );
-      })}
-    </div>
-  ) : (
-    <>
-      <span className="truncate max-w-[200px]">Select location</span>
-    </>
-  );
-
-  const chevron = <span aria-hidden="true" className={`material-symbols-outlined text-[14px] leading-none select-none shrink-0 ${locked ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-white"}`}>keyboard_arrow_down</span>;
-
-  // ── STATE 2: location selected; existing pages may lock this breadcrumb ──
-  if (hasSelection) {
+  // ── Header Breadcrumbs Trigger (Borderless & Backgroundless) ──
+  if (isHeader) {
     return (
       <>
         <button
           ref={triggerRef}
-          className={
-            isSidebar
-              ? `flex items-center gap-1 pl-2 pr-2 py-1 mt-3 mb-1 text-[13px] font-medium tracking-wide select-none ${locked ? "cursor-default" : "cursor-pointer"} bg-transparent border-none outline-none`
-              : `flex items-center gap-1.5 text-[13px] font-medium select-none ${locked ? "cursor-default" : "cursor-pointer"} bg-transparent border-none outline-none`
-          }
-          onClick={() => { if (!locked) setOpen((p) => !p); }}
-          aria-disabled={locked}
-          title={locked ? "Location" : "Change location"}
+          type="button"
+          onClick={() => {
+            if (!locked) setOpen((prev) => !prev);
+          }}
+          disabled={locked}
+          title={locked ? "Page Location" : "Change location"}
+          className={`group flex items-center gap-1 text-[12.5px] select-none transition-colors outline-none bg-transparent border-0 p-1 -ml-1 rounded-[6px] ${
+            locked
+              ? "cursor-default opacity-85"
+              : "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+          }`}
         >
-          {selectedContent}
-          {chevron}
+          {hasSelection ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              {selectedPath.map((crumb, idx) => {
+                const isLast = idx === selectedPath.length - 1;
+                return (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && (
+                      <span className="text-gray-300 dark:text-neutral-600 text-[11px] select-none mx-0.5">
+                        /
+                      </span>
+                    )}
+                    <span
+                      className={`flex items-center gap-1 ${
+                        isLast
+                          ? "font-medium text-gray-800 dark:text-gray-200"
+                          : "font-normal text-gray-500 dark:text-neutral-400"
+                      }`}
+                    >
+                      {crumb}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          ) : (
+            <span className="text-gray-400 dark:text-neutral-500 font-normal hover:text-gray-700 dark:hover:text-neutral-300 transition-colors">
+              Select location
+            </span>
+          )}
+
+          {!locked && (
+            <span className="material-symbols-outlined text-[15px] leading-none text-gray-400 dark:text-neutral-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 ml-0.5 transition-colors shrink-0">
+              keyboard_arrow_down
+            </span>
+          )}
         </button>
 
         {!locked && open && triggerRef.current && (
-          <RootPanel
+          <CascadingMenu
             treeData={treeData}
             anchorEl={triggerRef.current}
             onSelect={handleSelect}
             onClose={handleClose}
+            selectedLocation={selectedLocation}
             selectableTypes={selectableTypes}
+            variant={variant}
           />
         )}
       </>
     );
   }
 
-  // ── STATE 1: no selection → interactive trigger ──
-  const triggerCls = isSidebar
-    ? `group flex items-center gap-1 pl-2 pr-2 py-1 mt-3 mb-1 text-[13px] font-medium tracking-wide cursor-pointer ${locked ? "text-[#8a817c] dark:text-[#aeaca7] hover:text-gray-900 dark:hover:text-gray-200" : "text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-200"} transition-colors bg-transparent border-none outline-none w-full`
-    : `group flex items-center gap-1.5 cursor-pointer text-[13px] font-medium ${locked ? "text-gray-500 dark:text-[#aeaca7] hover:text-gray-800 dark:hover:text-gray-200" : "text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-200"} transition-colors bg-transparent border-none outline-none`;
-
+  // ── Modal / Sidebar Trigger ──
   return (
     <>
       <button
         ref={triggerRef}
-        className={triggerCls}
-        onClick={() => setOpen((p) => !p)}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full flex items-center justify-between px-3 py-2 text-[13px] rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.02] hover:bg-gray-100/60 dark:hover:bg-white/[0.05] transition-colors cursor-pointer outline-none select-none text-left"
       >
-        {selectedContent}
-        {chevron}
+        <span
+          className={`truncate ${
+            hasSelection
+              ? "text-gray-800 dark:text-gray-100 font-medium"
+              : "text-gray-400 dark:text-neutral-500"
+          }`}
+        >
+          {hasSelection ? selectedPath.join(" / ") : "Select location..."}
+        </span>
+        <span className="material-symbols-outlined text-[16px] text-gray-400 leading-none shrink-0 ml-2">
+          keyboard_arrow_down
+        </span>
       </button>
 
       {open && triggerRef.current && (
-        <RootPanel
+        <CascadingMenu
           treeData={treeData}
           anchorEl={triggerRef.current}
           onSelect={handleSelect}
           onClose={handleClose}
+          selectedLocation={selectedLocation}
           selectableTypes={selectableTypes}
+          variant={variant}
         />
       )}
     </>

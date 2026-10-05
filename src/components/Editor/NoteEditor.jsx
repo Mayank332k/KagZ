@@ -8,6 +8,8 @@ import {
 } from "react";
 import { useParams, useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { Loading03Icon } from "hugeicons-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Delete02Icon, Edit03Icon, TextIcon } from "@hugeicons/core-free-icons";
 
 import { pagesAPI, chatAPI } from "../../services/api";
 import ActionModal from "../UI/ActionModal";
@@ -1533,7 +1535,7 @@ const NoteEditor = () => {
                 {/* Font Size */}
                 <div className="flex items-center justify-between px-4 py-2 text-[#8a817c] dark:text-white">
                   <span className="flex items-center">
-                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">edit</span> Text Size
+                    <HugeiconsIcon icon={TextIcon} size={18} className="select-none mr-2" /> Text Size
                   </span>
                   <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-[10px] p-0.5">
                     <button
@@ -1582,7 +1584,7 @@ const NoteEditor = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 flex items-center text-red-500 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete Page
+                  <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete Page
                 </button>
               </div>
             )}
@@ -1624,7 +1626,7 @@ const NoteEditor = () => {
                 {/* Background Shimmer (Clipped properly by overflow-hidden) */}
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gray-100/40 dark:via-white/[0.03] to-transparent animate-shimmer-move" />
                 
-                <span className="material-symbols-outlined text-[16px] leading-none select-none text-blue-500/90 dark:text-blue-400 relative z-10">edit</span>
+                <HugeiconsIcon icon={Edit03Icon} size={17.5} className="select-none text-blue-500/90 dark:text-blue-400 relative z-10" />
                 
                 {/* Premium Text Shimmer */}
                 <span className="relative z-10 bg-gradient-to-r from-gray-600 via-blue-500 to-gray-600 dark:from-gray-400 dark:via-blue-400 dark:to-gray-400 bg-[length:200%_auto] animate-shimmer-text bg-clip-text text-transparent">
@@ -1871,7 +1873,7 @@ const NoteEditor = () => {
                 title="Delete entire table"
                 className="px-1.5 py-1 rounded-[5px] flex items-center gap-1 text-gray-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer text-[12px] font-medium leading-none"
               >
-                <span className="material-symbols-outlined text-[15px] leading-none">delete</span>
+                <HugeiconsIcon icon={Delete02Icon} size={16.5} className="select-none" />
               </button>
             </div>
           )}

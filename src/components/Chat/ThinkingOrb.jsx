@@ -4,7 +4,9 @@ import React, { useRef, useEffect } from 'react';
  * ThinkingOrb: State-based generative particle morphing.
  * - State 'web_search': Dotted tilted orbit with traveling comet shimmer
  * - State 'workspace_search': Dotted dog-eared document with vertical scanning shimmer
- * - State 'thinking': Continuous organic generative particle morphing
+ * - State 'reconnecting': Dotted WiFi wave broadcast ping
+ * - State 'brain': Dotted cerebral brain with traveling synaptic neural waves
+ * - State 'thinking': Continuous organic generative morphing (Cerebral Brain, Celestial Sphere, Blossom, Botanical Leaf)
  * - Smooth stardust morph transitions between states
  */
 const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className = '' }) => {
@@ -300,11 +302,260 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
       };
     };
 
-    // 3. Generative Thinking Orb (thinking)
+    // 4. Dotted Task Checklist Board with Dynamic Completion & Scanning Shimmer (task_management)
+    const getTaskParticleTarget = (i, elapsed) => {
+      const floatY = Math.sin(elapsed * 1.8) * 0.16 * scale;
+      const cyclePeriod = 2.4;
+      const cyclePhase = (elapsed / cyclePeriod) % 1.0;
+
+      let px = 0;
+      let py = 0;
+      let angle = 0;
+      let baseAlpha = 0.65;
+      let shimmer = 0;
+
+      if (i < 6) {
+        // --- 1. Top Clipboard Clamp (6 particles) ---
+        const t = i / 5.0;
+        px = (-4.2 + t * 8.4) * scale;
+        py = -8.0 * scale + floatY;
+        angle = 0;
+        baseAlpha = 0.55;
+      } else if (i < 20) {
+        // --- 2. Row 1: Active Checkmark (5 pts) + Task Bar (9 pts) (cy = -4.2) ---
+        const k = i - 6;
+        const cy = -4.2 * scale + floatY;
+        if (k < 5) {
+          const checkCoords = [
+            { x: -7.2, y: -4.4, ang: 0.785 },
+            { x: -6.0, y: -3.1, ang: 0.785 },
+            { x: -4.8, y: -4.2, ang: -0.785 },
+            { x: -3.6, y: -5.4, ang: -0.785 },
+            { x: -2.4, y: -6.6, ang: -0.785 },
+          ];
+          px = checkCoords[k].x * scale;
+          py = checkCoords[k].y * scale + floatY;
+          angle = checkCoords[k].ang;
+
+          const checkDist = Math.abs(cyclePhase - 0.15);
+          const pulse = checkDist < 0.2 ? Math.pow(Math.cos((checkDist / 0.2) * (Math.PI / 2)), 2) : 0;
+          baseAlpha = 0.75 + pulse * 0.25;
+          shimmer = pulse;
+        } else {
+          const idx = k - 5;
+          const t = idx / 8.0;
+          px = (-0.4 + t * 7.9) * scale;
+          py = cy;
+          angle = 0;
+
+          const wavePos = cyclePhase / 0.5;
+          const scanDist = Math.abs(wavePos - t);
+          const scan = scanDist < 0.25 ? Math.pow(Math.cos((scanDist / 0.25) * (Math.PI / 2)), 2) : 0;
+          baseAlpha = 0.60 + scan * 0.40;
+          shimmer = scan;
+        }
+      } else if (i < 34) {
+        // --- 3. Row 2: Second Checkmark (5 pts) + Task Bar (9 pts) (cy = 0.6) ---
+        const k = i - 20;
+        const cy = 0.6 * scale + floatY;
+        if (k < 5) {
+          const checkCoords = [
+            { x: -7.2, y: 0.4, ang: 0.785 },
+            { x: -6.0, y: 1.7, ang: 0.785 },
+            { x: -4.8, y: 0.6, ang: -0.785 },
+            { x: -3.6, y: -0.6, ang: -0.785 },
+            { x: -2.4, y: -1.8, ang: -0.785 },
+          ];
+          px = checkCoords[k].x * scale;
+          py = checkCoords[k].y * scale + floatY;
+          angle = checkCoords[k].ang;
+
+          const checkDist = Math.abs(cyclePhase - 0.50);
+          const pulse = checkDist < 0.2 ? Math.pow(Math.cos((checkDist / 0.2) * (Math.PI / 2)), 2) : 0;
+          baseAlpha = 0.75 + pulse * 0.25;
+          shimmer = pulse;
+        } else {
+          const idx = k - 5;
+          const t = idx / 8.0;
+          px = (-0.4 + t * 7.9) * scale;
+          py = cy;
+          angle = 0;
+
+          const wavePos = (cyclePhase - 0.35) / 0.5;
+          const scanDist = Math.abs(wavePos - t);
+          const scan = scanDist < 0.25 ? Math.pow(Math.cos((scanDist / 0.25) * (Math.PI / 2)), 2) : 0;
+          baseAlpha = 0.60 + scan * 0.40;
+          shimmer = scan;
+        }
+      } else {
+        // --- 4. Row 3: Pending Checkbox Ring (5 pts) + Task Bar (9 pts) (cy = 5.4) ---
+        const k = i - 34;
+        const cy = 5.4 * scale + floatY;
+        if (k < 5) {
+          const spin = elapsed * 1.5;
+          const ringAng = k * (Math.PI * 2 / 5) + spin;
+          px = -4.8 * scale + Math.cos(ringAng) * 1.35 * scale;
+          py = cy + Math.sin(ringAng) * 1.35 * scale;
+          angle = ringAng + Math.PI / 2;
+          baseAlpha = 0.70;
+        } else {
+          const idx = k - 5;
+          const t = idx / 8.0;
+          px = (-0.4 + t * 6.6) * scale;
+          py = cy;
+          angle = 0;
+
+          const wavePos = (cyclePhase - 0.70) / 0.5;
+          const scanDist = Math.abs(wavePos - t);
+          const scan = scanDist < 0.25 ? Math.pow(Math.cos((scanDist / 0.25) * (Math.PI / 2)), 2) : 0;
+          baseAlpha = 0.55 + scan * 0.40;
+          shimmer = scan;
+        }
+      }
+
+      const pSize = (0.46 + shimmer * 0.28) * scale;
+      const pAlpha = Math.min(1.0, baseAlpha);
+
+      return {
+        x: px,
+        y: py,
+        size: pSize,
+        alpha: pAlpha,
+        angle,
+      };
+    };
+
+    // 5. Dotted Cerebral Brain with Synaptic Thinking Waves & Dense Cortical Gyri
+    const getBrainParticleTarget = (i, elapsed) => {
+      // 13 Perimeter Particles per hemisphere (3 scalloped cranial lobes & cerebellar base)
+      const leftPerimeter = [
+        // Cranial Dome (Frontal Lobe Crest)
+        { x: -0.9 * scale, y: -7.0 * scale, ang: -2.70 },
+        { x: -2.8 * scale, y: -8.0 * scale, ang: 3.05 },
+        { x: -4.8 * scale, y: -7.5 * scale, ang: 2.53 },
+        { x: -6.2 * scale, y: -5.8 * scale, ang: 1.92 },
+
+        // Upper Temporal / Parietal Lobe
+        { x: -7.2 * scale, y: -4.0 * scale, ang: 1.83 },
+        { x: -8.0 * scale, y: -2.2 * scale, ang: 1.57 },
+        { x: -6.6 * scale, y: -0.5 * scale, ang: 1.13 }, // Lateral sulcus notch
+
+        // Lower Lobe (Temporal / Occipital)
+        { x: -8.0 * scale, y: 1.2 * scale,  ang: 1.48 },
+        { x: -7.4 * scale, y: 2.8 * scale,  ang: 1.13 },
+        { x: -6.2 * scale, y: 4.2 * scale,  ang: 0.70 }, // Pre-occipital notch
+
+        // Cerebellar Base & Brainstem
+        { x: -4.8 * scale, y: 5.8 * scale,  ang: 0.44 },
+        { x: -3.0 * scale, y: 6.8 * scale,  ang: 0.09 },
+        { x: -1.2 * scale, y: 6.6 * scale,  ang: -0.35 },
+      ];
+
+      // 9 Interior Gyri Particles per hemisphere (dense folding cortical convolutions)
+      const leftGyri = [
+        // Upper Gyrus Loop (Frontal-Parietal convolution)
+        { x: -4.4 * scale, y: -4.2 * scale, ang: 0.78 },
+        { x: -2.6 * scale, y: -3.2 * scale, ang: 1.40 },
+        { x: -1.8 * scale, y: -1.8 * scale, ang: 1.57 },
+        { x: -2.8 * scale, y: -0.6 * scale, ang: 2.44 },
+        { x: -4.4 * scale, y: -0.2 * scale, ang: 2.96 },
+
+        // Lower Gyrus Loop (Temporal-Occipital convolution)
+        { x: -4.6 * scale, y: 1.6 * scale,  ang: 0.78 },
+        { x: -2.8 * scale, y: 2.4 * scale,  ang: 1.31 },
+        { x: -2.0 * scale, y: 3.6 * scale,  ang: 1.83 },
+        { x: -3.6 * scale, y: 4.6 * scale,  ang: 2.62 },
+      ];
+
+      // 4 Central Longitudinal Fissure Particles
+      const fissure = [
+        { y: -5.4 * scale },
+        { y: -1.8 * scale },
+        { y: 1.8 * scale },
+        { y: 5.4 * scale },
+      ];
+
+      let rawX = 0, rawY = 0, rawAngle = 0;
+      let isInterior = false;
+
+      if (i < 13) {
+        // --- 13 Particles: Left Hemisphere Perimeter ---
+        const p = leftPerimeter[i];
+        rawX = p.x;
+        rawY = p.y;
+        rawAngle = p.ang;
+      } else if (i < 26) {
+        // --- 13 Particles: Right Hemisphere Perimeter (Bilateral Mirror) ---
+        const p = leftPerimeter[i - 13];
+        rawX = -p.x;
+        rawY = p.y;
+        rawAngle = Math.atan2(Math.sin(p.ang), -Math.cos(p.ang));
+      } else if (i < 35) {
+        // --- 9 Particles: Left Interior Gyri & Sulci ---
+        const p = leftGyri[i - 26];
+        rawX = p.x;
+        rawY = p.y;
+        rawAngle = p.ang;
+        isInterior = true;
+      } else if (i < 44) {
+        // --- 9 Particles: Right Interior Gyri & Sulci (Bilateral Mirror) ---
+        const p = leftGyri[i - 35];
+        rawX = -p.x;
+        rawY = p.y;
+        rawAngle = Math.atan2(Math.sin(p.ang), -Math.cos(p.ang));
+        isInterior = true;
+      } else {
+        // --- 4 Particles: Central Longitudinal Fissure ---
+        const p = fissure[i - 44];
+        rawX = 0;
+        rawY = p.y;
+        rawAngle = Math.PI / 2;
+      }
+
+      // Cognitive breathing pulse & subtle organic floating
+      const breath = Math.sin(elapsed * 2.2) * 0.12 * scale;
+      const floatY = Math.sin(elapsed * 1.5) * 0.16 * scale;
+
+      // Expand subtly outward from center axis with breath
+      const signX = rawX === 0 ? 0 : (rawX > 0 ? 1 : -1);
+      const px = rawX + signX * breath;
+      const py = rawY + floatY;
+
+      // Traveling synaptic neural wave (action potential sweeping through lobes)
+      const waveSpeed = 2.4;
+      const wavePhase = (elapsed * waveSpeed) % (Math.PI * 2);
+      // Normalized vertical coordinate from 0 (top) to 1 (bottom)
+      const yNorm = (rawY + 8.0 * scale) / (16.0 * scale);
+      const waveDist = Math.abs(((wavePhase / (Math.PI * 2)) * 1.25) - yNorm);
+      const synapticWave = waveDist < 0.28 ? Math.pow(Math.cos((waveDist / 0.28) * (Math.PI / 2)), 2) : 0;
+
+      // Subtle neural firing sparkle on interior neurons
+      const seed = seeds[i];
+      const neuralSpark = isInterior ? Math.sin(elapsed * 4.2 + seed.twinkleOffset) * 0.14 : 0;
+
+      const baseSize = isInterior ? 0.44 : 0.48;
+      const pSize = (baseSize + synapticWave * 0.22) * scale;
+
+      const baseAlpha = isInterior ? 0.50 : 0.65;
+      const pAlpha = Math.min(1.0, baseAlpha + neuralSpark + synapticWave * 0.42);
+
+      return {
+        x: px,
+        y: py,
+        size: pSize,
+        alpha: pAlpha,
+        angle: rawAngle,
+      };
+    };
+
+    // 5. Generative Thinking Orb (thinking)
     const getThinkingParticleTarget = (subState, i, elapsed) => {
       switch (subState) {
-        // Sub 0: 3D Celestial Sphere
-        case 0: {
+        // Sub 0: Dotted Cerebral Brain with Synaptic Thinking Waves
+        case 0:
+          return getBrainParticleTarget(i, elapsed);
+        // Sub 1: 3D Celestial Sphere
+        case 1: {
           const rotY = elapsed * 1.8;
           const rotX = 0.38;
           const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
@@ -325,8 +576,8 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
             angle,
           };
         }
-        // Sub 1: Glowing Tri-Lobe Blossom
-        case 1: {
+        // Sub 2: Glowing Tri-Lobe Blossom
+        case 2: {
           const rot = elapsed * 1.3;
           const angle = (i / NUM_PARTICLES) * Math.PI * 2;
           const baseR = 5.2 * scale;
@@ -343,7 +594,7 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
             angle: angleLobe,
           };
         }
-        // Sub 2: Glowing Rounded Botanical Leaf with Spine Vein
+        // Sub 3: Glowing Rounded Botanical Leaf with Spine Vein
         default: {
           const sway = Math.sin(elapsed * 1.5) * 0.08;
           const tilt = -0.32 + sway;
@@ -465,16 +716,16 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
 
       // If in thinking mode, handle subtle generative sub-cycles
       if (currentMode === 'thinking') {
-        const subDuration = 2400;
+        const subDuration = 2600;
         const subElapsed = now - lastSubSwitchTime;
         if (subElapsed > subDuration) {
           thinkingSubState = nextThinkingSubState;
-          nextThinkingSubState = (thinkingSubState + 1) % 3;
+          nextThinkingSubState = (thinkingSubState + 1) % 4;
           lastSubSwitchTime = now;
           thinkingSubProgress = 0;
         } else {
           const u = subElapsed / subDuration;
-          thinkingSubProgress = u < 0.4 ? 0 : (u - 0.4) / 0.6;
+          thinkingSubProgress = u < 0.38 ? 0 : (u - 0.38) / 0.62;
           thinkingSubProgress = 0.5 - 0.5 * Math.cos(thinkingSubProgress * Math.PI);
         }
       }
@@ -546,6 +797,69 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
         ctx.restore();
       }
 
+      // Draw background visual guide for Task Management
+      if (currentMode === 'task_management' || currentMode === 'manage_tasks') {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.12 : 0.08})`;
+        ctx.lineWidth = 0.65 * scale;
+
+        const cbW = 17.2 * scale;
+        const cbH = 18.0 * scale;
+        const cbR = 2.2 * scale;
+        const cbX = -cbW / 2;
+        const cbY = -cbH / 2;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(cbX, cbY, cbW, cbH, cbR);
+        } else {
+          ctx.rect(cbX, cbY, cbW, cbH);
+        }
+        ctx.stroke();
+
+        // Top clamp arch
+        ctx.beginPath();
+        ctx.arc(0, cbY, 2.8 * scale, Math.PI, 0);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Draw background visual guide for Brain
+      if (currentMode === 'brain' || currentMode === 'face') {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.12 : 0.07})`;
+        ctx.lineWidth = 0.55 * scale;
+
+        // Left hemisphere contour
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5 * scale);
+        ctx.bezierCurveTo(-2.8 * scale, -8.6 * scale, -5.5 * scale, -8.2 * scale, -6.5 * scale, -5.8 * scale);
+        ctx.bezierCurveTo(-7.8 * scale, -4.2 * scale, -8.5 * scale, -2.5 * scale, -7.2 * scale, -0.6 * scale);
+        ctx.bezierCurveTo(-8.5 * scale, 1.0 * scale, -8.2 * scale, 3.2 * scale, -6.5 * scale, 4.5 * scale);
+        ctx.bezierCurveTo(-5.0 * scale, 6.2 * scale, -3.0 * scale, 7.2 * scale, 0, 6.6 * scale);
+        ctx.stroke();
+
+        // Right hemisphere contour
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5 * scale);
+        ctx.bezierCurveTo(2.8 * scale, -8.6 * scale, 5.5 * scale, -8.2 * scale, 6.5 * scale, -5.8 * scale);
+        ctx.bezierCurveTo(7.8 * scale, -4.2 * scale, 8.5 * scale, -2.5 * scale, 7.2 * scale, -0.6 * scale);
+        ctx.bezierCurveTo(8.5 * scale, 1.0 * scale, 8.2 * scale, 3.2 * scale, 6.5 * scale, 4.5 * scale);
+        ctx.bezierCurveTo(5.0 * scale, 6.2 * scale, 3.0 * scale, 7.2 * scale, 0, 6.6 * scale);
+        ctx.stroke();
+
+        // Central longitudinal fissure dashed line
+        ctx.setLineDash([1.2 * scale, 2.0 * scale]);
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5 * scale);
+        ctx.lineTo(0, 6.6 * scale);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
       // Draw 48 particles with organic morphing
       for (let i = 0; i < NUM_PARTICLES; i++) {
         let target;
@@ -555,6 +869,10 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
           target = getGlobeParticleTarget(i, elapsed);
         } else if (currentMode === 'reconnecting') {
           target = getWifiParticleTarget(i, elapsed);
+        } else if (currentMode === 'task_management' || currentMode === 'manage_tasks') {
+          target = getTaskParticleTarget(i, elapsed);
+        } else if (currentMode === 'brain' || currentMode === 'face') {
+          target = getBrainParticleTarget(i, elapsed);
         } else {
           const subA = getThinkingParticleTarget(thinkingSubState, i, elapsed);
           const subB = getThinkingParticleTarget(nextThinkingSubState, i, elapsed);

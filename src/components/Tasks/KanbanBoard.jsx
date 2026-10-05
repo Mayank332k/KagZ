@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon, Edit03Icon } from '@hugeicons/core-free-icons';
 
 
 const STATUSES = [
@@ -175,13 +177,13 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                   : "bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10"
               }`}
             >
-              <span
-                className={`material-symbols-outlined text-[28px] leading-none select-none transition-colors duration-300 ${
+              <HugeiconsIcon
+                icon={Delete02Icon}
+                size={30}
+                className={`select-none transition-colors duration-300 ${
                   isDraggingOverDelete ? "text-white" : "text-red-500"
                 }`}
-              >
-                delete
-              </span>
+              />
             </div>
           </motion.div>
         )}
@@ -233,7 +235,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
               {/* Column Header */}
               <div className="flex items-center mb-4">
                 <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${status.pillClass}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${status.pillClass}`}
                 >
                   <div
                     className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dotColor}`}
@@ -261,10 +263,10 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                       draggable
                       onDragStart={(e) => handleDragStart(e, task._id || task.id)}
                       onDragEnd={(e) => handleDragEnd(e, task._id || task.id)}
-                      className={`group bg-white dark:bg-[#1f1f1f] border border-gray-100 dark:border-white/5 rounded-[10px] px-3.5 py-2 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col relative ${activeTaskMenu === (task._id || task.id) ? 'z-[100]' : 'z-10'}`}
+                      className={`group bg-white dark:bg-[#1f1f1f] border border-gray-100 dark:border-white/5 rounded-[8px] px-3 py-1 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col relative ${activeTaskMenu === (task._id || task.id) ? 'z-[100]' : 'z-10'}`}
                     >
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="text-[14px] leading-[1.4] font-medium text-gray-800 dark:text-gray-200 break-words">
+                      <div className="flex justify-between items-center gap-2 min-h-[22px]">
+                        <p className="text-[13.5px] leading-snug font-medium text-gray-800 dark:text-gray-200 break-words">
                           {task.task || task.title}
                         </p>
                         <div className="relative shrink-0">
@@ -285,7 +287,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                 {allowCreation && addingTaskStatus === status.id && (
                   <form
                     onSubmit={handleCreateSubmit}
-                    className="mt-2 bg-white dark:bg-[#1f1f1f] border border-blue-500 rounded-lg p-3.5 shadow-sm"
+                    className="mt-1 bg-white dark:bg-[#1f1f1f] border border-blue-500 rounded-[8px] px-3 py-1 shadow-sm flex items-center min-h-[32px]"
                   >
                     <input
                       type="text"
@@ -294,7 +296,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
                       onChange={(e) => setNewTaskTitle(e.target.value)}
                       onBlur={handleCreateSubmit}
                       placeholder="Task title..."
-                      className="w-full bg-transparent text-[14px] font-medium text-gray-800 dark:text-gray-200 outline-none placeholder:font-normal placeholder:text-gray-400"
+                      className="w-full bg-transparent text-[13.5px] leading-snug font-medium text-gray-800 dark:text-gray-200 outline-none placeholder:font-normal placeholder:text-gray-400"
                     />
                   </form>
                 )}
@@ -353,7 +355,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-400 dark:text-gray-500">edit</span>
+              <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none text-gray-400 dark:text-gray-500" />
               <span className="font-medium">Edit task</span>
             </button>
             <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
@@ -365,7 +367,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none text-red-400 dark:text-red-400/80">delete</span>
+              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none text-red-400 dark:text-red-400/80" />
               <span className="font-medium">Delete task</span>
             </button>
           </div>

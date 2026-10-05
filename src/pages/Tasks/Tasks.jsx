@@ -7,6 +7,8 @@ import { useToast } from "../../context/ToastContext";
 import KanbanBoard from "../../components/Tasks/KanbanBoard";
 import ActionModal from "../../components/UI/ActionModal";
 import TaskEditModal from "../../components/Tasks/TaskEditModal";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Delete02Icon, Edit03Icon } from "@hugeicons/core-free-icons";
 
 const CACHE_KEY_BOARDS = "noema_kanban_boards";
 const CACHE_KEY_ACTIVE_BOARD = "noema_kanban_active_board";
@@ -121,8 +123,14 @@ const Tasks = () => {
 
     fetchInitialData();
 
+    const handleRefresh = () => {
+      fetchInitialData();
+    };
+    window.addEventListener('tasks:refresh', handleRefresh);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('tasks:refresh', handleRefresh);
     };
   }, []);
 
@@ -276,8 +284,10 @@ const Tasks = () => {
     setTaskToDelete(null);
     try {
       await tasksAPI.deleteTask(taskId);
+      showToast("Task deleted", "info", 2000, { position: 'center' });
     } catch (error) {
       console.error("Failed to delete task", error);
+      showToast("Failed to delete task", "error", 2500, { position: 'center' });
     }
   };
 
@@ -419,7 +429,7 @@ const Tasks = () => {
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-400 dark:text-gray-500">edit</span>
+              <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none text-gray-400 dark:text-gray-500" />
               <span>Rename board</span>
             </button>
             <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
@@ -431,7 +441,7 @@ const Tasks = () => {
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none text-red-400 dark:text-red-400/80">delete</span>
+              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none text-red-400 dark:text-red-400/80" />
               <span>Delete board</span>
             </button>
           </div>

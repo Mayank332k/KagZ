@@ -7,7 +7,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
 import { PanelLeft, SquarePen, Sparkles } from "lucide-react";
-import { CursorTextIcon, SlidersHorizontalIcon } from "hugeicons-react";
+import { SlidersHorizontalIcon } from "hugeicons-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Delete02Icon,
+  Home01Icon,
+  ListTodo as ListTodoIcon,
+  MessageCircle as MessageCircleIcon,
+  Edit03Icon,
+  StarIcon,
+  TextIcon,
+} from "@hugeicons/core-free-icons";
 
 import ActionModal from "../UI/ActionModal";
 import LocationDropdown from "../UI/LocationDropdown";
@@ -368,11 +378,9 @@ const Sidebar = () => {
     {
       id: "home",
       label: "Home",
-      path: "/dashboard/home",
+      path: "/dashboard/page/new",
       icon: () => (
-        <span className="material-symbols-outlined text-[19px] leading-none select-none">
-          home
-        </span>
+        <HugeiconsIcon icon={Home01Icon} size={19} className="leading-none select-none" />
       ),
     },
     {
@@ -380,9 +388,7 @@ const Sidebar = () => {
       label: "Chat",
       path: "/dashboard/chat",
       icon: () => (
-        <span className="material-symbols-outlined text-[19px] leading-none select-none">
-          chat
-        </span>
+        <HugeiconsIcon icon={MessageCircleIcon} size={19} className="leading-none select-none" />
       ),
     },
     {
@@ -390,15 +396,17 @@ const Sidebar = () => {
       label: "Tasks",
       path: "/dashboard/tasks",
       icon: () => (
-        <span className="material-symbols-outlined text-[19px] leading-none select-none">
-          checklist
-        </span>
+        <HugeiconsIcon icon={ListTodoIcon} size={19} className="leading-none select-none" />
       ),
     },
   ];
 
   const isHomeActive = () => {
-    return location.pathname === "/dashboard/home" || location.pathname === "/dashboard/home/";
+    return (
+      location.pathname === "/dashboard/page/new" ||
+      location.pathname === "/dashboard/home" ||
+      location.pathname === "/dashboard/home/"
+    );
   };
 
   // Real API-backed tree state
@@ -907,7 +915,7 @@ const Sidebar = () => {
               });
             }}
           >
-            <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete Chat
+            <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete Chat
           </button>
         </div>
       );
@@ -940,7 +948,7 @@ const Sidebar = () => {
             }
           }}
         >
-          <span className={`material-symbols-outlined text-[18px] leading-none select-none mr-2 ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`}>star</span>
+          <HugeiconsIcon icon={StarIcon} size={18} className={`select-none mr-2 ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
           {node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
         </button>
         <div className="h-px bg-gray-200 dark:bg-[var(--color-dark-border)] my-1"></div>
@@ -989,7 +997,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">edit</span> Rename
+          <HugeiconsIcon icon={Edit03Icon} size={18} className="select-none mr-2" /> Rename
         </button>
         <button
           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-red-600 dark:text-red-400 flex items-center transition-colors"
@@ -1003,7 +1011,7 @@ const Sidebar = () => {
             });
           }}
         >
-          <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">delete</span> Delete
+          <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete
         </button>
       </div>
     );
@@ -1162,7 +1170,7 @@ const Sidebar = () => {
                       : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
                   }`}
                 >
-                  <CursorTextIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "typography" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <HugeiconsIcon icon={TextIcon} size={16} className={`shrink-0 ${settingsTab === "typography" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
                   <span className="truncate">Typography & Editor</span>
                 </button>
                 <button
@@ -2331,10 +2339,10 @@ const Sidebar = () => {
               >
                 <motion.div
                   layout
-                  className={`flex items-center h-8 rounded-[8px] overflow-hidden ${
+                  className={`flex items-center h-7 rounded-full overflow-hidden ${
                     isChatActive
-                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-3 font-medium"
-                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-8 justify-center"
+                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2.5 font-medium"
+                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
                   }`}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 >
@@ -2348,10 +2356,10 @@ const Sidebar = () => {
                     {isChatActive && (
                       <motion.span
                         initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 7 }}
+                        animate={{ opacity: 1, width: "auto", marginLeft: 5 }}
                         exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="text-[15px] font-medium whitespace-nowrap overflow-hidden leading-none"
+                        className="text-[13px] font-medium whitespace-nowrap overflow-hidden leading-none"
                       >
                         {item.label}
                       </motion.span>
@@ -2371,10 +2379,10 @@ const Sidebar = () => {
                 return (
                   <motion.div
                     layout
-                    className={`flex items-center h-8 rounded-[8px] overflow-hidden ${
+                    className={`flex items-center h-7 rounded-full overflow-hidden ${
                       active
-                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-3 font-medium"
-                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-8 justify-center"
+                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2.5 font-medium"
+                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
                     }`}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
@@ -2388,10 +2396,10 @@ const Sidebar = () => {
                       {active && (
                         <motion.span
                           initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 7 }}
+                          animate={{ opacity: 1, width: "auto", marginLeft: 5 }}
                           exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[15px] font-medium whitespace-nowrap overflow-hidden leading-none"
+                          className="text-[13px] font-medium whitespace-nowrap overflow-hidden leading-none"
                         >
                           {item.label}
                         </motion.span>
@@ -2547,7 +2555,7 @@ const Sidebar = () => {
               onClick={() => toggleFolder("favorites-section")}
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
-              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">star</span>
+              <HugeiconsIcon icon={StarIcon} size={15.5} className="shrink-0 opacity-70 select-none" />
               <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Favorites</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
@@ -2594,7 +2602,7 @@ const Sidebar = () => {
               onClick={() => toggleFolder("chat-history-section")}
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
-              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">chat</span>
+              <HugeiconsIcon icon={MessageCircleIcon} size={15.5} className="shrink-0 opacity-70 select-none" />
               <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Chat History</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
