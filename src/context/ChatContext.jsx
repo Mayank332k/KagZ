@@ -171,6 +171,7 @@ export const ChatProvider = ({ children }) => {
     let tickTimeoutId = null;
     let isPacerRunning = false;
     let streamError = false;
+    let memoryStartedAt = 0;
 
     const pumpNextTokens = () => {
       if (signal.aborted) {
@@ -185,6 +186,17 @@ export const ChatProvider = ({ children }) => {
           setIsStreaming(false);
         }
         return;
+      }
+
+      if (memoryStartedAt > 0) {
+        const elapsed = Date.now() - memoryStartedAt;
+        const MIN_MEMORY_DWELL_MS = 1800;
+        if (elapsed < MIN_MEMORY_DWELL_MS) {
+          isPacerRunning = true;
+          tickTimeoutId = setTimeout(pumpNextTokens, MIN_MEMORY_DWELL_MS - elapsed);
+          return;
+        }
+        memoryStartedAt = 0;
       }
 
       isPacerRunning = true;
@@ -244,6 +256,7 @@ export const ChatProvider = ({ children }) => {
     };
 
     const flushQueueImmediately = () => {
+      memoryStartedAt = 0;
       if (tickTimeoutId) {
         clearTimeout(tickTimeoutId);
         tickTimeoutId = null;
@@ -285,12 +298,24 @@ export const ChatProvider = ({ children }) => {
               });
               setCurrentSources(Array.isArray(event.data) ? event.data : []);
             } else if (event.type === 'state') {
+              const isMemory = event.stateType === 'remembering' || event.stateType === 'memory' || (typeof event.data === 'string' && /remember|yaad/i.test(event.data));
+              if (isMemory) {
+                memoryStartedAt = Date.now();
+              }
               setMessages((prev) => {
                 const lastIndex = prev.length - 1;
                 if (lastIndex < 0) return prev;
                 const lastMsg = prev[lastIndex];
                 if (lastMsg.role !== 'assistant') return prev;
                 return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data, stateType: event.stateType || 'thinking' }];
+              });
+            } else if (event.type === 'research_update') {
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+                return [...prev.slice(0, lastIndex), { ...lastMsg, researchData: event.data }];
               });
             } else if (event.type === 'content') {
               enqueueStreamContent(event.data);
@@ -305,6 +330,23 @@ export const ChatProvider = ({ children }) => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tasks:refresh'));
               }
+            } else if (event.type === 'memory_saved') {
+              const savedFact = event.data?.fact || event.data;
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    memorySaved: true,
+                    memoryFact: typeof savedFact === 'string' ? savedFact : JSON.stringify(savedFact),
+                    isNewMemory: true,
+                  }
+                ];
+              });
             } else if (event.type === 'done') {
               completedSuccessfully = true;
               isStreamNetworkDone = true;

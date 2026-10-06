@@ -425,7 +425,146 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
       };
     };
 
-    // 5. Dotted Cerebral Brain with Synaptic Thinking Waves & Dense Cortical Gyri
+    // 5. Research Telescope with Cosmic Optical Shimmer (research / deep_research)
+    const getTelescopeParticleTarget = (i, elapsed) => {
+      const tubeAngle = -0.58; // ~33 deg pointing skyward
+      const cosA = Math.cos(tubeAngle);
+      const sinA = Math.sin(tubeAngle);
+      // Unit vectors
+      const ux = cosA, uy = sinA;
+      const vx = -sinA, vy = cosA;
+
+      const fLen = 7.8 * scale;  // Objective front along axis
+      const bLen = -6.2 * scale; // Eyepiece back along axis
+      const fR = 2.4 * scale;    // Front objective radius
+      const bR = 1.3 * scale;    // Back eyepiece radius
+
+      let px = 0, py = 0, angle = tubeAngle, baseAlpha = 0.55, shimmer = 0;
+
+      if (i < 12) {
+        // --- 1. Objective Lens Aperture (12 particles): Starlight collector ring ---
+        const phi = (i / 12) * Math.PI * 2;
+        const ringX = Math.cos(phi) * fR;
+        const ringAxial = Math.sin(phi) * (0.8 * scale);
+
+        px = fLen * ux + ringAxial * ux + ringX * vx;
+        py = fLen * uy + ringAxial * uy + ringX * vy;
+        angle = tubeAngle + Math.PI / 2 + Math.cos(phi) * 0.35;
+
+        const twinkle = Math.sin(elapsed * 2.8 + i * 0.7);
+        shimmer = Math.max(0, twinkle);
+        baseAlpha = 0.58 + shimmer * 0.42;
+      } else if (i < 19) {
+        // --- 2. Upper Barrel Rail (7 particles) ---
+        const k = i - 12;
+        const t = k / 6.0;
+        const d = bLen + t * (fLen - bLen);
+        const r = bR + t * (fR - bR);
+
+        px = d * ux + r * vx;
+        py = d * uy + r * vy;
+        angle = tubeAngle;
+
+        const wavePhase = (elapsed * 2.0) % 1.0;
+        const dist = Math.abs(t - wavePhase);
+        const pulse = dist < 0.25 ? Math.pow(Math.cos((dist / 0.25) * (Math.PI / 2)), 2) : 0;
+        shimmer = pulse;
+        baseAlpha = 0.45 + pulse * 0.55;
+      } else if (i < 26) {
+        // --- 3. Lower Barrel Rail (7 particles) ---
+        const k = i - 19;
+        const t = k / 6.0;
+        const d = bLen + t * (fLen - bLen);
+        const r = bR + t * (fR - bR);
+
+        px = d * ux - r * vx;
+        py = d * uy - r * vy;
+        angle = tubeAngle;
+
+        const wavePhase = (elapsed * 2.0) % 1.0;
+        const dist = Math.abs(t - wavePhase);
+        const pulse = dist < 0.25 ? Math.pow(Math.cos((dist / 0.25) * (Math.PI / 2)), 2) : 0;
+        shimmer = pulse;
+        baseAlpha = 0.45 + pulse * 0.55;
+      } else if (i < 30) {
+        // --- 4. Central Optical Axis / Baffle Rings (4 particles) ---
+        const k = i - 26;
+        const t = (k + 1) / 5.0;
+        const d = bLen + t * (fLen - bLen);
+
+        px = d * ux;
+        py = d * uy;
+        angle = tubeAngle;
+
+        const wavePhase = (elapsed * 2.0) % 1.0;
+        const dist = Math.abs(t - wavePhase);
+        const pulse = dist < 0.25 ? Math.pow(Math.cos((dist / 0.25) * (Math.PI / 2)), 2) : 0;
+        shimmer = pulse;
+        baseAlpha = 0.35 + pulse * 0.45;
+      } else if (i < 36) {
+        // --- 5. Eyepiece & Focus Knobs (6 particles) ---
+        const k = i - 30;
+        if (k < 4) {
+          // Eyepiece barrel
+          const ex = bLen - (0.8 + (k % 2) * 0.8) * scale;
+          const ey = (k < 2 ? 0.65 : -0.65) * scale;
+          px = ex * ux + ey * vx;
+          py = ex * uy + ey * vy;
+          angle = tubeAngle;
+        } else {
+          // Focus knob on top
+          const kx = (bLen + 2.4 * scale);
+          const ky = (bR + 1.1 * scale);
+          px = kx * ux + ky * vx;
+          py = kx * uy + ky * vy;
+          angle = tubeAngle + Math.PI / 2;
+        }
+        baseAlpha = 0.52;
+      } else {
+        // --- 6. Tripod Mount & Legs (12 particles) ---
+        const k = i - 36;
+        const mountY = 1.2 * scale;
+        if (k < 2) {
+          // Central pivot mount collar
+          px = (k === 0 ? -0.8 : 0.8) * scale;
+          py = mountY;
+          angle = 0;
+        } else if (k < 5) {
+          // Left tripod leg (3 particles)
+          const idx = k - 2;
+          const t = (idx + 1) / 3.0;
+          px = -t * 5.4 * scale;
+          py = mountY + t * 6.8 * scale;
+          angle = Math.PI / 2 - 0.45;
+        } else if (k < 8) {
+          // Center tripod leg (3 particles)
+          const idx = k - 5;
+          const t = (idx + 1) / 3.0;
+          px = 0;
+          py = mountY + t * 7.2 * scale;
+          angle = Math.PI / 2;
+        } else {
+          // Right tripod leg (4 particles)
+          const idx = k - 8;
+          const t = (idx + 1) / 4.0;
+          px = t * 5.4 * scale;
+          py = mountY + t * 6.8 * scale;
+          angle = Math.PI / 2 + 0.45;
+        }
+        baseAlpha = 0.50;
+      }
+
+      const pSize = (0.46 + shimmer * 0.28) * scale;
+      return {
+        x: px,
+        y: py,
+        size: pSize,
+        alpha: Math.min(1.0, baseAlpha),
+        angle,
+      };
+    };
+
+    // 6. Dotted Cerebral Brain with Synaptic Thinking Waves & Dense Cortical Gyri
     const getBrainParticleTarget = (i, elapsed) => {
       // 13 Perimeter Particles per hemisphere (3 scalloped cranial lobes & cerebellar base)
       const leftPerimeter = [
@@ -545,6 +684,123 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
         size: pSize,
         alpha: pAlpha,
         angle: rawAngle,
+      };
+    };
+
+    // 7. Dotted Synaptic Memory Engram with Action-Potential Highways & Pulsing Hippocampus Nexus (memory / remembering)
+    const getMemoryParticleTarget = (i, elapsed) => {
+      // 4 Quadrant Synaptic Constellation Nodes
+      const nodes = [
+        { x: -5.4 * scale, y: -4.6 * scale }, // Node 0: Frontal-Left
+        { x:  5.4 * scale, y: -4.6 * scale }, // Node 1: Frontal-Right
+        { x:  5.8 * scale, y:  3.8 * scale }, // Node 2: Temporal-Right
+        { x: -5.8 * scale, y:  3.8 * scale }, // Node 3: Temporal-Left
+      ];
+
+      let px = 0;
+      let py = 0;
+      let angle = 0;
+      let baseAlpha = 0.65;
+      let shimmer = 0;
+
+      if (i < 8) {
+        // --- 1. Central Hippocampus Memory Core (8 particles) ---
+        // Radially breathing luminous storage nucleus
+        const breath = Math.sin(elapsed * 3.4) * 0.35 * scale;
+        const coreR = (1.5 * scale) + breath;
+        const spin = elapsed * 1.6;
+        const coreAng = (i / 8) * Math.PI * 2 + spin;
+
+        px = Math.cos(coreAng) * coreR;
+        py = Math.sin(coreAng) * coreR;
+        angle = coreAng + Math.PI / 2;
+
+        const pulse = (Math.sin(elapsed * 4.2 + i * 0.8) + 1) / 2;
+        shimmer = pulse;
+        baseAlpha = 0.75 + pulse * 0.25;
+      } else if (i < 28) {
+        // --- 2. 4 Synaptic Constellation Nodes (20 particles: 5 per node) ---
+        const k = i - 8;
+        const nodeIdx = Math.floor(k / 5);
+        const subIdx = k % 5;
+        const node = nodes[nodeIdx];
+
+        if (subIdx === 0) {
+          // Central anchor dot of the synaptic node
+          px = node.x;
+          py = node.y;
+          angle = 0;
+          baseAlpha = 0.85;
+          shimmer = 0.3;
+        } else {
+          // 4 revolving dendritic micro-satellites
+          const orbitR = 1.35 * scale;
+          const orbitSpeed = 2.4 * (nodeIdx % 2 === 0 ? 1 : -1);
+          const orbitAng = elapsed * orbitSpeed + (subIdx * (Math.PI / 2));
+          px = node.x + Math.cos(orbitAng) * orbitR;
+          py = node.y + Math.sin(orbitAng) * orbitR;
+          angle = orbitAng + Math.PI / 2;
+
+          const sparkle = Math.sin(elapsed * 3.6 + k * 1.1);
+          shimmer = Math.max(0, sparkle);
+          baseAlpha = 0.55 + shimmer * 0.45;
+        }
+      } else if (i < 40) {
+        // --- 3. Axonal Action-Potential Highways (12 particles: 3 per axon) ---
+        const k = i - 28;
+        const axonIdx = Math.floor(k / 3);
+        const stepIdx = k % 3;
+        const targetNode = nodes[axonIdx];
+
+        // Linear interpolation from core to node
+        const t = (stepIdx + 1) / 4.0;
+        const baseX = t * targetNode.x;
+        const baseY = t * targetNode.y;
+
+        // High-speed action potential wave shooting along the axon
+        const waveSpeed = 2.2;
+        const wavePhase = (elapsed * waveSpeed) % 1.0;
+        const distToImpulse = Math.abs(t - wavePhase);
+        const impulse = distToImpulse < 0.24 ? Math.pow(Math.cos((distToImpulse / 0.24) * (Math.PI / 2)), 2) : 0;
+
+        px = baseX;
+        py = baseY;
+        angle = Math.atan2(targetNode.y, targetNode.x);
+
+        shimmer = impulse;
+        baseAlpha = 0.35 + impulse * 0.65;
+      } else {
+        // --- 4. Bilateral Cranial Engram Field Halo (8 particles: 4 per hemisphere) ---
+        const k = i - 40;
+        const isRight = k >= 4;
+        const sideIdx = k % 4;
+
+        // Arc defining cranial dome
+        const arcAngles = [-2.65, -2.10, -1.57, -1.05];
+        const domeAng = arcAngles[sideIdx];
+        const domeR = 7.5 * scale;
+
+        const rawX = Math.cos(domeAng) * domeR;
+        const rawY = Math.sin(domeAng) * domeR + (1.2 * scale);
+
+        px = isRight ? -rawX : rawX;
+        py = rawY;
+        angle = Math.atan2(py, px) + Math.PI / 2;
+
+        const breatheHalo = Math.sin(elapsed * 2.0 + k * 0.5) * 0.2;
+        baseAlpha = 0.42 + breatheHalo;
+        shimmer = Math.max(0, breatheHalo);
+      }
+
+      const pSize = (0.45 + shimmer * 0.32) * scale;
+      const pAlpha = Math.min(1.0, baseAlpha);
+
+      return {
+        x: px,
+        y: py,
+        size: pSize,
+        alpha: pAlpha,
+        angle,
       };
     };
 
@@ -825,6 +1081,46 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
         ctx.restore();
       }
 
+      // Draw background visual guide for Memory Synaptic Engram
+      if (currentMode === 'memory' || currentMode === 'remembering') {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.14 : 0.08})`;
+        ctx.lineWidth = 0.55 * scale;
+        ctx.setLineDash([1.4 * scale, 2.0 * scale]);
+
+        // Central memory nexus ring
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.5 * scale, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 4 Axon pathway lines connecting center to nodes
+        const guideNodes = [
+          { x: -5.4 * scale, y: -4.6 * scale },
+          { x:  5.4 * scale, y: -4.6 * scale },
+          { x:  5.8 * scale, y:  3.8 * scale },
+          { x: -5.8 * scale, y:  3.8 * scale },
+        ];
+        guideNodes.forEach((gn) => {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(gn.x, gn.y);
+          ctx.stroke();
+
+          // Micro node ring at each synapse
+          ctx.beginPath();
+          ctx.arc(gn.x, gn.y, 1.2 * scale, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+
+        // Delicate cranial halo arc
+        ctx.beginPath();
+        ctx.arc(0, 1.2 * scale, 7.5 * scale, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
       // Draw background visual guide for Brain
       if (currentMode === 'brain' || currentMode === 'face') {
         ctx.save();
@@ -860,6 +1156,65 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
         ctx.restore();
       }
 
+      // Draw background visual guide for Research Telescope
+      if (currentMode === 'research' || currentMode === 'deep_research') {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.14 : 0.08})`;
+        ctx.lineWidth = 0.65 * scale;
+        ctx.setLineDash([1.4 * scale, 2.2 * scale]);
+
+        const tubeAngle = -0.58;
+        const cosA = Math.cos(tubeAngle);
+        const sinA = Math.sin(tubeAngle);
+        const ux = cosA, uy = sinA;
+        const vx = -sinA, vy = cosA;
+
+        const fLen = 7.8 * scale;
+        const bLen = -6.2 * scale;
+        const fR = 2.4 * scale;
+        const bR = 1.3 * scale;
+
+        // Tube upper rail
+        ctx.beginPath();
+        ctx.moveTo(bLen * ux + bR * vx, bLen * uy + bR * vy);
+        ctx.lineTo(fLen * ux + fR * vx, fLen * uy + fR * vy);
+        ctx.stroke();
+
+        // Tube lower rail
+        ctx.beginPath();
+        ctx.moveTo(bLen * ux - bR * vx, bLen * uy - bR * vy);
+        ctx.lineTo(fLen * ux - fR * vx, fLen * uy - fR * vy);
+        ctx.stroke();
+
+        // Objective lens rim ellipse
+        ctx.save();
+        ctx.translate(fLen * ux, fLen * uy);
+        ctx.rotate(tubeAngle + Math.PI / 2);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, fR, fR * 0.45, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Tripod legs
+        const mountY = 1.2 * scale;
+        ctx.beginPath();
+        ctx.moveTo(0, mountY);
+        ctx.lineTo(0, mountY + 7.2 * scale);
+        ctx.moveTo(0, mountY);
+        ctx.lineTo(-5.4 * scale, mountY + 6.8 * scale);
+        ctx.moveTo(0, mountY);
+        ctx.lineTo(5.4 * scale, mountY + 6.8 * scale);
+        ctx.stroke();
+
+        // Pivot collar
+        ctx.beginPath();
+        ctx.arc(0, mountY, 1.1 * scale, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
       // Draw 48 particles with organic morphing
       for (let i = 0; i < NUM_PARTICLES; i++) {
         let target;
@@ -871,8 +1226,12 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
           target = getWifiParticleTarget(i, elapsed);
         } else if (currentMode === 'task_management' || currentMode === 'manage_tasks') {
           target = getTaskParticleTarget(i, elapsed);
+        } else if (currentMode === 'memory' || currentMode === 'remembering') {
+          target = getMemoryParticleTarget(i, elapsed);
         } else if (currentMode === 'brain' || currentMode === 'face') {
           target = getBrainParticleTarget(i, elapsed);
+        } else if (currentMode === 'research' || currentMode === 'deep_research') {
+          target = getTelescopeParticleTarget(i, elapsed);
         } else {
           const subA = getThinkingParticleTarget(thinkingSubState, i, elapsed);
           const subB = getThinkingParticleTarget(nextThinkingSubState, i, elapsed);
@@ -955,6 +1314,10 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
     />
   );
 });
+
+export const MemoryOrb = React.memo(({ size = 24, className = '' }) => (
+  <ThinkingOrb size={size} stateType="memory" className={className} />
+));
 
 export default ThinkingOrb;
 

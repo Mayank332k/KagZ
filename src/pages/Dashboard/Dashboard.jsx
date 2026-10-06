@@ -15,6 +15,9 @@ const Dashboard = () => {
   // Save current route for 'resume' mode
   useEffect(() => {
     if (location.pathname.startsWith('/dashboard/')) {
+      if (location.pathname !== '/dashboard/chat') {
+        localStorage.setItem('noema-last-page-route', location.pathname + location.search);
+      }
       const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
       if (mode === 'resume') {
         localStorage.setItem('noema-last-route', location.pathname + location.search);

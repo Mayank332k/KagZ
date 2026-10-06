@@ -100,7 +100,7 @@ const MarkdownRenderer = ({ content, isStreaming = false }) => {
           if (isInline) {
             return (
               <code
-                className="rounded-[5px] bg-gray-100 dark:bg-white/[0.08] px-1.5 py-0.5 font-mono text-[12px] text-gray-800 dark:text-gray-200"
+                className="rounded-[5px] bg-gray-100 dark:bg-white/[0.08] px-1.5 py-0.5 font-mono text-[13.5px] text-gray-800 dark:text-gray-200"
                 {...props}
               >
                 {children}
@@ -124,26 +124,26 @@ const MarkdownRenderer = ({ content, isStreaming = false }) => {
             </div>
           );
         },
-        p: ({ children }) => <p className="mb-2 leading-[1.65] last:mb-0 text-[13.5px] whitespace-pre-wrap">{children}</p>,
+        p: ({ children }) => <p className="mb-2.5 leading-[1.68] last:mb-0 text-[15px] whitespace-pre-wrap">{children}</p>,
         a: ({ href, children }) => (
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
             {children}
           </a>
         ),
-        ul: ({ children }) => <ul className="list-disc pl-4 mb-3 text-[13.5px] space-y-1">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-4 mb-3 text-[13.5px] space-y-1">{children}</ol>,
-        li: ({ children }) => <li className="leading-[1.6]">{children}</li>,
-        h1: ({ children }) => <h1 className="text-[19px] font-bold mt-4 mb-2 tracking-tight text-gray-900 dark:text-white">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-[16px] font-semibold mt-3.5 mb-1.5 tracking-tight text-gray-900 dark:text-white">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-[14.5px] font-semibold mt-2.5 mb-1 tracking-tight text-gray-900 dark:text-white">{children}</h3>,
+        ul: ({ children }) => <ul className="list-disc pl-5 mb-3 text-[15px] space-y-1.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 text-[15px] space-y-1.5">{children}</ol>,
+        li: ({ children }) => <li className="leading-[1.65]">{children}</li>,
+        h1: ({ children }) => <h1 className="text-[21px] font-bold mt-4 mb-2 tracking-tight text-gray-900 dark:text-white">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-[18px] font-semibold mt-3.5 mb-1.5 tracking-tight text-gray-900 dark:text-white">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-[16px] font-semibold mt-2.5 mb-1 tracking-tight text-gray-900 dark:text-white">{children}</h3>,
         blockquote: ({ children }) => (
-          <blockquote className="border-l-3 border-gray-300 dark:border-gray-600 pl-3.5 py-0.5 my-3 text-[13px] text-gray-600 dark:text-gray-400 italic bg-gray-50/80 dark:bg-gray-800/40 rounded-r-md">
+          <blockquote className="border-l-3 border-gray-300 dark:border-gray-600 pl-3.5 py-1 my-3 text-[14.5px] text-gray-600 dark:text-gray-400 italic bg-gray-50/80 dark:bg-gray-800/40 rounded-r-md">
             {children}
           </blockquote>
         ),
         table: ({ children }) => (
           <div className="w-full overflow-x-auto my-3.5 border border-gray-200 dark:border-[#262626] rounded-lg bg-white dark:bg-[#141414] shadow-sm">
-            <table className="w-full text-left border-collapse text-[12.5px]">{children}</table>
+            <table className="w-full text-left border-collapse text-[14px]">{children}</table>
           </div>
         ),
         thead: ({ children }) => (

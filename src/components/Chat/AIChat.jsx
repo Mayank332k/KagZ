@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
 import { Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, ChatAdd01Icon, ExpandIcon, SidebarRightIcon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
+import { useToast } from '../../context/ToastContext';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
 import InteractiveChoiceCard from './InteractiveChoiceCard';
+import DeepResearchCard from './DeepResearchCard';
+import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
+import MemoryUpdateIcon from './MemoryUpdateIcon';
 import './AIChat.css';
 
 // Time ago utility
@@ -140,14 +144,14 @@ const SourcesPill = ({ sources, align = 'side' }) => {
       <button
         type="button"
         onClick={handleToggle}
-        className="sources-peanut-btn group inline-flex items-center gap-1.5 h-[28px] px-3 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none"
+        className="sources-peanut-btn group inline-flex items-center gap-2 h-[30px] px-3.5 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none"
         title="View sources"
       >
-        <span className="text-[12.5px] font-medium text-[var(--sources-pill-text)] group-hover:text-black dark:group-hover:text-white transition-colors truncate max-w-[170px]">
+        <span className="text-[13px] font-medium text-[var(--sources-pill-text)] group-hover:text-black dark:group-hover:text-white transition-colors truncate max-w-[180px]">
           {primaryLabel}
         </span>
         {extraCount > 0 && (
-          <span className="text-[11.5px] font-semibold text-[var(--sources-pill-count)] group-hover:text-black dark:group-hover:text-white transition-colors">
+          <span className="text-[12px] font-semibold text-[var(--sources-pill-count)] group-hover:text-black dark:group-hover:text-white transition-colors">
             +{extraCount}
           </span>
         )}
@@ -269,9 +273,23 @@ const SourcesPill = ({ sources, align = 'side' }) => {
 };
 
 const MessageActions = ({ content, timestamp, isLatest }) => {
-  const { isPageOpen, appendContent, workspaceTree, triggerSidebarRefresh } = useContext(EditorContext);
+  const { isPageOpen, appendContent, workspaceTree, triggerSidebarRefresh, activePage } = useContext(EditorContext);
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowAddMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAddMenu]);
 
   const handleCopy = async () => {
     try {
@@ -283,39 +301,43 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
     }
   };
 
-  const handleAdd = async () => {
-    if (isPageOpen) {
-      appendContent(content);
-    } else {
-      try {
-        let workspaceId = workspaceTree?.[0]?.id;
-        
-        if (!workspaceId) {
-          const { workspacesAPI } = await import('../../services/api');
-          const resWs = await workspacesAPI.getAll();
-          const workspaces = resWs.data?.workspaces || [];
-          workspaceId = workspaces.length > 0 ? workspaces[0]._id : null;
-        }
+  const handleAddToCurrentPage = () => {
+    appendContent(content);
+    const targetTitle = activePage?.title && activePage.title !== 'Untitled' ? activePage.title : 'Current page';
+    showToast(`Added to "${targetTitle}"`, 'success');
+  };
 
-        const title = content.substring(0, 30).split('\n')[0].replace(/[#*`]/g, '').trim() || 'AI Note';
-        
-        const { pagesAPI } = await import('../../services/api');
-        const resPage = await pagesAPI.create({
-          title,
-          content,
-          workspaceId
-        });
-        
-        if (resPage.data?.success) {
-           const newPage = resPage.data.page;
-           triggerSidebarRefresh?.();
-           const event = new CustomEvent("optimistic-add-page", { detail: { ...newPage, type: 'page', path: `/dashboard/page/${newPage._id}` } });
-           window.dispatchEvent(event);
-           navigate(`/dashboard/page/${newPage._id}`);
-        }
-      } catch (err) {
-        console.error('Failed to create page:', err);
+  const handleCreateNewPage = async () => {
+    try {
+      let workspaceId = workspaceTree?.[0]?.id;
+      
+      if (!workspaceId) {
+        const { workspacesAPI } = await import('../../services/api');
+        const resWs = await workspacesAPI.getAll();
+        const workspaces = resWs.data?.workspaces || [];
+        workspaceId = workspaces.length > 0 ? workspaces[0]._id : null;
       }
+
+      const title = content.substring(0, 30).split('\n')[0].replace(/[#*`]/g, '').trim() || 'AI Note';
+      
+      const { pagesAPI } = await import('../../services/api');
+      const resPage = await pagesAPI.create({
+        title,
+        content,
+        workspaceId
+      });
+      
+      if (resPage.data?.success) {
+        const newPage = resPage.data.page;
+        triggerSidebarRefresh?.();
+        const event = new CustomEvent("optimistic-add-page", { detail: { ...newPage, type: 'page', path: `/dashboard/page/${newPage._id}` } });
+        window.dispatchEvent(event);
+        showToast(`Created new page: "${title}"`, 'success');
+        navigate(`/dashboard/page/${newPage._id}`);
+      }
+    } catch (err) {
+      console.error('Failed to create page:', err);
+      showToast('Failed to create page', 'error');
     }
   };
 
@@ -348,17 +370,69 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         )}
       </button>
 
-      {/* Add to page */}
-      <button
-        onClick={handleAdd}
-        className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
-        title={isPageOpen ? 'Add to current page' : 'Create new page with this note'}
-        aria-label="Add to page"
-      >
-        <span className="material-symbols-outlined text-[14px] leading-none select-none">
-          add
-        </span>
-      </button>
+      {/* Add to page / Options popup */}
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => {
+            if (isPageOpen) {
+              setShowAddMenu((prev) => !prev);
+            } else {
+              handleCreateNewPage();
+            }
+          }}
+          className={`w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer ${showAddMenu ? 'bg-black/10 dark:bg-white/10 text-black dark:text-white' : ''}`}
+          title={isPageOpen ? 'Add options' : 'Create new page with this note'}
+          aria-label="Add to page"
+        >
+          <span className="material-symbols-outlined text-[16px] leading-none select-none">
+            add
+          </span>
+        </button>
+
+        <AnimatePresence>
+          {showAddMenu && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 4 }}
+              transition={{ duration: 0.14 }}
+              className="absolute left-0 bottom-full mb-1.5 z-50 min-w-[220px] py-1 px-1 rounded-[12px] bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] flex flex-col gap-0.5 text-[13px]"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  handleAddToCurrentPage();
+                }}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/5 dark:hover:bg-white/10 text-gray-800 dark:text-[#E5E5E5] transition-colors text-left cursor-pointer group"
+              >
+                <span className="material-symbols-outlined text-[18px] text-gray-400 dark:text-neutral-400 group-hover:text-gray-700 dark:group-hover:text-white leading-none shrink-0">
+                  post_add
+                </span>
+                <span className="truncate flex-1">
+                  Add to <strong className="font-medium text-gray-950 dark:text-white">{activePage?.title && activePage.title !== 'Untitled' ? activePage.title : 'Current page'}</strong>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  handleCreateNewPage();
+                }}
+                className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/5 dark:hover:bg-white/10 text-gray-800 dark:text-[#E5E5E5] transition-colors text-left cursor-pointer group"
+              >
+                <span className="material-symbols-outlined text-[18px] text-gray-400 dark:text-neutral-400 group-hover:text-gray-700 dark:group-hover:text-white leading-none shrink-0">
+                  note_add
+                </span>
+                <span className="truncate flex-1">
+                  Create new page
+                </span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Timestamp */}
       {formattedTime && (
@@ -385,7 +459,7 @@ const StatusScrollReveal = React.memo(({ text }) => {
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex items-center select-none py-0.5"
     >
-      <span className="shimmer-sentence text-[13px] font-medium leading-none tracking-tight select-none">
+      <span className="shimmer-sentence text-[16px] font-medium leading-none tracking-tight select-none">
         {text}
       </span>
     </motion.div>
@@ -395,11 +469,14 @@ const StatusScrollReveal = React.memo(({ text }) => {
 const MIN_STATE_DISPLAY_MS = 2800; // Guaranteed 2.8s per state
 
 const resolveStateType = (type, text) => {
-  if (type === 'web_search' || type === 'workspace_search' || type === 'reconnecting' || type === 'task_management' || type === 'manage_tasks') {
+  if (type === 'web_search' || type === 'workspace_search' || type === 'reconnecting' || type === 'task_management' || type === 'manage_tasks' || type === 'remembering' || type === 'memory') {
     return type === 'manage_tasks' ? 'task_management' : type;
   }
   if (!text) return 'thinking';
   const lower = text.toLowerCase();
+  if (lower.includes('remember') || lower.includes('memory') || lower.includes('yaad')) {
+    return 'remembering';
+  }
   if (lower.includes('reconnect') || lower.includes('trying to reconnect') || lower.includes('wifi')) {
     return 'reconnecting';
   }
@@ -430,28 +507,6 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
   useEffect(() => {
     if (!incomingStatus) return;
 
-    // High priority: if reconnecting, immediately show WiFi animation without queue delay
-    if (currentType === 'reconnecting') {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      queueRef.current = [];
-      isPacingRef.current = false;
-      setActiveItem({ status: incomingStatus, stateType: 'reconnecting' });
-      return;
-    }
-
-    // Deduplicate against currently displayed or last queued status
-    const lastInQueue = queueRef.current[queueRef.current.length - 1];
-    if (incomingStatus !== activeItem.status && (!lastInQueue || lastInQueue.status !== incomingStatus)) {
-      queueRef.current.push({ status: incomingStatus, stateType: currentType });
-      // Keep queue concise (max 2 pending states) so it never lags indefinitely
-      if (queueRef.current.length > 2) {
-        queueRef.current = [queueRef.current[queueRef.current.length - 1]];
-      }
-    }
-
     const drainQueue = () => {
       if (queueRef.current.length === 0) {
         isPacingRef.current = false;
@@ -467,6 +522,44 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
       }, MIN_STATE_DISPLAY_MS);
     };
 
+    // High priority: if reconnecting, immediately show WiFi animation without queue delay
+    if (currentType === 'reconnecting') {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      queueRef.current = [];
+      isPacingRef.current = false;
+      setActiveItem({ status: incomingStatus, stateType: 'reconnecting' });
+      return;
+    }
+
+    // High priority: if remembering / memory, immediately show without queue delay and hold dwell time
+    if (currentType === 'remembering' || currentType === 'memory') {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      queueRef.current = [];
+      isPacingRef.current = true;
+      setActiveItem({ status: incomingStatus, stateType: currentType });
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        drainQueue();
+      }, MIN_STATE_DISPLAY_MS);
+      return;
+    }
+
+    // Deduplicate against currently displayed or last queued status
+    const lastInQueue = queueRef.current[queueRef.current.length - 1];
+    if (incomingStatus !== activeItem.status && (!lastInQueue || lastInQueue.status !== incomingStatus)) {
+      queueRef.current.push({ status: incomingStatus, stateType: currentType });
+      // Keep queue concise (max 2 pending states) so it never lags indefinitely
+      if (queueRef.current.length > 2) {
+        queueRef.current = [queueRef.current[queueRef.current.length - 1]];
+      }
+    }
+
     if (!isPacingRef.current && queueRef.current.length > 0) {
       drainQueue();
     }
@@ -480,15 +573,22 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
 
   const hasStatus = Boolean(activeItem.status);
   const activeStateType = activeItem.status ? activeItem.stateType : currentType;
+  const isMemoryState = activeStateType === 'remembering' || activeStateType === 'memory';
 
   return (
-    <div className="flex items-center text-[var(--text-secondary)] font-medium py-0.5 min-h-[28px]">
+    <div className="flex items-center text-[var(--text-secondary)] font-medium py-0.5 min-h-[30px]">
       <motion.div
         animate={{ x: hasStatus ? 0 : 4 }}
         transition={{ type: 'spring', stiffness: 340, damping: 28 }}
         className="flex items-center shrink-0"
       >
-        <ThinkingOrb size={24} stateType={activeStateType} />
+        {isMemoryState ? (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <MemoryUpdateIcon isUpdating={true} showText={false} size={20} />
+          </div>
+        ) : (
+          <ThinkingOrb size={26} stateType={activeStateType} />
+        )}
       </motion.div>
       <AnimatePresence>
         {hasStatus && (
@@ -569,35 +669,114 @@ const UserMessageActions = ({ content, timestamp }) => {
   );
 };
 
+const parseUserToolMessage = (content) => {
+  if (!content || typeof content !== 'string') {
+    return { tool: null, cleanContent: content || '' };
+  }
+
+  // 1. Check Deep Research
+  const researchMatch = content.match(/^(?:@research\b|(?:Research deeply|Deep research):)\s*/i);
+  if (researchMatch) {
+    const researchTool = AVAILABLE_TOOLS.find((t) => t.id === 'research');
+    return {
+      tool: researchTool,
+      cleanContent: content.slice(researchMatch[0].length),
+    };
+  }
+
+  // 2. Check Web Search
+  const webMatch = content.match(/^(?:@web\b|(?:Search web|Web search):)\s*/i);
+  if (webMatch) {
+    const webTool = AVAILABLE_TOOLS.find((t) => t.id === 'web');
+    return {
+      tool: webTool,
+      cleanContent: content.slice(webMatch[0].length),
+    };
+  }
+
+  // 3. Check Workspace Search
+  const workspaceMatch = content.match(/^(?:@workspace\b|(?:Search workspace|Workspace search):)\s*/i);
+  if (workspaceMatch) {
+    const workspaceTool = AVAILABLE_TOOLS.find((t) => t.id === 'workspace');
+    return {
+      tool: workspaceTool,
+      cleanContent: content.slice(workspaceMatch[0].length),
+    };
+  }
+
+  return { tool: null, cleanContent: content };
+};
+
 const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
+  const { stopGeneration } = useContext(ChatContext);
 
   if (msg.role === 'user') {
+    const { tool, cleanContent } = parseUserToolMessage(msg.content);
+
     return (
       <div className="flex flex-col items-end group/msg">
         <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[13px] px-3.5 py-1.5 rounded-[13px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
           {msg.pageContext?.title && (
-            <div className="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[11.5px] font-medium text-gray-600 dark:text-gray-300 select-none">
-              <span className="material-symbols-outlined text-[13px] leading-none text-current">description</span>
-              <span className="truncate max-w-[200px]">{msg.pageContext.title}</span>
+            <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[12px] font-medium text-gray-600 dark:text-gray-300 select-none">
+              <span className="material-symbols-outlined text-[14px] leading-none text-current">description</span>
+              <span className="truncate max-w-[220px]">{msg.pageContext.title}</span>
             </div>
           )}
-          <MarkdownRenderer content={msg.content} />
+          {tool ? (
+            <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
+              <span
+                className="inline-flex items-center gap-1 font-medium select-none shrink-0"
+                style={{ color: tool.iconColor || '#007AFF' }}
+              >
+                {tool.icon && (
+                  <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
+                )}
+                <span>{tool.label}</span>
+              </span>
+              <MarkdownRenderer content={cleanContent} />
+            </div>
+          ) : (
+            <MarkdownRenderer content={msg.content} />
+          )}
         </div>
-        <UserMessageActions content={msg.content} timestamp={msg.createdAt || msg.timestamp} />
+        <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-start group/msg">
-      <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[13.5px] py-0.5 max-w-[100%] leading-relaxed w-full">
-        {msg.content === '' && isLatestStreaming ? (
+    <div className="flex flex-col items-start group/msg w-full">
+      <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[15px] py-0.5 max-w-[100%] leading-relaxed w-full min-w-0">
+        {/* Deep Research Area on Canvas */}
+        {msg.researchData && (
+          <DeepResearchCard
+            researchData={msg.researchData}
+            isStreaming={isLatestStreaming}
+            onStop={stopGeneration}
+          />
+        )}
+
+        {/* Memory Updated Event Pill */}
+        {msg.memoryFact && (
+          <div className="flex items-center mb-2.5 pt-0.5">
+            <MemoryUpdateIcon
+              isCompleted={true}
+              animate={Boolean(isLatestStreaming || msg.isNewMemory)}
+              tooltip={`Memory updated: ${msg.memoryFact}`}
+              size={18}
+            />
+          </div>
+        )}
+
+        {msg.content === '' && isLatestStreaming && !msg.researchData ? (
           <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
         ) : (
-          <div className="markdown-content text-[13.5px] leading-relaxed">
-            <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
-          </div>
+          msg.content && (
+            <div className="markdown-content text-[15px] leading-relaxed">
+              <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
+            </div>
+          )
         )}
         {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
           <SourcesPill sources={msg.sources} align="side" />
@@ -616,32 +795,71 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
 const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
+  const { stopGeneration } = useContext(ChatContext);
 
   if (msg.role === 'user') {
+    const { tool, cleanContent } = parseUserToolMessage(msg.content);
+
     return (
       <div className="message-row user group/msg flex flex-col items-end">
         <div className="message-bubble-user">
           {msg.pageContext?.title && (
-            <div className="inline-flex items-center gap-1 mb-1 px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[11.5px] font-medium text-gray-600 dark:text-gray-300 select-none">
-              <span className="material-symbols-outlined text-[13px] leading-none text-current">description</span>
-              <span className="truncate max-w-[200px]">{msg.pageContext.title}</span>
+            <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[12px] font-medium text-gray-600 dark:text-gray-300 select-none">
+              <span className="material-symbols-outlined text-[14px] leading-none text-current">description</span>
+              <span className="truncate max-w-[220px]">{msg.pageContext.title}</span>
             </div>
           )}
-          <MarkdownRenderer content={msg.content} />
+          {tool ? (
+            <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
+              <span
+                className="inline-flex items-center gap-1 font-medium select-none shrink-0"
+                style={{ color: tool.iconColor || '#007AFF' }}
+              >
+                {tool.icon && (
+                  <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
+                )}
+                <span>{tool.label}</span>
+              </span>
+              <MarkdownRenderer content={cleanContent} />
+            </div>
+          ) : (
+            <MarkdownRenderer content={msg.content} />
+          )}
         </div>
-        <UserMessageActions content={msg.content} timestamp={msg.createdAt || msg.timestamp} />
+        <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </div>
     );
   }
 
   return (
-    <div className="message-row assistant group/msg">
-      <div className="message-bubble-assistant">
+    <div className="message-row assistant group/msg w-full">
+      <div className="message-bubble-assistant w-full min-w-0">
+        {/* Deep Research Area on Canvas */}
+        {msg.researchData && (
+          <DeepResearchCard
+            researchData={msg.researchData}
+            isStreaming={isLatestStreaming}
+            onStop={stopGeneration}
+          />
+        )}
+
+        {/* Memory Updated Event Pill */}
+        {msg.memoryFact && (
+          <div className="flex items-center mb-2.5 pt-0.5">
+            <MemoryUpdateIcon
+              isCompleted={true}
+              animate={Boolean(isLatestStreaming || msg.isNewMemory)}
+              tooltip={`Memory updated: ${msg.memoryFact}`}
+              size={18}
+            />
+          </div>
+        )}
+
         <div className="markdown-content">
-          {msg.content === '' && isLatestStreaming ? (
+          {msg.content === '' && isLatestStreaming && !msg.researchData ? (
             <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
           ) : (
-            <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
+            msg.content && <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
           )}
         </div>
         {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
@@ -731,6 +949,7 @@ const ChatComposer = ({
   isStreaming,
   dismissedChoiceId,
   setDismissedChoiceId,
+  isRightPanel = false,
 }) => {
   const {
     messages = [],
@@ -747,6 +966,13 @@ const ChatComposer = ({
   const [attachedPage, setAttachedPage] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Advanced Tools (@ Mention) State
+  const [activeTool, setActiveTool] = useState(null);
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
+  const [choiceSelectedIndex, setChoiceSelectedIndex] = useState(0);
 
   // Derive active choice prompt from last message if it's from assistant and streaming is done
   const activeChoicePrompt = useMemo(() => {
@@ -789,6 +1015,10 @@ const ChatComposer = ({
   };
 
   useEffect(() => {
+    setChoiceSelectedIndex(0);
+  }, [activeChoicePrompt?.id]);
+
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
@@ -820,10 +1050,116 @@ const ChatComposer = ({
     if (activeChoicePrompt?.id && setDismissedChoiceId) {
       setDismissedChoiceId(activeChoicePrompt.id);
     }
-    handleSend(attachedPage);
+
+    let finalQuery = query.trim();
+    if (activeTool?.id === 'research') {
+      finalQuery = `@research ${finalQuery}`;
+    } else if (activeTool?.id === 'web') {
+      finalQuery = `@web ${finalQuery}`;
+    } else if (activeTool?.id === 'workspace') {
+      finalQuery = `@workspace ${finalQuery}`;
+    }
+
+    handleSend(attachedPage, finalQuery);
+    setActiveTool(null);
   };
 
   const onKeyDown = (e) => {
+    if (isMentionOpen) {
+      const filtered = AVAILABLE_TOOLS.filter((tool) => {
+        if (!mentionFilter) return true;
+        const clean = mentionFilter.toLowerCase().replace(/^@/, '');
+        return (
+          tool.id.toLowerCase().includes(clean) ||
+          tool.label.toLowerCase().includes(clean) ||
+          tool.tag.toLowerCase().includes(clean)
+        );
+      });
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionSelectedIndex((prev) => (prev + 1) % filtered.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === 'Tab') && filtered.length > 0) {
+        e.preventDefault();
+        const chosen = filtered[mentionSelectedIndex] || filtered[0];
+        if (chosen.id === 'thinking') {
+          setIsThinking(true);
+        } else {
+          setActiveTool(chosen);
+        }
+        setIsMentionOpen(false);
+        const cleaned = query.replace(/(?:^|\s)@[a-zA-Z0-9_-]*$/, '').trim();
+        setQuery(cleaned);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsMentionOpen(false);
+        return;
+      }
+    }
+
+    if (e.key === 'Backspace' && query === '' && activeTool) {
+      e.preventDefault();
+      setActiveTool(null);
+      return;
+    }
+
+    // Interactive Question Navigation (1-9, Arrows, and Enter)
+    if (activeChoicePrompt && Array.isArray(activeChoicePrompt.options) && activeChoicePrompt.options.length > 0) {
+      const opts = activeChoicePrompt.options;
+
+      // 1. Enter key
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const trimmed = query.trim();
+        const num = parseInt(trimmed, 10);
+        if (!isNaN(num) && num >= 1 && num <= opts.length) {
+          e.preventDefault();
+          const targetOpt = opts[num - 1];
+          handleSelectChoice(targetOpt.title || targetOpt.text || String(targetOpt));
+          setQuery('');
+          return;
+        }
+        if (trimmed === '') {
+          e.preventDefault();
+          const targetOpt = opts[choiceSelectedIndex] || opts[0];
+          handleSelectChoice(targetOpt.title || targetOpt.text || String(targetOpt));
+          return;
+        }
+        // If user typed custom text, fall through to regular form submission
+      }
+
+      // 2. Numeric hotkeys (1-9) when textarea is empty
+      if (query === '' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const num = parseInt(e.key, 10);
+        if (!isNaN(num) && num >= 1 && num <= opts.length) {
+          e.preventDefault();
+          const targetOpt = opts[num - 1];
+          handleSelectChoice(targetOpt.title || targetOpt.text || String(targetOpt));
+          return;
+        }
+      }
+
+      // 3. ArrowUp / ArrowDown navigation when textarea is empty
+      if (query === '' && e.key === 'ArrowDown') {
+        e.preventDefault();
+        setChoiceSelectedIndex((prev) => (prev + 1) % opts.length);
+        return;
+      }
+      if (query === '' && e.key === 'ArrowUp') {
+        e.preventDefault();
+        setChoiceSelectedIndex((prev) => (prev - 1 + opts.length) % opts.length);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onFormSubmit(e);
@@ -849,13 +1185,38 @@ const ChatComposer = ({
   const activeModel = models.find(m => m.value === selectedModel) || models[0];
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      {/* Floating Tool Mention Menu */}
+      <AnimatePresence>
+        {isMentionOpen && (
+          <ToolMentionMenu
+            isOpen={isMentionOpen}
+            selectedIndex={mentionSelectedIndex}
+            filterText={mentionFilter}
+            onSelect={(tool) => {
+              if (tool.id === 'thinking') {
+                setIsThinking(true);
+              } else {
+                setActiveTool(tool);
+              }
+              setIsMentionOpen(false);
+              const cleaned = query.replace(/(?:^|\s)@[a-zA-Z0-9_-]*$/, '').trim();
+              setQuery(cleaned);
+              if (textareaRef?.current) textareaRef.current.focus();
+            }}
+            onClose={() => setIsMentionOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Floating Interactive Choices Card */}
       <AnimatePresence>
         {activeChoicePrompt && (
           <InteractiveChoiceCard
             question={activeChoicePrompt.question}
             options={activeChoicePrompt.options}
+            selectedIndex={choiceSelectedIndex}
+            onSelectedIndexChange={setChoiceSelectedIndex}
             onSelect={handleSelectChoice}
             onSkip={handleSkipChoice}
             onDismiss={handleSkipChoice}
@@ -901,57 +1262,115 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_20px_rgb(0,0,0,0.08)] transition-all duration-300 px-3 pt-2 pb-2 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[22px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:focus-within:border-white/20 transition-all duration-200 px-4 pt-2.5 pb-2.5 mx-auto">
+        {/* Top Context Pills (Page Context) */}
+        {attachedPage && (
+          <div className="flex items-center gap-1.5 mb-1.5 pt-0.5 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-[8px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[12px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
+              <HugeiconsIcon icon={File02Icon} size={13.5} className="shrink-0 text-gray-400 dark:text-neutral-400" />
+              <span className="max-w-[240px] truncate leading-tight">
+                {attachedPage.title || "Untitled"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachedPage(null)}
+                className="w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                title="Remove page context"
+                aria-label="Remove page context"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} size={9} className="shrink-0 select-none" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <textarea
           ref={textareaRef}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuery(val);
+            const cursor = e.target.selectionStart ?? val.length;
+            const textBeforeCursor = val.slice(0, cursor);
+            const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+            if (match) {
+              setIsMentionOpen(true);
+              setMentionFilter(match[1]);
+              setMentionSelectedIndex(0);
+            } else if (isMentionOpen) {
+              setIsMentionOpen(false);
+            }
+          }}
+          onKeyUp={(e) => {
+            const cursor = e.target.selectionStart ?? e.target.value.length;
+            const textBeforeCursor = e.target.value.slice(0, cursor);
+            const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+            if (match) {
+              setIsMentionOpen(true);
+              setMentionFilter(match[1]);
+            } else if (isMentionOpen) {
+              setIsMentionOpen(false);
+            }
+          }}
           onKeyDown={onKeyDown}
           placeholder={
             activeChoicePrompt
               ? "Or reply directly..."
+              : activeTool?.id === 'research'
+              ? "Ask anything to research deeply..."
               : attachedPage && attachedPage.title && attachedPage.title !== "Untitled"
               ? `Ask about "${attachedPage.title}"...`
               : attachedPage
               ? "Ask anything about this page..."
-              : "Search anything across your workspace..."
+              : "Ask anything..."
           }
           rows={1}
           autoFocus
-          className="w-full bg-transparent resize-none outline-none text-[14px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-[5.25px] custom-scrollbar leading-relaxed"
+          className="w-full bg-transparent resize-none outline-none text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]"
           style={{ maxHeight: '250px' }}
         />
         
-        <div className="flex items-center justify-between mt-1.5 px-0.5 relative">
+        <div className="flex items-center justify-between mt-1.5 pt-0.5 px-0.5 relative">
           {/* Left Controls */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2">
             <button 
               type="button"
               onClick={() => setIsThinking(!isThinking)}
-              className={`flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium transition-all duration-200 ${
+              className={`h-8 transition-all duration-200 cursor-pointer select-none flex items-center border-0 ${
                 isThinking 
-                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2.5 py-1' 
-                  : 'text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-600 dark:hover:text-gray-300 p-1.5'
+                  ? 'px-3 gap-2 rounded-full bg-[#007AFF]/10 dark:bg-[#007AFF]/15 text-[#007AFF] dark:text-[#0A84FF] text-[13px] font-medium hover:bg-[#007AFF]/15 dark:hover:bg-[#007AFF]/20' 
+                  : 'w-8 justify-center rounded-full text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
               }`}
-              title="Toggle Deep Thinking"
+              title={isThinking ? "Thinking Enabled" : "Enable Thinking"}
+              aria-label="Toggle Thinking"
             >
-              <span className={`material-symbols-outlined leading-none select-none ${isThinking ? "text-[14px]" : "text-[17px]"}`}>psychology</span>
-              {isThinking && <span>Thinking</span>}
+              <HugeiconsIcon icon={Brain03Icon} size={isThinking ? 16 : 18} strokeWidth={1.8} className="shrink-0" />
+              {isThinking && <span className="leading-none text-[13px] font-medium">Thinking</span>}
             </button>
 
-            {/* Page Context Chip matching Thinking pill */}
-            {attachedPage && (
-              <div className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.05] dark:border-white/[0.08] text-[12px] font-medium text-gray-700 dark:text-neutral-300 transition-colors select-none group">
-                <HugeiconsIcon icon={File02Icon} size={14} className="shrink-0 text-gray-400 dark:text-neutral-400" />
-                <span className="max-w-[130px] truncate leading-none">
-                  {attachedPage.title || "Untitled"}
-                </span>
+            {/* Active Tool Chip */}
+            {activeTool && (
+              <div
+                className="inline-flex items-center gap-1.5 pl-3 pr-2 h-8 rounded-full text-[12.5px] font-medium border select-none group transition-colors"
+                style={{
+                  backgroundColor: `${activeTool.iconColor || '#007AFF'}12`,
+                  borderColor: `${activeTool.iconColor || '#007AFF'}25`,
+                  color: activeTool.iconColor || '#007AFF',
+                }}
+              >
+                {activeTool.icon && (
+                  <HugeiconsIcon icon={activeTool.icon} size={15} strokeWidth={2} className="shrink-0" />
+                )}
+                <span className="leading-none">{activeTool.label}</span>
                 <button
                   type="button"
-                  onClick={() => setAttachedPage(null)}
-                  className="w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
-                  title="Remove page context"
-                  aria-label="Remove page context"
+                  onClick={() => {
+                    setActiveTool(null);
+                    if (textareaRef?.current) textareaRef.current.focus();
+                  }}
+                  className="w-4.5 h-4.5 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                  title="Remove tool"
+                  aria-label="Remove tool"
                 >
                   <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
                 </button>
@@ -965,10 +1384,10 @@ const ChatComposer = ({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+                className="flex items-center gap-1.5 px-3.5 h-8 rounded-full text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <span>{activeModel.label}</span>
-                <span className={`material-symbols-outlined text-[14px] leading-none select-none text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
+                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
               </button>
 
               <AnimatePresence>
@@ -1117,6 +1536,20 @@ const AIChat = ({ isRightPanel = false }) => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
 
+  const handleDockToSidebar = () => {
+    setIsRightChatOpen(true);
+    const lastPage = localStorage.getItem('noema-last-page-route');
+    const targetRoute = (lastPage && lastPage.startsWith('/dashboard/') && lastPage !== '/dashboard/chat')
+      ? lastPage
+      : '/dashboard/page/new';
+
+    const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
+    if (mode === 'resume') {
+      localStorage.setItem('noema-last-route', targetRoute);
+    }
+    navigate(targetRoute);
+  };
+
   useEffect(() => {
     if (messages.length === 0) {
       const interval = setInterval(() => {
@@ -1219,30 +1652,23 @@ const AIChat = ({ isRightPanel = false }) => {
     return (
       <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-gray-200 dark:border-[var(--color-dark-border)] overflow-hidden relative shadow-sm">
         {/* Right Panel Header */}
-        <div className="flex items-center justify-end px-4 py-3 border-b border-gray-100 dark:border-[var(--color-dark-border)] bg-white dark:bg-[var(--color-dark-bg)]">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
+          <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <button
               onClick={() => clearChat()}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="New Chat"
+              aria-label="New Chat"
             >
-              <span className="material-symbols-outlined text-[15px] leading-none select-none">
-                chat_add_on
-              </span>
+              <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
             </button>
             <button
               onClick={() => navigate('/dashboard/chat')}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Expand Chat"
+              aria-label="Expand Chat"
             >
-              <span className="material-symbols-outlined text-[15px] leading-none select-none">open_in_full</span>
-            </button>
-            <button
-              onClick={() => setIsRightChatOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              title="Close Chat"
-            >
-              <span className="material-symbols-outlined text-[15px] leading-none select-none">close</span>
+              <HugeiconsIcon icon={ExpandIcon} size={19} className="shrink-0 select-none" />
             </button>
           </div>
         </div>
@@ -1314,6 +1740,7 @@ const AIChat = ({ isRightPanel = false }) => {
             isStreaming={isStreaming}
             dismissedChoiceId={dismissedChoiceId}
             setDismissedChoiceId={setDismissedChoiceId}
+            isRightPanel={isRightPanel}
           />
         </div>
       </div>
@@ -1328,35 +1755,38 @@ const AIChat = ({ isRightPanel = false }) => {
         {/* Header with Blurs & Actions */}
         <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
           <button 
-            onClick={() => navigate(-1)}
-            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            onClick={() => {
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                const lastPage = localStorage.getItem('noema-last-page-route');
+                navigate(lastPage || '/dashboard/page/new');
+              }
+            }}
+            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Go back"
+            aria-label="Go back"
           >
             <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           
-          <div className="flex items-center gap-1 pointer-events-auto">
+          <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
             <button 
-              onClick={clearChat}
-              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              onClick={() => clearChat()}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="New Chat"
+              aria-label="New Chat"
             >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none">
-                chat_add_on
-              </span>
+              <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
             </button>
 
             <button 
-              onClick={() => {
-                setIsRightChatOpen(true);
-                navigate('/dashboard');
-              }}
-              className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              onClick={handleDockToSidebar}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Open in Sidebar"
+              aria-label="Open in Sidebar"
             >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none">
-                view_sidebar
-              </span>
+              <HugeiconsIcon icon={SidebarRightIcon} size={19} className="shrink-0 select-none" />
             </button>
           </div>
         </div>
@@ -1394,6 +1824,7 @@ const AIChat = ({ isRightPanel = false }) => {
                 isStreaming={isStreaming}
                 dismissedChoiceId={dismissedChoiceId}
                 setDismissedChoiceId={setDismissedChoiceId}
+                isRightPanel={isRightPanel}
               />
             </div>
           </div>
@@ -1450,6 +1881,7 @@ const AIChat = ({ isRightPanel = false }) => {
                   isStreaming={isStreaming}
                   dismissedChoiceId={dismissedChoiceId}
                   setDismissedChoiceId={setDismissedChoiceId}
+                  isRightPanel={isRightPanel}
                 />
               </div>
             </div>

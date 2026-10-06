@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  DashboardSquare02Icon,
+  Blockchain04Icon,
   Folder01Icon,
   File02Icon,
   ArrowRight01Icon,
@@ -14,7 +14,7 @@ const NodeIcon = ({ type, className = "", size = 15 }) => {
   if (type === "workspace") {
     return (
       <HugeiconsIcon
-        icon={DashboardSquare02Icon}
+        icon={Blockchain04Icon}
         size={size}
         className={`text-gray-500 dark:text-neutral-400 shrink-0 ${className}`}
       />

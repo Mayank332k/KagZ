@@ -13,7 +13,7 @@
   --color-shiny-shine: #111827;
   
   /* Dark Mode Colors */
-  --color-dark-bg: #191919;
+  --color-dark-bg: rgb(19, 19, 19);
   --color-dark-surface: #232323;
   --color-dark-sidebar: #242424;
   --color-dark-title: #424242;
@@ -35,7 +35,7 @@ html {
 
 @layer base {
   body {
-    @apply bg-white text-gray-800 dark:bg-[#16171d] dark:text-gray-300;
+    @apply bg-white text-gray-800 dark:bg-[var(--color-dark-bg)] dark:text-gray-300;
     transition: font-size 0.15s ease;
   }
 }

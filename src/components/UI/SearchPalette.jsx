@@ -7,7 +7,7 @@ import { EditorContext } from '../../context/EditorContext';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { chatAPI } from '../../services/api';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageCircle as MessageCircleIcon } from '@hugeicons/core-free-icons';
+import { MessageCircle as MessageCircleIcon, Blockchain04Icon } from '@hugeicons/core-free-icons';
 
 // Spring config for Apple-like subtle, restrained liquid bounce
 const springConfig = {
@@ -22,9 +22,7 @@ const circlesData = [
   { 
     id: 'workspace', 
     icon: ({ className }) => (
-      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
-        dashboard_2_add
-      </span>
+      <HugeiconsIcon icon={Blockchain04Icon} className={className} size={16} />
     ), 
     label: 'Workspace' 
   },
@@ -345,7 +343,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                   className="cursor-pointer hover:opacity-80 transition-opacity"
                   title="Clear filter"
                 >
-                  {selectedCircle === 'workspace' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">dashboard_2_add</span>}
+                  {selectedCircle === 'workspace' && <HugeiconsIcon icon={Blockchain04Icon} size={20} className="text-blue-500 shrink-0 select-none" />}
                   {selectedCircle === 'folder' && <span className="material-symbols-outlined text-[20px] leading-none select-none text-blue-500 shrink-0">folder</span>}
                   {selectedCircle === 'page' && <span className="material-symbols-outlined text-[20px] leading-none text-blue-500 shrink-0 select-none">assignment</span>}
                   {selectedCircle === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={22} className="text-blue-500 shrink-0 select-none" />}
@@ -464,7 +462,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             }`}
                           >
                             <div className={`mr-3 w-[20px] h-[20px] flex items-center justify-center shrink-0 ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                              <span className="material-symbols-outlined text-[18px] leading-none select-none">dashboard_2_add</span>
+                              <HugeiconsIcon icon={Blockchain04Icon} size={18} className="select-none leading-none" />
                             </div>
                             <div className="flex flex-col">
                               <span className={`truncate text-[15px] font-medium ${isWsSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{ws.name}</span>
@@ -482,7 +480,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                               ) : ws.id === 'chat_history' ? (
                                 <HugeiconsIcon icon={MessageCircleIcon} size={16} className="leading-none select-none" />
                               ) : (
-                                <span className="material-symbols-outlined text-[14px] leading-none select-none">dashboard_2_add</span>
+                                <HugeiconsIcon icon={Blockchain04Icon} size={14} className="select-none leading-none" />
                               )}
                             </div>
                             <span className="text-[13px] font-medium tracking-wide">{ws.name}</span>
@@ -522,7 +520,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                                   }`}
                                 >
                                   <div className={`mr-3 w-[18px] h-[18px] flex items-center justify-center shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                    {item.type === 'workspace' && <span className="material-symbols-outlined text-[15px] leading-none select-none">dashboard_2_add</span>}
+                                    {item.type === 'workspace' && <HugeiconsIcon icon={Blockchain04Icon} size={15} className="select-none leading-none" />}
                                     {item.type === 'folder' && <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>}
                                     {(item.type === 'page' || item.type === 'document') && <span className="material-symbols-outlined text-[15px] leading-none select-none">assignment</span>}
                                     {item.type === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={16.5} className="leading-none select-none" />}

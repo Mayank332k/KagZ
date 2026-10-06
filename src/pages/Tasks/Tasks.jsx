@@ -296,7 +296,7 @@ const Tasks = () => {
   return (
     <div className="flex flex-col w-full h-full bg-[#fbfbfa] dark:bg-[var(--color-dark-bg)]">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between px-6 py-4 shrink-0 bg-white dark:bg-[#1a1a1a]">
+      <div className="flex flex-wrap items-center justify-between px-6 py-4 shrink-0 bg-white dark:bg-[var(--color-dark-bg)]">
         <div className="flex items-center gap-1.5 mr-4 overflow-x-auto custom-scrollbar pb-1">
           <button 
             onClick={() => navigate(-1)}

@@ -20,11 +20,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 const InteractiveChoiceCard = ({
   question,
   options = [],
+  selectedIndex: controlledIndex,
+  onSelectedIndexChange,
   onSelect,
   onSkip,
   onDismiss,
 }) => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [internalSelectedIndex, setInternalSelectedIndex] = useState(0);
+  const selectedIndex = controlledIndex !== undefined ? controlledIndex : internalSelectedIndex;
+  const setSelectedIndex = onSelectedIndexChange || setInternalSelectedIndex;
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customText, setCustomText] = useState('');
   const inputRef = useRef(null);
@@ -99,16 +103,19 @@ const InteractiveChoiceCard = ({
       className="w-full max-w-[770px] mx-auto mb-1 rounded-[16px] bg-[#1E1E1E] border border-[#2C2C2C] shadow-[0_12px_40px_rgba(0,0,0,0.5)] text-[#E8E8E8] select-none flex flex-col font-sans transition-colors duration-200 overflow-hidden"
     >
       {/* HEADER */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-2">
         <h3 className="text-[14px] font-normal leading-snug tracking-tight text-[#D4D4D4] truncate flex-1">
           {question}
         </h3>
+        <span className="text-[11px] font-mono text-gray-400 dark:text-neutral-500 bg-white/5 px-1.5 py-0.5 rounded-[4px] shrink-0 select-none hidden sm:inline-block">
+          Press 1-{Math.min(options.length, 9)} or ↵
+        </span>
         {onDismiss && (
           <button
             type="button"
             onClick={onDismiss}
             aria-label="Close"
-            className="p-1 -mr-1 -mt-1 text-[#777777] hover:text-[#999999] transition-colors duration-180 cursor-pointer rounded-md flex items-center justify-center shrink-0"
+            className="p-1 -mr-1 text-[#777777] hover:text-[#999999] transition-colors duration-180 cursor-pointer rounded-md flex items-center justify-center shrink-0"
           >
             <span className="material-symbols-outlined text-[18px] leading-none select-none">
               close
@@ -170,12 +177,13 @@ const InteractiveChoiceCard = ({
               {/* Return arrow ↵ on selected */}
               <div
                 className={`
-                  shrink-0 transition-opacity duration-150 text-[#777777] self-center
+                  shrink-0 transition-opacity duration-150 self-center
                   ${isSelected ? 'opacity-100' : 'opacity-0'}
                 `}
               >
-                <span className="text-[15px] leading-none select-none font-sans">
-                  ↵
+                <span className="text-[11.5px] font-mono text-gray-400 dark:text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[5px] select-none inline-flex items-center gap-1">
+                  <span>Enter</span>
+                  <span className="text-[12px] leading-none">↵</span>
                 </span>
               </div>
             </div>

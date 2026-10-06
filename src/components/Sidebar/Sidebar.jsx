@@ -17,6 +17,9 @@ import {
   Edit03Icon,
   StarIcon,
   TextIcon,
+  Blockchain04Icon,
+  ChatAdd01Icon,
+  BubbleChatSecureIcon,
 } from "@hugeicons/core-free-icons";
 
 import ActionModal from "../UI/ActionModal";
@@ -91,6 +94,8 @@ const Sidebar = () => {
     clearChat,
     chatStartupMode,
     setChatStartupMode,
+    selectedModel,
+    setSelectedModel,
     isThinking,
     setIsThinking,
   } = useContext(ChatContext);
@@ -1119,29 +1124,11 @@ const Sidebar = () => {
 
             {/* Categories */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-0.5">
-              {/* Account Group */}
+              {/* Account & Preferences Group */}
               <div className="flex flex-col gap-[2px]">
                 <div className="px-[8px] pt-1.5 pb-1">
-                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">Account</span>
+                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">General</span>
                 </div>
-                <button
-                  onClick={() => setSettingsTab("account")}
-                  aria-current={settingsTab === "account" ? "page" : undefined}
-                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
-                    settingsTab === "account"
-                      ? "bg-white/[0.055] text-[#F0EFED]"
-                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
-                  }`}
-                >
-                  {avatar ? (
-                    <img src={avatar} alt="Avatar" className="w-[20px] h-[20px] rounded-full object-cover shrink-0" />
-                  ) : (
-                    <div className="w-[20px] h-[20px] rounded-full bg-[#303030] text-[#F0EFED] border border-white/10 flex items-center justify-center font-medium text-[11px] shrink-0">
-                      {displayName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="truncate">{displayName}</span>
-                </button>
                 <button
                   onClick={() => setSettingsTab("preferences")}
                   aria-current={settingsTab === "preferences" ? "page" : undefined}
@@ -1152,7 +1139,7 @@ const Sidebar = () => {
                   }`}
                 >
                   <SlidersHorizontalIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "preferences" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
-                  <span className="truncate">Preferences</span>
+                  <span className="truncate">Account & Preferences</span>
                 </button>
               </div>
 
@@ -1182,7 +1169,7 @@ const Sidebar = () => {
                       : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-[17px] leading-none select-none shrink-0 ${settingsTab === "privacy" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`}>security</span>
+                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={16} className={`shrink-0 ${settingsTab === "privacy" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
                   <span className="truncate">Privacy & Data</span>
                 </button>
                 <button
@@ -1194,7 +1181,7 @@ const Sidebar = () => {
                       : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
                   }`}
                 >
-                  <Sparkles size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "ai" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <img src="/kag-z.png" alt="KagZ AI" className="w-[17px] h-[17px] object-contain shrink-0 rounded-[3px] select-none" />
                   <span className="truncate">KagZ AI</span>
                 </button>
               </div>
@@ -1213,66 +1200,64 @@ const Sidebar = () => {
 
           {/* Right Content */}
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-[57px] pt-[36px] pb-[40px] relative bg-[#191919]">
-            {/* Account Tab */}
-            {settingsTab === "account" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight mb-1">My Account</h2>
-                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mb-8 pb-4 border-b border-white/[0.06]">
-                  Manage your account credentials and personal profile
-                </p>
-                
-                <div className="flex flex-col gap-6">
-                  <div className="flex items-center gap-5 p-4 rounded-[10px] bg-white/[0.02] border border-white/[0.06]">
-                    {avatar ? (
-                      <img src={avatar} alt="Avatar" className="w-14 h-14 rounded-full object-cover shrink-0 ring-1 ring-white/10" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-xl shrink-0">
-                        {displayName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="flex flex-col">
-                      <span className="font-[600] text-[#F0EFED] text-[16px]">{displayName}</span>
-                      <span className="text-[13px] text-[#BCBAB6] mt-0.5">{user?.email || "No email"}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col divide-y divide-white/[0.04]">
-                    <div className="flex justify-between items-center py-3.5">
-                      <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Authentication Provider</span>
-                      <span className="text-[13px] text-[#BCBAB6] capitalize">
-                        {user?.authProvider === 'google' ? (
-                          <div className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4" viewBox="0 0 24 24">
-                              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                            </svg>
-                            Google
-                          </div>
-                        ) : (
-                          user?.authProvider || "Local"
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-3.5">
-                      <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Joined Date</span>
-                      <span className="text-[13px] text-[#BCBAB6]">{joinedDate}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Preferences Tab (Appearance & Input/Startup options) */}
+            {/* Account & Preferences Tab */}
             {settingsTab === "preferences" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight">Preferences</h2>
+                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight">Account & Preferences</h2>
                 <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-1 mb-8">
-                  Choose how you want KagZ to look and behave
+                  Manage your personal profile, credentials, and app preferences
                 </p>
 
                 <div className="flex flex-col gap-6">
+                  {/* Account Section */}
+                  <div>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-3">My Account</h3>
+                    
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center gap-4 py-2">
+                        {avatar ? (
+                          <img src={avatar} alt="Avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-lg shrink-0">
+                            {displayName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-[600] text-[#F0EFED] text-[16px] leading-tight">{displayName}</span>
+                          <span className="text-[13.5px] text-[#8A8884] mt-1">{user?.email || "No email"}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col divide-y divide-white/[0.04]">
+                        <div className="flex justify-between items-center py-3">
+                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Authentication Provider</span>
+                          <span className="text-[13px] text-[#BCBAB6] capitalize">
+                            {user?.authProvider === 'google' ? (
+                              <div className="flex items-center gap-1.5">
+                                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                </svg>
+                                Google
+                              </div>
+                            ) : (
+                              user?.authProvider || "Local"
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-3">
+                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Joined Date</span>
+                          <span className="text-[13px] text-[#BCBAB6]">{joinedDate}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Hairline Divider */}
+                  <div className="border-t border-white/[0.06] my-2" />
+
                   {/* Appearance Section */}
                   <div>
                     <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Appearance</h3>
@@ -1609,166 +1594,206 @@ const Sidebar = () => {
 
             {/* Dedicated Tab: KagZ AI */}
             {settingsTab === "ai" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight mb-1">KagZ AI</h2>
-                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mb-8">
-                  Customize AI personality, tone, and behavioral instructions
-                </p>
-
-                <div className="flex flex-col gap-6">
-                  {/* 1. Personality & Tone */}
-                  <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Personality & Tone</h3>
-                    <div className="flex items-center justify-between py-3">
-                      <div className="flex flex-col pr-6">
-                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">
-                          Active persona ({AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"})
-                        </span>
-                        <span className="text-[13px] text-[#BCBAB6] mt-0.5">
-                          {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc}
-                        </span>
-                      </div>
-                      <div className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowPersonaDropdown(!showPersonaDropdown);
-                            setShowThemeDropdown(false);
-                            setShowStartupDropdown(false);
-                            setShowFontDropdown(false);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
-                        >
-                          <span>{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
-                        </button>
-                        {showPersonaDropdown && (
-                          <div 
-                            className="absolute right-0 top-full mt-1 w-64 py-1.5 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {AI_PERSONA_OPTIONS.map((opt) => (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={async () => {
-                                  setAiPersona(opt.id);
-                                  setShowPersonaDropdown(false);
-                                  try {
-                                    await updatePreferences({
-                                      aiPersona: opt.id,
-                                      customInstructions: aiCustomInstructions,
-                                    });
-                                    showToast(`AI persona set to ${opt.label}`, "success");
-                                  } catch (err) {
-                                    showToast(err.response?.data?.message || "Failed to update persona", "error");
-                                  }
-                                }}
-                                className="w-full flex items-center justify-between px-3 py-2 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
-                              >
-                                <div className="flex flex-col">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-[#F0EFED]">{opt.label}</span>
-                                    <span className="text-[10px] text-[#7D7A75] bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
-                                  </div>
-                                  <span className="text-[11px] text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
-                                </div>
-                                {aiPersona === opt.id && (
-                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none shrink-0 ml-2">check</span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+              <div className="flex flex-col max-w-[760px] w-full mx-auto select-none">
+                {/* 1. KagZ AI Brand Header */}
+                <div className="flex items-center justify-between pb-5 border-b border-white/[0.06]">
+                  <div className="flex items-center gap-3.5">
+                    <img src="/kag-z.png" alt="KagZ AI" className="w-14 h-14 object-contain select-none shrink-0" />
+                    <div>
+                      <h2 className="text-[21px] font-semibold text-[#F0EFED] tracking-tight">KagZ AI</h2>
+                      <p className="text-[12.5px] text-[#8A8884] mt-0.5">
+                        Intelligence models, persona tuning, and global instruction guidelines
+                      </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-white/[0.06] my-1" />
+                  {/* Top Right: Save Preferences Button */}
+                  <button
+                    type="button"
+                    onClick={handleSaveAiPrefs}
+                    disabled={isSavingAiPrefs || countWords(aiCustomInstructions) > 100}
+                    className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 rounded-[6px] transition-all cursor-pointer shadow-sm shrink-0"
+                  >
+                    {isSavingAiPrefs ? (
+                      <>
+                        <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[14px]">check</span>
+                        <span>Save preferences</span>
+                      </>
+                    )}
+                  </button>
+                </div>
 
-                  {/* 2. Custom Instructions (Max 100 words) */}
+                {/* 2. Model Engine (kagZ lite vs kagZ pro) */}
+                <div className="py-4 border-b border-white/[0.06] flex items-center justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div>
-                        <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED]">Custom instructions</h3>
-                        <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
-                          Provide specific instructions on how KagZ AI should behave, write, or format responses
-                        </p>
-                      </div>
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${
-                        countWords(aiCustomInstructions) > 100
-                          ? "bg-red-500/10 text-red-500 font-semibold"
-                          : countWords(aiCustomInstructions) > 85
-                          ? "bg-amber-500/10 text-amber-400"
-                          : "text-[#7D7A75]"
-                      }`}>
-                        {countWords(aiCustomInstructions)} / 100 words
-                      </span>
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-2">
-                      <textarea
-                        value={aiCustomInstructions}
-                        onChange={(e) => setAiCustomInstructions(e.target.value)}
-                        placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
-                        rows={3}
-                        className="w-full p-2.5 text-[13px] text-[#F0EFED] bg-white/[0.02] border border-white/[0.08] rounded-[6px] focus:outline-none focus:border-white/20 transition-colors resize-none placeholder:text-[#7D7A75]"
-                      />
-                      {countWords(aiCustomInstructions) > 100 && (
-                        <p className="text-[11.5px] text-red-400 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">warning</span>
-                          Instructions exceed 100 words limit. Excess words will be trimmed.
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-[11.5px] text-[#7D7A75]">
-                          Saved globally across all KagZ chats for your account.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleSaveAiPrefs}
-                          disabled={isSavingAiPrefs}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 rounded-[5px] transition-colors cursor-pointer shadow-sm"
-                        >
-                          {isSavingAiPrefs ? (
-                            <>
-                              <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-                              <span>Saving...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-[14px]">check</span>
-                              <span>Save preferences</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Model Engine</h3>
+                    <p className="text-[12px] text-[#8A8884] mt-0.5">Select the default intelligence tier for chats and summaries</p>
                   </div>
 
-                  <div className="border-t border-white/[0.06] my-1" />
+                  <div className="inline-flex p-1 rounded-[8px] bg-[#222222] border border-white/[0.06] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModel('meta/llama-3.2-11b-vision-instruct')}
+                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                        selectedModel === 'meta/llama-3.2-11b-vision-instruct'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                      }`}
+                    >
+                      kagZ lite
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModel('nvidia/nemotron-3-super-120b-a12b')}
+                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                        selectedModel === 'nvidia/nemotron-3-super-120b-a12b'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                      }`}
+                    >
+                      kagZ pro
+                    </button>
+                  </div>
+                </div>
 
-                  {/* 3. Reasoning & Thinking Process */}
+                {/* 3. Personality & Tone (Dropdown per sketch) */}
+                <div className="py-4 border-b border-white/[0.06] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Reasoning process</h3>
-                    <div className="flex items-center justify-between py-3">
-                      <div className="flex flex-col pr-6">
-                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Thinking orb visualization</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
-                          Show the step-by-step thinking orb animation while the AI generates responses
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isThinking}
-                        onClick={() => setIsThinking(!isThinking)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-white/20"}`}
+                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Personality & Tone</h3>
+                    <p className="text-[12px] text-[#8A8884] mt-0.5">
+                      {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc || "Set how conversational or direct the AI responds"}
+                    </p>
+                  </div>
+
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPersonaDropdown(!showPersonaDropdown);
+                        setShowThemeDropdown(false);
+                        setShowStartupDropdown(false);
+                        setShowFontDropdown(false);
+                      }}
+                      className="flex items-center justify-between gap-2 min-w-[150px] px-3 py-1.5 text-[12.5px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
+                    >
+                      <span className="truncate">{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
+                      <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                    </button>
+
+                    {showPersonaDropdown && (
+                      <div 
+                        className="absolute right-0 top-full mt-1.5 w-64 py-1.5 bg-[#202020] border border-white/[0.08] rounded-[8px] shadow-2xl z-50 text-[12.5px]"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
-                      </button>
-                    </div>
+                        {AI_PERSONA_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={async () => {
+                              setAiPersona(opt.id);
+                              setShowPersonaDropdown(false);
+                              try {
+                                await updatePreferences({
+                                  aiPersona: opt.id,
+                                  customInstructions: aiCustomInstructions,
+                                });
+                                showToast(`AI persona set to ${opt.label}`, "success");
+                              } catch (err) {
+                                showToast(err.response?.data?.message || "Failed to update persona", "error");
+                              }
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                          >
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-[#F0EFED]">{opt.label}</span>
+                                <span className="text-[10px] text-[#7D7A75] bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
+                              </div>
+                              <span className="text-[11px] text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
+                            </div>
+                            {aiPersona === opt.id && (
+                              <span className="material-symbols-outlined text-[15px] text-blue-500 select-none shrink-0 ml-2">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Custom Instructions (Concise height, #292929, no border, 1-line intro) */}
+                <div className="py-4 border-b border-white/[0.06] flex flex-col">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Custom instructions</h3>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      countWords(aiCustomInstructions) > 100
+                        ? "bg-red-500/10 text-red-400 font-semibold"
+                        : countWords(aiCustomInstructions) > 85
+                        ? "bg-amber-500/10 text-amber-400"
+                        : "text-[#7D7A75]"
+                    }`}>
+                      {countWords(aiCustomInstructions)} / 100 words
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-[#8A8884] mb-3">
+                    Tell KagZ AI how you want it to behave, format code, or structure answers.
+                  </p>
+
+                  <div className="rounded-[12px] bg-[#292929] border-0 p-3.5 flex flex-col shadow-inner">
+                    <textarea
+                      value={aiCustomInstructions}
+                      onChange={(e) => setAiCustomInstructions(e.target.value)}
+                      placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
+                      rows={3}
+                      className="w-full bg-transparent border-0 outline-none text-[13.5px] text-[#F0EFED] placeholder:text-[#7D7A75] leading-normal resize-none custom-scrollbar min-h-[62px]"
+                    />
+                    {countWords(aiCustomInstructions) > 100 && (
+                      <p className="text-[11.5px] text-red-400 flex items-center gap-1 mt-2 shrink-0">
+                        <span className="material-symbols-outlined text-[14px]">warning</span>
+                        Instructions exceed 100 words limit. Excess words will be trimmed.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. Session Continuity (Resume last vs Fresh start) */}
+                <div className="py-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Session Continuity</h3>
+                    <p className="text-[12px] text-[#8A8884] mt-0.5">
+                      {chatStartupMode === 'resume' ? 'Resumes your previous conversation state on reload' : 'Starts with a clean empty chat on reload'}
+                    </p>
+                  </div>
+
+                  <div className="inline-flex p-1 rounded-[8px] bg-[#222222] border border-white/[0.06] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setChatStartupMode('resume')}
+                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                        chatStartupMode === 'resume'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                      }`}
+                    >
+                      Resume last
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChatStartupMode('fresh')}
+                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                        chatStartupMode === 'fresh'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                      }`}
+                    >
+                      Start fresh
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2087,7 +2112,7 @@ const Sidebar = () => {
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `group/row relative flex items-center w-full py-1.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 ${
+                `group/row relative flex items-center w-full h-[28px] pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 ${
                   isActive
                     ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
                     : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
@@ -2101,7 +2126,7 @@ const Sidebar = () => {
                     assignment
                   </span>
                 </div>
-                <span className="truncate">{node.name}</span>
+                <span className="truncate leading-[18px]">{node.name}</span>
               </div>
             </NavLink>
             <button
@@ -2123,16 +2148,14 @@ const Sidebar = () => {
           {(() => {
             return (
               <div
-                className="group flex items-center justify-between w-full py-1.5 pr-1.5 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] mb-0.5 transition-all duration-150 cursor-pointer"
+                className="group flex items-center justify-between w-full h-[28px] pr-1.5 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer"
                 style={{ paddingLeft }}
                 onClick={() => onToggle(node.id)}
               >
                 <div className="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
                   <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-[#8a8883]">
                     {node.type === "workspace" ? (
-                      <span className="material-symbols-outlined text-[15px] leading-none text-current select-none">
-                        dashboard_2_add
-                      </span>
+                      <HugeiconsIcon icon={Blockchain04Icon} size={15} className="shrink-0 text-current select-none" />
                     ) : isExpanded ? (
                       <span className="material-symbols-outlined text-[15px] leading-none text-gray-500 dark:text-gray-400 select-none">
                         folder_open
@@ -2143,7 +2166,7 @@ const Sidebar = () => {
                       </span>
                     )}
                   </div>
-                  <span className="truncate select-none font-normal text-gray-700 dark:text-[#d4d2cd]">
+                  <span className="truncate select-none font-normal text-gray-700 dark:text-[#d4d2cd] leading-[18px]">
                     {node.name}
                   </span>
                   <span className={`material-symbols-outlined text-[13px] leading-none select-none transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-70 ${isExpanded ? "rotate-90 !opacity-70" : ""} shrink-0`}>
@@ -2416,8 +2439,8 @@ const Sidebar = () => {
       {/* Tree Navigation */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-2 py-2 min-h-0">
         {/* Recent Section */}
-        <div className="flex flex-col mb-3 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
+        <div className="flex flex-col mb-2 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
@@ -2430,10 +2453,10 @@ const Sidebar = () => {
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["recent-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-1">
+            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-0.5">
               <button
                 onClick={handleCreateRootPage}
-                className="group flex items-center gap-2 w-full py-1.5 px-2.5 mb-0.5 text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full h-[28px] px-2.5 mb-[1px] text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                   <span className="material-symbols-outlined text-[15px] leading-none select-none">add_2</span>
@@ -2461,7 +2484,7 @@ const Sidebar = () => {
                     <NavLink
                       to={recent.path}
                       className={({ isActive }) =>
-                        `group/row relative flex items-center w-full py-1.5 px-2.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 ${
+                        `group/row relative flex items-center w-full h-[28px] px-2.5 pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 ${
                           isActive
                             ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
                             : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
@@ -2474,7 +2497,7 @@ const Sidebar = () => {
                             assignment
                           </span>
                         </div>
-                        <span className="truncate">{recent.name}</span>
+                        <span className="truncate leading-[18px]">{recent.name}</span>
                       </div>
                     </NavLink>
                     <button
@@ -2495,13 +2518,13 @@ const Sidebar = () => {
         </div>
 
         {/* Workspaces Section */}
-        <div className="flex flex-col mb-3 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
+        <div className="flex flex-col mb-2 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
-              <span className="material-symbols-outlined text-[13.5px] leading-none shrink-0 opacity-70 select-none">dashboard_2_add</span>
+              <HugeiconsIcon icon={Blockchain04Icon} size={13.5} className="shrink-0 opacity-70 select-none text-current" />
               <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Workspaces</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
@@ -2549,8 +2572,8 @@ const Sidebar = () => {
         </div>
 
         {/* Favorites Section */}
-        <div className="flex flex-col mb-3 shrink-0">
-          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
+        <div className="flex flex-col mb-2 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
@@ -2563,7 +2586,7 @@ const Sidebar = () => {
           <div
             className={`grid transition-all duration-300 ease-in-out ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
           >
-            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-1">
+            <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-0.5">
               {sectionStates["favorites-section"]?.isLoading ? (
                 <>
                   <SidebarSkeletonItem />
@@ -2597,7 +2620,7 @@ const Sidebar = () => {
               : "shrink-0"
           }`}
         >
-          <div className="group flex items-center justify-between w-full pt-2.5 px-1.5 pb-1 shrink-0">
+          <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
               className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
@@ -2614,9 +2637,7 @@ const Sidebar = () => {
                 handleStartNewChat();
               }}
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none">
-                add_2
-              </span>
+              <HugeiconsIcon icon={ChatAdd01Icon} size={14} className="select-none leading-none" />
             </button>
           </div>
           <div
@@ -2629,12 +2650,10 @@ const Sidebar = () => {
             <div className="overflow-hidden w-full h-full flex flex-col pt-0.5 pb-1 min-h-0">
               <button
                 onClick={handleStartNewChat}
-                className="group flex items-center gap-2 w-full py-1.5 px-2.5 mb-0.5 text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full h-[28px] px-2.5 mb-[1px] text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
-                    add_2
-                  </span>
+                  <HugeiconsIcon icon={ChatAdd01Icon} size={15} className="select-none leading-none" />
                 </div>
                 <span>New Chat</span>
               </button>
@@ -2662,7 +2681,7 @@ const Sidebar = () => {
                         return (
                           <>
                             <div
-                              className={`relative flex items-center w-full py-1.5 px-2.5 pr-8 text-[13px] rounded-[6px] mb-0.5 transition-all duration-150 cursor-pointer ${
+                              className={`relative flex items-center w-full h-[28px] px-2.5 pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer ${
                                 isChatActive
                                   ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
                                   : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
@@ -2678,7 +2697,7 @@ const Sidebar = () => {
                                     chat
                                   </span>
                                 </div>
-                                <span className="truncate">
+                                <span className="truncate leading-[18px]">
                                   {session.title || "Untitled Chat"}
                                 </span>
                               </div>

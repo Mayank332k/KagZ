@@ -425,6 +425,11 @@ const NoteEditor = () => {
     }
   });
 
+  const editorRef = useRef(editor);
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
+
   const initialContentLoadedRef = useRef(false);
   useEffect(() => {
      if (editor && !editor.isDestroyed && initialContentLoadedRef.current) {
@@ -533,11 +538,18 @@ const NoteEditor = () => {
     setIsPageOpen(true);
     registerAppendContent((text) => {
       setContent((prev) => {
-         const newContent = prev ? prev + "\n\n" + text : text;
-         if (editor && !editor.isDestroyed) {
-             editor.commands.setContent(newContent);
-         }
-         return newContent;
+        const newContent = prev ? prev + "\n\n" + text : text;
+        if (editorRef.current && !editorRef.current.isDestroyed) {
+          editorRef.current.commands.setContent(newContent, { emitUpdate: true });
+        }
+        return newContent;
+      });
+      setTitle((prevTitle) => {
+        if (!prevTitle || prevTitle.trim() === "" || prevTitle.toLowerCase() === "untitled") {
+          const autoTitle = text.substring(0, 30).split("\n")[0].replace(/[#*`]/g, "").trim() || "AI Note";
+          return autoTitle;
+        }
+        return prevTitle;
       });
     });
     return () => {
@@ -620,8 +632,20 @@ const NoteEditor = () => {
       setIsNewPage(true);
       initialContentLoadedRef.current = true;
       setLoading(false);
-      // Background-fetch workspace data so location selector populates without blocking typing
-      loadWorkspaceData().catch(console.error);
+      // Background-fetch workspace data and auto-select default workspace
+      loadWorkspaceData()
+        .then((data) => {
+          const tree = data?.workspaceTree || [];
+          if (tree.length > 0) {
+            setSelectedLocation((prev) => prev || tree[0]);
+            setSelectedPath((prev) => (prev.length > 0 ? prev : [tree[0].name]));
+            setPageLocationIds((prev) => ({
+              ...prev,
+              workspaceId: prev.workspaceId || tree[0].id,
+            }));
+          }
+        })
+        .catch(console.error);
       return;
     }
 
@@ -713,9 +737,16 @@ const NoteEditor = () => {
       if (!pageId && !isNewPage) return;
       isSavingRef.current = true;
 
+      const defaultWorkspaceId =
+        updates.workspaceId ||
+        (selectedLocation?.type === "workspace" ? (selectedLocation.id || selectedLocation._id) : null) ||
+        (selectedLocation?.type === "folder" ? selectedLocation.workspaceId : null) ||
+        pageLocationIds.workspaceId ||
+        (workspaceTree?.[0]?.id || null);
+
       const hasNewPageLocation =
         pageId === "new" || isNewPage
-          ? Boolean(updates.workspaceId || selectedLocation?.type === "workspace" || selectedLocation?.type === "folder")
+          ? Boolean(defaultWorkspaceId)
           : true;
       if (!hasNewPageLocation) {
         showToast("Choose a workspace or folder before saving the page.", "error");
@@ -748,14 +779,14 @@ const NoteEditor = () => {
       try {
         if (pageId === "new" || isNewPage) {
           const payload = {
-            title,
-            content,
+            title: trimmedTitle,
+            content: currentContent,
             isFavorite,
             type: pageType,
+            workspaceId: defaultWorkspaceId,
+            folderId: updates.folderId !== undefined ? updates.folderId : (selectedLocation?.type === "folder" ? (selectedLocation.id || selectedLocation._id) : (pageLocationIds.folderId || null)),
             ...updates,
           };
-          if (payload.workspaceId === undefined) payload.workspaceId = null;
-          if (payload.folderId === undefined) payload.folderId = null;
 
           const res = await pagesAPI.create(payload);
           const newPageId = res.data.page._id;
@@ -858,12 +889,16 @@ const NoteEditor = () => {
   const handleManualSave = async () => {
     if (!isDirty || saveStatus === "saving") return;
     const locationPayload = getSelectedLocationPayload();
-    const fallbackLocation = locationPayload.workspaceId
-      ? locationPayload
-      : pageLocationIds.workspaceId
-        ? { workspaceId: pageLocationIds.workspaceId, folderId: null }
-        : { workspaceId: null, folderId: null };
-    if ((pageId === "new" || isNewPage) && !locationPayload.workspaceId) {
+    const defaultWorkspaceId =
+      locationPayload.workspaceId ||
+      pageLocationIds.workspaceId ||
+      (workspaceTree?.[0]?.id || null);
+
+    const fallbackLocation = {
+      workspaceId: defaultWorkspaceId,
+      folderId: locationPayload.folderId || pageLocationIds.folderId || null,
+    };
+    if ((pageId === "new" || isNewPage) && !defaultWorkspaceId) {
       showToast("Choose a workspace or folder before saving the page.", "error");
       return;
     }

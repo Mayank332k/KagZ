@@ -6,6 +6,8 @@ import {
   Folder01Icon,
   AppleReminderIcon,
 } from "hugeicons-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Blockchain04Icon } from "@hugeicons/core-free-icons";
 import { foldersAPI, pagesAPI, workspacesAPI } from "../../services/api";
 
 const PageIcon = () => (
@@ -191,9 +193,7 @@ const Workspace = () => {
           <>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-[12px] flex items-center justify-center border border-blue-100">
-                <span className="material-symbols-outlined text-[24px] leading-none select-none">
-                  dashboard_2_add
-                </span>
+                <HugeiconsIcon icon={Blockchain04Icon} size={24} />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-[var(--color-dark-title)]">
                 {workspace?.name || "Workspace"}
