@@ -6,17 +6,17 @@
   --font-sans: system-ui, 'Inter', 'Segoe UI', Roboto, sans-serif;
   --color-accent: #aa3bff;
   --color-accent-bg: rgba(170, 59, 255, 0.1);
-  --color-noema-bg: #ffffff;
-  --color-sidebar-bg: #f7f6f5;
+  --color-noema-bg: color(display-p3 0.07451 0.07451 0.07451);
+  --color-sidebar-bg: color(display-p3 0.09412 0.09412 0.09412);
   --color-active-tab: #ebebea;
   --color-shiny-base: #9ca3af;
   --color-shiny-shine: #111827;
   
   /* Dark Mode Colors */
-  --color-dark-bg: rgb(19, 19, 19);
+  --color-dark-bg: color(display-p3 0.07451 0.07451 0.07451);
   --color-dark-surface: #232323;
-  --color-dark-sidebar: #242424;
-  --color-dark-title: #424242;
+  --color-dark-sidebar: color(display-p3 0.09412 0.09412 0.09412);
+  --color-dark-title: color(display-p3 0.92549 0.92157 0.90980);
   --color-dark-muted: rgb(174, 172, 167);
   --color-dark-border: #333333;
   --color-dark-border-hover: #404040;
@@ -273,6 +273,51 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
   animation: shimmer-text 2.5s linear infinite;
 }
 
+@keyframes shimmer-sentence {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+.shimmer-sentence {
+  background: linear-gradient(
+    90deg,
+    #4b5563 0%,
+    #4b5563 35%,
+    #111827 50%,
+    #4b5563 65%,
+    #4b5563 100%
+  );
+  background-size: 250% 100%;
+  color: transparent !important;
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: inline-block;
+  white-space: nowrap;
+  animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.dark .shimmer-sentence, :where(.dark, .dark *) .shimmer-sentence {
+  background: linear-gradient(
+    90deg,
+    #9ca3af 0%,
+    #9ca3af 35%,
+    #ffffff 50%,
+    #9ca3af 65%,
+    #9ca3af 100%
+  );
+  background-size: 250% 100%;
+  color: transparent !important;
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: inline-block;
+  white-space: nowrap;
+  animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 /* --- Frosted Blur Streaming Effect --- */
 .frosted-stream-token {
   display: inline;
@@ -318,5 +363,16 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
     opacity: 0.95;
     transform: scale(1.06);
   }
+}
+
+/* ProseMirror Selected Node Outline Reset */
+.ProseMirror-selectednode,
+.ProseMirror-selectednode:after {
+  outline: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.ProseMirror:focus {
+  outline: none !important;
 }
 

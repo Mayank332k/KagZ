@@ -15,6 +15,7 @@ export const AVAILABLE_TOOLS = [
     label: 'Deep research',
     description: 'Get a detailed report',
     icon: Telescope02Icon,
+    emoji: '🔭',
     iconColor: '#007AFF', // Apple Blue
   },
   {
@@ -23,6 +24,7 @@ export const AVAILABLE_TOOLS = [
     label: 'Web search',
     description: 'Find real-time news and info',
     icon: Globe02Icon,
+    emoji: '🌐',
     iconColor: '#0EA5E9',
   },
   {
@@ -31,6 +33,7 @@ export const AVAILABLE_TOOLS = [
     label: 'Thinking',
     description: 'For detailed answers',
     icon: Brain03Icon,
+    emoji: '🧠',
     iconColor: '#FFFFFF',
   },
   {
@@ -39,6 +42,7 @@ export const AVAILABLE_TOOLS = [
     label: 'Workspace notes',
     description: 'Browse and search your notes & files',
     icon: Blockchain04Icon,
+    emoji: '📁',
     iconColor: '#9CA3AF',
   },
 ];

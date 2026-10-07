@@ -9,7 +9,18 @@ import {
 import { useParams, useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete02Icon, Edit03Icon, TextIcon } from "@hugeicons/core-free-icons";
+import {
+  Delete02Icon,
+  TextIcon,
+  AiMagicIcon,
+  AiBrain03Icon,
+  Heading01Icon,
+  Table01Icon,
+  FloppyDiskIcon,
+  CheckmarkCircle02Icon,
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+} from "@hugeicons/core-free-icons";
 
 import { pagesAPI, chatAPI } from "../../services/api";
 import ActionModal from "../UI/ActionModal";
@@ -32,40 +43,32 @@ import { TableCell } from '@tiptap/extension-table-cell';
 
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import ScrollReveal from '../lightswind/scroll-reveal';
+import ThinkingOrb from '../Chat/ThinkingOrb';
 
 const createStreamId = () => `stream-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const AIStreamNodeComponent = (props) => {
+const AILoadingNodeComponent = (props) => {
+  const status = props.node.attrs.status || 'Writing...';
   return (
-    <NodeViewWrapper className="ai-stream-wrapper my-1 outline-none ring-0 border-none select-none pointer-events-none user-select-none">
-      <ScrollReveal
-        size="sm"
-        enableBlur={true}
-        baseOpacity={0}
-        baseRotation={0}
-        blurStrength={4}
-        staggerDelay={0.02}
-        duration={0.4}
-        autoAnimate={true}
-        textClassName="whitespace-pre-wrap font-normal text-gray-700 dark:text-[rgb(174,172,167)] m-0 p-0 outline-none select-none"
-      >
-        {props.node.attrs.text}
-      </ScrollReveal>
+    <NodeViewWrapper className="ai-loading-wrapper my-1.5 inline-flex items-center gap-2 select-none pointer-events-none user-select-none outline-none ring-0">
+      <ThinkingOrb size={18} stateType="thinking" />
+      <span className="shimmer-sentence text-[15px] font-medium leading-none tracking-tight select-none">
+        {status}
+      </span>
     </NodeViewWrapper>
   );
 };
 
-const AIStreamExtension = Node.create({
-  name: 'aiStream',
+const AILoadingExtension = Node.create({
+  name: 'aiLoading',
   group: 'block',
   atom: true,
   selectable: false,
 
   addAttributes() {
     return {
-      text: {
-        default: '',
+      status: {
+        default: 'Writing...',
       },
       id: {
         default: null,
@@ -74,15 +77,15 @@ const AIStreamExtension = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-ai-stream]' }];
+    return [{ tag: 'div[data-ai-loading]' }];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-ai-stream': '' })];
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-ai-loading': '' })];
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(AIStreamNodeComponent);
+    return ReactNodeViewRenderer(AILoadingNodeComponent);
   },
 });
 
@@ -171,6 +174,8 @@ const NoteEditor = () => {
   }, [fontSize]);
   const [titleError, setTitleError] = useState(false);
   const [isAiStreaming, setIsAiStreaming] = useState(false);
+  const isAiStreamingRef = useRef(false);
+  const [aiActionStatus, setAiActionStatus] = useState("Writing...");
   const [originalData, setOriginalData] = useState({ title: "", content: "" });
   const isSavingRef = useRef(false);
   const fetchRequestIdRef = useRef(0);
@@ -194,6 +199,10 @@ const NoteEditor = () => {
 
   const slashMenuState = useRef(slashMenu);
   const containerRef = useRef(null);
+
+  const [isBottomBarExpanded, setIsBottomBarExpanded] = useState(true);
+  const [bottomMenuOpen, setBottomMenuOpen] = useState(null); // 'ai' | 'format' | null
+  const bottomBarRef = useRef(null);
 
   const isDirty = title !== originalData.title || content !== originalData.content;
 
@@ -250,7 +259,7 @@ const NoteEditor = () => {
         placeholder: 'Start writing...',
       }),
       AIEffectMark,
-      AIStreamExtension,
+      AILoadingExtension,
     ],
     content: "",
     onUpdate: ({ editor }) => {
@@ -296,8 +305,19 @@ const NoteEditor = () => {
       }
     },
     onSelectionUpdate: ({ editor }) => {
-       const { from, to } = editor.state.selection;
-       if (from !== to) {
+      const { from, to } = editor.state.selection;
+      if (slashMenuState.current.isOpen) {
+        const slashStart = slashMenuState.current.selectionStart;
+        const searchLen = slashMenuState.current.search?.length || 0;
+        if (from < slashStart || from > slashStart + searchLen) {
+          setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+        }
+      }
+      if (isAiStreamingRef.current) {
+        setSelectionToolbar((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+        return;
+      }
+      if (from !== to) {
           setTimeout(() => {
              const selection = window.getSelection();
              if (!selection.rangeCount) return;
@@ -421,6 +441,17 @@ const NoteEditor = () => {
           }
         }
         return false;
+      },
+      handleClick: (view, pos, event) => {
+        if (slashMenuState.current.isOpen) {
+          if (!slashMenuRef.current || !slashMenuRef.current.contains(event.target)) {
+            setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+          }
+        }
+        if (selectionToolbarRef.current && !selectionToolbarRef.current.contains(event.target)) {
+          setSelectionToolbar((prev) => ({ ...prev, isOpen: false, showUrlInput: false }));
+        }
+        return false;
       }
     }
   });
@@ -444,8 +475,9 @@ const NoteEditor = () => {
   }, [editor, content]);
 
   const actionMenuRef = useRef(null);
-    const slashMenuRef = useRef(null);
+  const slashMenuRef = useRef(null);
   const promptInputRef = useRef(null);
+  const selectionToolbarRef = useRef(null);
 
   const [selectionToolbar, setSelectionToolbar] = useState({
     isOpen: false,
@@ -490,11 +522,19 @@ const NoteEditor = () => {
       if (slashMenuRef.current && !slashMenuRef.current.contains(e.target)) {
         setSlashMenu((prev) => ({ ...prev, isOpen: false }));
       }
-      // Keep selection toolbar open unless clicked outside of textarea/toolbar (handled by selection logic)
+      if (bottomBarRef.current && !bottomBarRef.current.contains(e.target)) {
+        setBottomMenuOpen(null);
+      }
+      if (selectionToolbarRef.current && !selectionToolbarRef.current.contains(e.target)) {
+        setSelectionToolbar((prev) => ({ ...prev, isOpen: false, showUrlInput: false }));
+      }
+      if (promptInputRef.current && !promptInputRef.current.contains(e.target)) {
+        setShowPromptInput(null);
+      }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showActionMenu, slashMenu.isOpen]);
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+  }, [showActionMenu, slashMenu.isOpen, selectionToolbar.isOpen, showPromptInput]);
 
   // Global Escape key listener to close slash menu, prompt inputs, and action menus
   useEffect(() => {
@@ -504,6 +544,11 @@ const NoteEditor = () => {
           e.preventDefault();
           setSlashMenu((prev) => ({ ...prev, isOpen: false }));
           editor?.commands.focus();
+          return;
+        }
+        if (bottomMenuOpen) {
+          e.preventDefault();
+          setBottomMenuOpen(null);
           return;
         }
         if (showPromptInput) {
@@ -948,10 +993,10 @@ const NoteEditor = () => {
     if (!editor) return;
     const selStart = selectionToolbar.start;
     const selEnd = selectionToolbar.end;
-    setSelectionToolbar((prev) => ({ ...prev, isOpen: false }));
+    setSelectionToolbar({ isOpen: false, showUrlInput: false, start: 0, end: 0 });
     const selectedText = editor.state.doc.textBetween(selStart, selEnd, ' ');
     if (!selectedText.trim()) return;
-    editor.commands.setTextSelection(selStart);
+    editor.commands.setTextSelection(selEnd);
     await runInlineAIStream({
       promptType,
       text: selectedText,
@@ -959,6 +1004,76 @@ const NoteEditor = () => {
       toPos: selEnd
     });
   };
+
+  const handleBottomAskAI = () => {
+    if (!editor) return;
+    const { from } = editor.state.selection;
+    let coords = null;
+    try {
+      coords = editor.view.coordsAtPos(from);
+    } catch {
+      // fallback
+    }
+    let containerRect = { top: 0, left: 0 };
+    if (containerRef.current) {
+      containerRect = containerRef.current.getBoundingClientRect();
+    }
+    const posX = coords ? Math.max(20, coords.left - containerRect.left) : 40;
+    const posY = coords ? Math.max(20, coords.bottom - containerRect.top + 8) : 80;
+
+    setSlashMenu((prev) => ({
+      ...prev,
+      x: posX,
+      y: posY,
+    }));
+    setShowPromptInput({
+      insertPos: from,
+    });
+    setBottomMenuOpen(null);
+  };
+
+  const handleBottomAIAction = async (promptType) => {
+    setBottomMenuOpen(null);
+    if (!editor || editor.isDestroyed) return;
+    const { from, to } = editor.state.selection;
+    let targetText = "";
+    let fromPos = from;
+    let toPos = to;
+
+    if (from !== to) {
+      targetText = editor.state.doc.textBetween(from, to, " ");
+    } else {
+      const $pos = editor.state.doc.resolve(from);
+      targetText = $pos.parent.textContent.trim();
+      fromPos = $pos.start();
+      toPos = $pos.end();
+      if (!targetText) {
+        targetText = editor.getText().trim();
+        fromPos = 0;
+        toPos = editor.state.doc.content.size;
+      }
+    }
+
+    if (!targetText.trim()) {
+      showToast("Type some text first to run AI actions!", "warning");
+      return;
+    }
+
+    await runInlineAIStream({
+      promptType,
+      text: targetText,
+      fromPos,
+      toPos,
+    });
+  };
+
+  const handleInsertTable = () => {
+    if (!editor) return;
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    setBottomMenuOpen(null);
+  };
+
+
 
   
   
@@ -1187,40 +1302,42 @@ const NoteEditor = () => {
       return;
     }
 
+    setSelectionToolbar({ isOpen: false, showUrlInput: false, start: 0, end: 0 });
     const isSelectionAction = fromPos !== undefined && toPos !== undefined && fromPos !== toPos;
     let streamingResult = "";
-    let animationInterval;
-    let loadingMarkFrom, loadingMarkTo;
     
+    let actionText = "Writing";
+    if (promptType === "summarize") actionText = "Summarizing";
+    else if (promptType === "grammar" || promptType === "proofread") actionText = "Proofreading";
+    else if (promptType === "improve_writing") actionText = "Improving writing";
+    else if (promptType === "explain") actionText = "Explaining";
+    else if (promptType === "table") actionText = "Creating table";
+    else if (promptType === "format") actionText = "Formatting";
+
+    setAiActionStatus(`${actionText}...`);
+
+    let loadingId = null;
+    let streamStartPos = insertPos ?? 0;
+    let streamCursor = insertPos ?? 0;
+    let hasRemovedLoadingNode = false;
+
     if (isSelectionAction) {
-      editor.chain().setTextSelection({ from: fromPos, to: toPos }).setMark('aiEffect', { class: 'apple-ai-processing' }).run();
+      editor.chain().setTextSelection({ from: fromPos, to: toPos }).unsetMark('aiEffect').deleteRange({ from: fromPos, to: toPos }).run();
+      streamStartPos = fromPos;
+      streamCursor = fromPos;
+      hasRemovedLoadingNode = true;
     } else {
-      let actionText = "Writing";
-      if (promptType === "summarize") actionText = "Summarizing";
-      else if (promptType === "grammar") actionText = "Fixing grammar";
-      
-      const frames = ['❄', '❅', '❆', '✻', '✼', '❉', '❇', '❈', '❊', '❋', '✧', '✦', '✥', '❂', '✴', '✵', '✶', '✷', '✸', '✹'];
-      let frameIdx = 0;
-      
-      const loadingText = ` ❄ ${actionText}... `;
-      editor.chain().insertContentAt(insertPos, loadingText).run();
-      loadingMarkFrom = insertPos;
-      loadingMarkTo = insertPos + loadingText.length;
-      
-      animationInterval = setInterval(() => {
-        frameIdx = (frameIdx + 1) % frames.length;
-        try {
-          editor.chain().deleteRange({ from: loadingMarkFrom, to: loadingMarkTo }).insertContentAt(loadingMarkFrom, ` ${frames[frameIdx]} ${actionText}... `).run();
-        } catch {
-          clearInterval(animationInterval);
-        }
-      }, 150);
+      loadingId = createStreamId();
+      editor.chain().insertContentAt(insertPos, {
+        type: 'aiLoading',
+        attrs: { id: loadingId, status: `${actionText}...` },
+      }).run();
     }
 
-    const findAIStreamNode = (doc, targetId) => {
+    const findNodeById = (doc, nodeType, targetId) => {
       let pos = -1;
       doc.descendants((node, nodePos) => {
-        if (node.type.name === 'aiStream' && node.attrs.id === targetId) {
+        if (node.type.name === nodeType && node.attrs.id === targetId) {
           pos = nodePos;
           return false;
         }
@@ -1228,10 +1345,9 @@ const NoteEditor = () => {
       return pos;
     };
 
-    const streamId = createStreamId();
-
     try {
       setIsAiStreaming(true);
+      isAiStreamingRef.current = true;
       const abortController = new AbortController();
       const stream = chatAPI.askInline(promptType, text, instruction, abortController.signal);
       
@@ -1255,8 +1371,23 @@ const NoteEditor = () => {
         if (delta === undefined || delta === null) {
            delta = typeof chunk === 'object' ? JSON.stringify(chunk) : String(chunk);
         }
-                   
-        streamingResult += delta;
+        
+        if (delta) {
+          streamingResult += delta;
+          if (!hasRemovedLoadingNode && loadingId) {
+            const loadingNodePos = findNodeById(editor.state.doc, 'aiLoading', loadingId);
+            if (loadingNodePos !== -1) {
+              const node = editor.state.doc.nodeAt(loadingNodePos);
+              const nodeSize = node ? node.nodeSize : 1;
+              editor.chain().deleteRange({ from: loadingNodePos, to: loadingNodePos + nodeSize }).run();
+              streamStartPos = loadingNodePos;
+              streamCursor = loadingNodePos;
+            }
+            hasRemovedLoadingNode = true;
+          }
+          editor.chain().insertContentAt(streamCursor, delta).run();
+          streamCursor += delta.length;
+        }
       }
       
       // Stream is fully downloaded now!
@@ -1264,70 +1395,51 @@ const NoteEditor = () => {
       
       if (!editor || editor.isDestroyed) {
         setIsAiStreaming(false);
+        isAiStreamingRef.current = false;
         return;
       }
 
-      if (isSelectionAction) {
-         editor.chain().setTextSelection({ from: fromPos, to: toPos }).unsetMark('aiEffect').run();
-         editor.chain()
-           .deleteRange({ from: fromPos, to: toPos })
-           .insertContentAt(fromPos, { type: 'aiStream', attrs: { id: streamId, text: finalText } })
-           .run();
-      } else {
-         clearInterval(animationInterval);
-         try {
-           editor.chain()
-             .deleteRange({ from: loadingMarkFrom, to: loadingMarkTo })
-             .insertContentAt(insertPos, { type: 'aiStream', attrs: { id: streamId, text: finalText } })
-             .run();
-         } catch (e) { console.error("Draft parse error", e); }
+      if (!hasRemovedLoadingNode && loadingId) {
+        const loadingNodePos = findNodeById(editor.state.doc, 'aiLoading', loadingId);
+        if (loadingNodePos !== -1) {
+          const node = editor.state.doc.nodeAt(loadingNodePos);
+          const nodeSize = node ? node.nodeSize : 1;
+          editor.chain().deleteRange({ from: loadingNodePos, to: loadingNodePos + nodeSize }).run();
+          streamStartPos = loadingNodePos;
+          streamCursor = loadingNodePos;
+        }
+      }
+
+      if (streamingResult.trim()) {
+        const parsedHtml = marked.parse(finalText);
+        try {
+          editor.chain()
+            .deleteRange({ from: streamStartPos, to: streamCursor })
+            .insertContentAt(streamStartPos, parsedHtml)
+            .run();
+        } catch (e) {
+          console.error("Markdown parse replace error", e);
+        }
       }
       
       if (editor && !editor.isDestroyed) {
         editor.commands.scrollIntoView();
       }
       
-      // Wait for ScrollReveal to finish before converting to Markdown
-      const wordCount = finalText.split(/\s+/).length;
-      const animationDurationMs = (0.4 + wordCount * 0.02) * 1000 + 400; // 400ms buffer
-      
-      setTimeout(() => {
-          if (!editor || editor.isDestroyed) return;
-          const parsedHtml = marked.parse(finalText);
-          try {
-             const streamNodePos = findAIStreamNode(editor.state.doc, streamId);
-             if (streamNodePos !== -1) {
-               const node = editor.state.doc.nodeAt(streamNodePos);
-               const nodeSize = node ? node.nodeSize : 1;
-               
-               editor.chain()
-                 .deleteRange({ from: streamNodePos, to: streamNodePos + nodeSize })
-                 .insertContentAt(streamNodePos, parsedHtml)
-                 .run();
-             }
-          } catch (e) {
-             console.error("Final replace error", e);
-             if (editor && !editor.isDestroyed) {
-               const streamNodePos = findAIStreamNode(editor.state.doc, streamId);
-               if (streamNodePos !== -1) {
-                 editor.chain()
-                   .insertContentAt(streamNodePos, finalText)
-                   .run();
-               }
-             }
-          }
-      }, animationDurationMs);
-      
       setIsAiStreaming(false);
+      isAiStreamingRef.current = false;
     } catch (err) {
       setIsAiStreaming(false);
-      if (!isSelectionAction) {
-          clearInterval(animationInterval);
-          if (editor && !editor.isDestroyed) {
-            try {
-              editor.chain().deleteRange({ from: loadingMarkFrom, to: loadingMarkTo }).run();
-            } catch (e) { console.error("Draft parse error", e); }
-          }
+      isAiStreamingRef.current = false;
+      if (!hasRemovedLoadingNode && loadingId && editor && !editor.isDestroyed) {
+          try {
+            const loadingNodePos = findNodeById(editor.state.doc, 'aiLoading', loadingId);
+            if (loadingNodePos !== -1) {
+              const node = editor.state.doc.nodeAt(loadingNodePos);
+              const nodeSize = node ? node.nodeSize : 1;
+              editor.chain().deleteRange({ from: loadingNodePos, to: loadingNodePos + nodeSize }).run();
+            }
+          } catch (e) { console.error("Draft clean error", e); }
       }
       console.error("Inline AI Stream Error:", err);
 
@@ -1373,7 +1485,10 @@ const NoteEditor = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-[var(--color-noema-bg)] dark:bg-[var(--color-dark-bg)] text-gray-400 dark:text-gray-500 transition-colors">
+      <div 
+        className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-gray-500 transition-colors"
+        style={{ backgroundColor: "color(display-p3 0.07451 0.07451 0.07451)" }}
+      >
         <Loading03Icon className="w-6 h-6 text-gray-400 animate-spin" />
       </div>
     );
@@ -1381,8 +1496,8 @@ const NoteEditor = () => {
 
   return (
     <div 
-      className="flex flex-col h-full bg-[var(--color-noema-bg)] dark:bg-[var(--color-dark-bg)] transition-colors"
-      
+      className="flex flex-col h-full transition-colors"
+      style={{ backgroundColor: "color(display-p3 0.07451 0.07451 0.07451)" }}
     >
       <style dangerouslySetInnerHTML={{ __html: `
         .ProseMirror { outline: none; min-height: 100%; }
@@ -1462,6 +1577,95 @@ const NoteEditor = () => {
         @keyframes viewport-land {
           0% { background-position: 0 -300vh; }
           100% { background-position: 0 300vh; }
+        }
+
+        @keyframes shimmer-sentence {
+          0% {
+            background-position: 220% 0;
+          }
+          100% {
+            background-position: -220% 0;
+          }
+        }
+
+        .shimmer-sentence {
+          background: linear-gradient(
+            90deg,
+            #4b5563 0%,
+            #4b5563 35%,
+            #111827 50%,
+            #4b5563 65%,
+            #4b5563 100%
+          );
+          background-size: 250% 100%;
+          color: transparent !important;
+          -webkit-background-clip: text;
+          background-clip: text;
+          display: inline-block;
+          white-space: nowrap;
+          animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .dark .shimmer-sentence, :where(.dark, .dark *) .shimmer-sentence {
+          background: linear-gradient(
+            90deg,
+            #9ca3af 0%,
+            #9ca3af 35%,
+            #ffffff 50%,
+            #9ca3af 65%,
+            #9ca3af 100%
+          );
+          background-size: 250% 100%;
+          color: transparent !important;
+          -webkit-background-clip: text;
+          background-clip: text;
+          display: inline-block;
+          white-space: nowrap;
+          animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .ProseMirror-selectednode {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+
+        .ProseMirror:focus {
+          outline: none !important;
+        }
+
+        .ai-loading-wrapper {
+          outline: none !important;
+        }
+
+        .page-title-input::placeholder {
+          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
+        }
+
+        .ProseMirror,
+        .dark .ProseMirror,
+        .ProseMirror p,
+        .dark .ProseMirror p,
+        .ProseMirror h1,
+        .ProseMirror h2,
+        .ProseMirror h3,
+        .ProseMirror h4,
+        .ProseMirror h5,
+        .ProseMirror h6,
+        .ProseMirror li,
+        .ProseMirror span,
+        .ProseMirror div,
+        .ProseMirror blockquote,
+        .ProseMirror td,
+        .ProseMirror th {
+          color: color(display-p3 0.92549 0.92157 0.90980) !important;
+        }
+
+        .ProseMirror p.is-editor-empty:first-child::before {
+          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
+          content: attr(data-placeholder);
+          float: left;
+          height: 0;
+          pointer-events: none;
         }
       `}} />
       {/* Top Bar */}
@@ -1646,26 +1850,27 @@ const NoteEditor = () => {
             }}
             placeholder="New page"
             spellCheck={globalSpellCheck}
-            className={`w-full text-[42px] leading-tight font-bold outline-none mb-6 transition-all duration-200 ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "text-gray-800 dark:text-[var(--color-dark-title)] bg-transparent placeholder-gray-300 dark:placeholder-gray-600"}`}
+            style={{ color: "color(display-p3 0.92549 0.92157 0.90980)" }}
+            className={`page-title-input w-full text-[42px] leading-tight font-bold outline-none mb-6 transition-all duration-200 ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "bg-transparent"}`}
           />
           <EditorContent
             editor={editor}
-            className={`flex-1 w-full prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none leading-relaxed ${pageType === "code" ? "font-mono" : ""} text-gray-700 dark:text-[rgb(174,172,167)]`}
-            style={{ fontSize: `${fontSize}px` }}
+            className={`flex-1 w-full prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none leading-relaxed ${pageType === "code" ? "font-mono" : ""}`}
+            style={{ fontSize: `${fontSize}px`, color: "color(display-p3 0.92549 0.92157 0.90980)" }}
           />
 
           {/* AI Streaming Indicator Pill */}
           {isAiStreaming && (
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
-              <div className="flex items-center gap-2.5 px-5 py-2.5 bg-white dark:bg-[#1f1f1f] rounded-full shadow-2xl border border-gray-200/50 dark:border-white/5 text-[13.5px] font-medium relative overflow-hidden backdrop-blur-md">
+              <div className="flex items-center gap-2.5 px-4 py-2 bg-white/95 dark:bg-[#1f1f1f]/95 rounded-full shadow-2xl border border-gray-200/50 dark:border-white/5 relative overflow-hidden backdrop-blur-md">
                 {/* Background Shimmer (Clipped properly by overflow-hidden) */}
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gray-100/40 dark:via-white/[0.03] to-transparent animate-shimmer-move" />
                 
-                <HugeiconsIcon icon={Edit03Icon} size={17.5} className="select-none text-blue-500/90 dark:text-blue-400 relative z-10" />
+                <ThinkingOrb size={20} stateType="thinking" className="relative z-10" />
                 
                 {/* Premium Text Shimmer */}
-                <span className="relative z-10 bg-gradient-to-r from-gray-600 via-blue-500 to-gray-600 dark:from-gray-400 dark:via-blue-400 dark:to-gray-400 bg-[length:200%_auto] animate-shimmer-text bg-clip-text text-transparent">
-                  Writing...
+                <span className="relative z-10 shimmer-sentence text-[15px] font-medium leading-none tracking-tight select-none">
+                  {aiActionStatus || "Writing..."}
                 </span>
               </div>
             </div>
@@ -1916,6 +2121,7 @@ const NoteEditor = () => {
           {/* Floating Selection AI Toolbar */}
           {selectionToolbar.isOpen && (
             <div
+              ref={selectionToolbarRef}
               style={{
                 position: "absolute",
                 top: `${selectionToolbar.y}px`,
@@ -2008,8 +2214,8 @@ const NoteEditor = () => {
                              return;
                            }
 
-                           setSelectionToolbar((prev) => ({ ...prev, isOpen: false }));
-                           editor.commands.setTextSelection(selStart);
+                           setSelectionToolbar({ isOpen: false, showUrlInput: false, start: 0, end: 0 });
+                           editor.commands.setTextSelection(selEnd);
                            runInlineAIStream({
                              promptType: "write",
                              text: selectedText,
@@ -2028,6 +2234,267 @@ const NoteEditor = () => {
 
           )}
         </div>
+      </div>
+
+      {/* Bottom Minimal Pill Bar (Collapsible / Expandable) */}
+      <div className="shrink-0 flex items-center justify-center pb-[19px] pt-1 z-30 select-none px-4 relative" ref={bottomBarRef}>
+        {isBottomBarExpanded ? (
+          <div className="flex items-center gap-2 transition-all">
+            {/* 1. Ask AI Pill */}
+            <button
+              type="button"
+              onClick={handleBottomAskAI}
+              title="Ask AI to write"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white text-[14.5px] font-medium transition-all active:scale-95 cursor-pointer border-0 shrink-0"
+            >
+              <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 9h.01M16 9h.01" />
+                <path d="M10 13a3.5 3.5 0 0 0 4 0" />
+                <path d="M12 2.5v2" />
+              </svg>
+              <span>Ask AI</span>
+            </button>
+
+            {/* 2. Summarize Pill */}
+            <button
+              type="button"
+              onClick={() => handleBottomAIAction("summarize")}
+              title="Summarize Note"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white text-[14.5px] font-medium transition-all active:scale-95 cursor-pointer border-0 shrink-0"
+            >
+              <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 6h16M4 12h10M4 18h7" />
+                <path d="M16 15l3 3 3-3" />
+              </svg>
+              <span>Summarize</span>
+            </button>
+
+            {/* 3. Proofread Pill */}
+            <button
+              type="button"
+              onClick={() => handleBottomAIAction("grammar")}
+              title="Proofread & Fix Grammar"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white text-[14.5px] font-medium transition-all active:scale-95 cursor-pointer border-0 shrink-0"
+            >
+              <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              <span>Proofread</span>
+            </button>
+
+            {/* 4. Table Pill */}
+            <button
+              type="button"
+              onClick={handleInsertTable}
+              title="Insert 3×3 Grid Table"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white text-[14.5px] font-medium transition-all active:scale-95 cursor-pointer border-0 shrink-0"
+            >
+              <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              </svg>
+              <span>Table</span>
+            </button>
+
+            {/* 5. Format Pill (with popover) */}
+            <div className="relative">
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBottomMenuOpen((prev) => (prev === "format" ? null : "format"));
+                }}
+                title="Format Text & Blocks"
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all active:scale-95 cursor-pointer border-0 shrink-0 text-[14.5px] font-medium ${
+                  bottomMenuOpen === "format"
+                    ? "bg-[#dedede] dark:bg-[#3d3d3d] text-gray-900 dark:text-white"
+                    : "bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white"
+                }`}
+              >
+                <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12h8M4 18V6M12 18V6M17 10h5M19.5 10v8" />
+                </svg>
+                <span>Format</span>
+              </button>
+
+              {bottomMenuOpen === "format" && (
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute bottom-full mb-3 left-0 min-w-[170px] bg-white dark:bg-[#202020] rounded-[14px] shadow-2xl p-1.5 z-[999] border border-black/[0.08] dark:border-white/[0.1] flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleHeading({ level: 1 }).run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">format_h1</span>
+                    <span>Heading 1</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleHeading({ level: 2 }).run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">format_h2</span>
+                    <span>Heading 2</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleHeading({ level: 3 }).run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">format_h3</span>
+                    <span>Heading 3</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleBulletList().run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">format_list_bulleted</span>
+                    <span>Bullet List</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleBlockquote().run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none">format_quote</span>
+                    <span>Quote</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 6. More (•••) Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBottomMenuOpen((prev) => (prev === "more" ? null : "more"));
+                }}
+                title="More Options"
+                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all active:scale-95 cursor-pointer border-0 shrink-0 ${
+                  bottomMenuOpen === "more"
+                    ? "bg-[#dedede] dark:bg-[#3d3d3d] text-gray-900 dark:text-white"
+                    : "bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white"
+                }`}
+              >
+                <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="5" cy="12" r="2.2" />
+                  <circle cx="12" cy="12" r="2.2" />
+                  <circle cx="19" cy="12" r="2.2" />
+                </svg>
+              </button>
+
+              {bottomMenuOpen === "more" && (
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute bottom-full mb-3 right-0 min-w-[200px] bg-white dark:bg-[#202020] rounded-[14px] shadow-2xl p-1.5 z-[999] border border-black/[0.08] dark:border-white/[0.1] flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <div className="px-2.5 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    AI Features
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleBottomAIAction("improve_writing")}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none text-gray-500 dark:text-white">auto_fix_high</span>
+                    <span>Improve writing</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBottomAIAction("explain")}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none text-gray-500 dark:text-white">help</span>
+                    <span>Explain block</span>
+                  </button>
+
+                  <div className="w-full h-px bg-gray-100 dark:bg-white/10 my-1" />
+
+                  <div className="px-2.5 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Tools
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().toggleCodeBlock().run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none text-gray-500 dark:text-white">code</span>
+                    <span>Code block</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().unsetAllMarks().run();
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px] leading-none text-gray-500 dark:text-white">format_clear</span>
+                    <span>Clear styles</span>
+                  </button>
+
+                  <div className="w-full h-px bg-gray-100 dark:bg-white/10 my-1" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBottomBarExpanded(false);
+                      setBottomMenuOpen(null);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-[8px] transition-colors flex items-center gap-2 cursor-pointer border-0"
+                  >
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={15} />
+                    <span>Collapse toolbar</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Collapsed State: Minimal Single Pill */
+          <button
+            type="button"
+            onClick={() => setIsBottomBarExpanded(true)}
+            title="Expand AI & Editor Tools"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#f0f0f0] hover:bg-[#e4e4e4] dark:bg-[#2b2b2b] dark:hover:bg-[#383838] text-gray-800 dark:text-white text-[14.5px] font-medium transition-all active:scale-95 cursor-pointer border-0 select-none shadow-none"
+          >
+            <svg className="w-[17.5px] h-[17.5px] shrink-0 text-gray-700 dark:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 9h.01M16 9h.01" />
+              <path d="M10 13a3.5 3.5 0 0 0 4 0" />
+              <path d="M12 2.5v2" />
+            </svg>
+            <span>Ask AI & Tools</span>
+            <HugeiconsIcon icon={ArrowUp01Icon} size={14} className="text-gray-400 dark:text-gray-500" />
+          </button>
+        )}
       </div>
 
       {/* Blocker Modal */}

@@ -877,7 +877,10 @@ const Sidebar = () => {
   if (isCollapsed) {
     return (
       <>
-        <div className="h-screen w-12 bg-[#f7f6f3] dark:bg-[var(--color-dark-sidebar)] flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50">
+        <div 
+          className="h-screen w-12 flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50"
+          style={{ backgroundColor: "color(display-p3 0.09412 0.09412 0.09412)" }}
+        >
           <button
             onClick={() => setIsCollapsed(false)}
             className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
@@ -2257,8 +2260,8 @@ const Sidebar = () => {
 
   return (
     <div
-      className="relative z-40 h-screen bg-[var(--color-sidebar-bg)] dark:bg-[var(--color-dark-sidebar)] flex flex-col border-r border-gray-200 dark:border-[var(--color-dark-border)] font-sans shrink-0 transition-colors"
-      style={{ width: sidebarWidth }}
+      className="relative z-40 h-screen flex flex-col border-r border-gray-200 dark:border-[var(--color-dark-border)] font-sans shrink-0 transition-colors"
+      style={{ width: sidebarWidth, backgroundColor: "color(display-p3 0.09412 0.09412 0.09412)" }}
     >
       {/* Resizer Handle */}
       <div

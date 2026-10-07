@@ -1284,7 +1284,27 @@ const ChatComposer = ({
           </div>
         )}
 
-        <textarea
+        <div 
+          className="flex items-start flex-wrap w-full cursor-text gap-x-1.5"
+          onClick={() => textareaRef?.current?.focus()}
+        >
+          {activeTool && (
+            <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[15.5px] leading-[1.5]">
+              <span className="text-gray-400 dark:text-neutral-500 font-normal select-none">-</span>
+              {activeTool.icon && (
+                <HugeiconsIcon 
+                  icon={activeTool.icon} 
+                  size={16} 
+                  strokeWidth={2} 
+                  className="shrink-0 text-[#007AFF] dark:text-[#2f88ff]" 
+                />
+              )}
+              <span className="text-[#007AFF] dark:text-[#2f88ff] font-medium leading-[1.5]">
+                {activeTool.label}
+              </span>
+            </div>
+          )}
+          <textarea
           ref={textareaRef}
           value={query}
           onChange={(e) => {
@@ -1326,9 +1346,10 @@ const ChatComposer = ({
           }
           rows={1}
           autoFocus
-          className="w-full bg-transparent resize-none outline-none text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]"
+          className={`${activeTool ? "flex-1 min-w-[120px]" : "w-full"} bg-transparent resize-none outline-none text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]`}
           style={{ maxHeight: '250px' }}
         />
+        </div>
         
         <div className="flex items-center justify-between mt-1.5 pt-0.5 px-0.5 relative">
           {/* Left Controls */}
@@ -1348,34 +1369,7 @@ const ChatComposer = ({
               {isThinking && <span className="leading-none text-[13px] font-medium">Thinking</span>}
             </button>
 
-            {/* Active Tool Chip */}
-            {activeTool && (
-              <div
-                className="inline-flex items-center gap-1.5 pl-3 pr-2 h-8 rounded-full text-[12.5px] font-medium border select-none group transition-colors"
-                style={{
-                  backgroundColor: `${activeTool.iconColor || '#007AFF'}12`,
-                  borderColor: `${activeTool.iconColor || '#007AFF'}25`,
-                  color: activeTool.iconColor || '#007AFF',
-                }}
-              >
-                {activeTool.icon && (
-                  <HugeiconsIcon icon={activeTool.icon} size={15} strokeWidth={2} className="shrink-0" />
-                )}
-                <span className="leading-none">{activeTool.label}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTool(null);
-                    if (textareaRef?.current) textareaRef.current.focus();
-                  }}
-                  className="w-4.5 h-4.5 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
-                  title="Remove tool"
-                  aria-label="Remove tool"
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
-                </button>
-              </div>
-            )}
+
           </div>
 
           {/* Right Controls */}

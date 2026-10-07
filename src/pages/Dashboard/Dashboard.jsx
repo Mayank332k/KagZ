@@ -74,7 +74,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-noema-bg)] dark:bg-[var(--color-dark-bg)] text-gray-800 dark:text-gray-200 font-sans">
+    <div 
+      className="flex h-screen w-screen overflow-hidden text-gray-800 dark:text-gray-200 font-sans"
+      style={{ backgroundColor: "color(display-p3 0.07451 0.07451 0.07451)" }}
+    >
       <Sidebar />
       <main className="flex-1 h-full overflow-hidden flex flex-row">
         <div className="flex-1 h-full overflow-hidden flex flex-col">
