@@ -96,15 +96,15 @@ const ToolMentionMenu = ({
   return (
     <motion.div
       ref={menuRef}
-      initial={{ opacity: 0, y: 6, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 4, scale: 0.98 }}
-      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute bottom-full left-0 right-0 mb-2.5 w-full bg-[#212121] dark:bg-[#1a1a1c] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.7)] z-[9999] overflow-hidden rounded-[20px] p-2 select-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.12 }}
+      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-[#242424] dark:bg-[#202020] border border-black/10 dark:border-white/[0.08] shadow-lg z-[9999] overflow-hidden rounded-[16px] p-2 select-none"
     >
       {/* Section Header */}
-      <div className="px-3 pt-1.5 pb-1 text-[12px] font-medium text-neutral-400">
-        Plugins
+      <div className="px-3.5 pt-1.5 pb-1 text-[13px] font-medium text-neutral-400">
+        Add
       </div>
 
       {/* Items List */}
@@ -120,10 +120,10 @@ const ToolMentionMenu = ({
                 e.preventDefault();
                 onSelect(tool);
               }}
-              className={`flex items-center gap-3 px-3 py-2 rounded-[12px] text-left transition-colors cursor-pointer w-full group ${
+              className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[10px] text-left transition-colors cursor-pointer w-full group ${
                 isSelected
                   ? 'bg-white/[0.1] text-white'
-                  : 'hover:bg-white/[0.06] text-neutral-300'
+                  : 'hover:bg-white/[0.05] text-neutral-300'
               }`}
             >
               {/* Minimalist icon without any background wrapper */}
@@ -131,15 +131,15 @@ const ToolMentionMenu = ({
                 className="shrink-0 flex items-center justify-center select-none"
                 style={{ color: tool.iconColor }}
               >
-                <HugeiconsIcon icon={tool.icon} size={18} strokeWidth={1.8} />
+                <HugeiconsIcon icon={tool.icon} size={20} strokeWidth={1.8} />
               </span>
 
               {/* Title & Subtitle inline */}
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <span className="text-[13.5px] font-medium text-white shrink-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <span className="text-[15.5px] font-medium text-white shrink-0">
                   {tool.label}
                 </span>
-                <span className="text-[12.5px] text-neutral-400 truncate">
+                <span className="text-[14px] text-neutral-400 truncate">
                   {tool.description}
                 </span>
               </div>

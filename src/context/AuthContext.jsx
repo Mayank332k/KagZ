@@ -55,6 +55,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const handleSessionExpired = () => {
+      localStorage.removeItem('noema-token');
+      localStorage.removeItem('noema-refresh-token');
       setUser(null);
       setError('Your session has expired. Please log in again.');
     };
@@ -69,6 +71,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authService.loginWithGoogle(token);
       if (res.success && res.user) {
+        if (res.token) localStorage.setItem('noema-token', res.token);
+        if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -88,6 +92,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authService.login(username, password);
       if (res.success && res.user) {
+        if (res.token) localStorage.setItem('noema-token', res.token);
+        if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -107,6 +113,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authService.register(username, password);
       if (res.success && res.user) {
+        if (res.token) localStorage.setItem('noema-token', res.token);
+        if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -124,11 +132,13 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       await authService.logout();
-      setUser(null);
-      broadcastAuthChange('logout');
     } catch (err) {
       console.error('Logout error:', err);
-      setError(err.response?.data?.message || 'Logout failed. Please try again.');
+    } finally {
+      localStorage.removeItem('noema-token');
+      localStorage.removeItem('noema-refresh-token');
+      setUser(null);
+      broadcastAuthChange('logout');
     }
   };
 

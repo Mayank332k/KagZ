@@ -19,6 +19,18 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Request interceptor to automatically attach stored access token
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('noema-token');
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Configure Exponential Backoff for GET requests
 axiosRetry(api, {
   retries: 3,
@@ -65,7 +77,13 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => api(originalRequest))
+          .then((newToken) => {
+            if (newToken) {
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            }
+            return api(originalRequest);
+          })
           .catch((err) => Promise.reject(err));
       }
 
@@ -73,12 +91,24 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post('/auth/refresh');
-        processQueue(null);
+        const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('noema-refresh-token') : null;
+        const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken || undefined });
+        const newToken = refreshRes.data?.token;
+        if (newToken && typeof window !== 'undefined') {
+          localStorage.setItem('noema-token', newToken);
+          if (refreshRes.data?.refreshToken) {
+            localStorage.setItem('noema-refresh-token', refreshRes.data.refreshToken);
+          }
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        }
+        processQueue(null, newToken);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         if (typeof window !== 'undefined') {
+          localStorage.removeItem('noema-token');
+          localStorage.removeItem('noema-refresh-token');
           window.dispatchEvent(new CustomEvent('auth:session-expired'));
         }
         return Promise.reject(refreshError);
@@ -249,19 +279,42 @@ export const pagesAPI = {
 // ── Chat (SSE — must use native fetch, NOT axios) ────────────────────────────
 const BASE_URL = API_BASE_URL;
 
-const fetchWithRefresh = async (url, options) => {
-  let response = await fetch(url, options);
+const fetchWithRefresh = async (url, options = {}) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('noema-token') : null;
+  const initialHeaders = {
+    ...options.headers,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  let response = await fetch(url, { ...options, headers: initialHeaders });
 
   if (response.status === 401) {
     if (!isRefreshing) {
       isRefreshing = true;
       try {
-        await api.post('/auth/refresh');
-        processQueue(null);
-        response = await fetch(url, options);
+        const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('noema-refresh-token') : null;
+        const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken || undefined });
+        const newToken = refreshRes.data?.token;
+        if (newToken && typeof window !== 'undefined') {
+          localStorage.setItem('noema-token', newToken);
+          if (refreshRes.data?.refreshToken) {
+            localStorage.setItem('noema-refresh-token', refreshRes.data.refreshToken);
+          }
+        }
+        processQueue(null, newToken);
+        const retryToken = newToken || (typeof window !== 'undefined' ? localStorage.getItem('noema-token') : null);
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            ...(retryToken ? { Authorization: `Bearer ${retryToken}` } : {}),
+          },
+        });
       } catch (refreshError) {
         processQueue(refreshError, null);
         if (typeof window !== 'undefined') {
+          localStorage.removeItem('noema-token');
+          localStorage.removeItem('noema-refresh-token');
           window.dispatchEvent(new CustomEvent('auth:session-expired'));
         }
         throw refreshError;
@@ -269,10 +322,17 @@ const fetchWithRefresh = async (url, options) => {
         isRefreshing = false;
       }
     } else {
-      await new Promise((resolve, reject) => {
+      const newToken = await new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       });
-      response = await fetch(url, options);
+      const retryToken = newToken || (typeof window !== 'undefined' ? localStorage.getItem('noema-token') : null);
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          ...(retryToken ? { Authorization: `Bearer ${retryToken}` } : {}),
+        },
+      });
     }
   }
   return response;

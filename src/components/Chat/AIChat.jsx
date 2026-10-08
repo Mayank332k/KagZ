@@ -940,6 +940,29 @@ const parseInteractiveChoice = (content) => {
   return null;
 };
 
+const PROMPT_SUGGESTIONS = [
+  {
+    placeholder: "Try @ for tools",
+    tabValue: "@",
+  },
+  {
+    placeholder: "Try asking what's going on in my workspace",
+    tabValue: "What's going on in my workspace?",
+  },
+  {
+    placeholder: "Try asking to summarize my recent notes",
+    tabValue: "Summarize my recent notes",
+  },
+  {
+    placeholder: "Try asking to find notes about...",
+    tabValue: "Find notes about ",
+  },
+  {
+    placeholder: "Try asking what should I focus on today",
+    tabValue: "What should I focus on today?",
+  },
+];
+
 const ChatComposer = ({
   textareaRef,
   query,
@@ -973,6 +996,40 @@ const ChatComposer = ({
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
   const [choiceSelectedIndex, setChoiceSelectedIndex] = useState(0);
+
+  // Rotating prompt suggestions for empty query
+  const activeSuggestions = useMemo(() => {
+    if (attachedPage) {
+      const pageTitle = attachedPage.title && attachedPage.title !== "Untitled" ? attachedPage.title : "this note";
+      return [
+        {
+          placeholder: `Try asking to summarize "${pageTitle}"`,
+          tabValue: `Summarize "${pageTitle}"`,
+        },
+        {
+          placeholder: `Try asking key takeaways from ${pageTitle}`,
+          tabValue: `What are the key takeaways from ${pageTitle}?`,
+        },
+        {
+          placeholder: "Try @ for tools",
+          tabValue: "@",
+        },
+      ];
+    }
+    return PROMPT_SUGGESTIONS;
+  }, [attachedPage]);
+
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+
+  useEffect(() => {
+    if (query.trim() !== '') return;
+    const interval = setInterval(() => {
+      setSuggestionIndex((prev) => (prev + 1) % activeSuggestions.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [query, activeSuggestions.length]);
+
+  const currentSuggestion = activeSuggestions[suggestionIndex % activeSuggestions.length];
 
   // Derive active choice prompt from last message if it's from assistant and streaming is done
   const activeChoicePrompt = useMemo(() => {
@@ -1109,6 +1166,26 @@ const ChatComposer = ({
     if (e.key === 'Backspace' && query === '' && activeTool) {
       e.preventDefault();
       setActiveTool(null);
+      return;
+    }
+
+    // Tab autocompletion for suggested query when textarea is empty
+    if (e.key === 'Tab' && !e.shiftKey && !query && !isMentionOpen && !activeChoicePrompt && currentSuggestion) {
+      e.preventDefault();
+      const insertVal = currentSuggestion.tabValue;
+      setQuery(insertVal);
+      if (insertVal === '@') {
+        setIsMentionOpen(true);
+        setMentionFilter('');
+        setMentionSelectedIndex(0);
+      }
+      setTimeout(() => {
+        if (textareaRef?.current) {
+          textareaRef.current.focus();
+          const len = insertVal.length;
+          textareaRef.current.setSelectionRange(len, len);
+        }
+      }, 0);
       return;
     }
 
@@ -1262,7 +1339,7 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[22px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:focus-within:border-white/20 transition-all duration-200 px-4 pt-2.5 pb-2.5 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[16px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:focus-within:border-white/20 transition-all duration-200 px-4 pt-2.5 pb-2.5 mx-auto">
         {/* Top Context Pills (Page Context) */}
         {attachedPage && (
           <div className="flex items-center gap-1.5 mb-1.5 pt-0.5 flex-wrap">
@@ -1304,7 +1381,29 @@ const ChatComposer = ({
               </span>
             </div>
           )}
-          <textarea
+          <div className={`relative ${activeTool ? "flex-1 min-w-[120px]" : "w-full"}`}>
+            {!query && !activeChoicePrompt && !activeTool && (
+              <div className="absolute top-0 left-0 right-0 pointer-events-none px-1 py-1 text-[15.5px] leading-[1.5] text-[var(--text-muted)] select-none overflow-hidden">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={suggestionIndex}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -3 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="inline-flex items-baseline gap-2 truncate max-w-full leading-[1.5]"
+                  >
+                    <span className="truncate leading-[1.5]">{currentSuggestion?.placeholder}</span>
+                    {!isRightPanel && (
+                      <span className="shrink-0 text-[11px] leading-none px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-neutral-400 font-mono tracking-wide align-middle inline-block">
+                        Tab ⇥
+                      </span>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            )}
+            <textarea
           ref={textareaRef}
           value={query}
           onChange={(e) => {
@@ -1338,17 +1437,16 @@ const ChatComposer = ({
               ? "Or reply directly..."
               : activeTool?.id === 'research'
               ? "Ask anything to research deeply..."
-              : attachedPage && attachedPage.title && attachedPage.title !== "Untitled"
-              ? `Ask about "${attachedPage.title}"...`
-              : attachedPage
-              ? "Ask anything about this page..."
-              : "Ask anything..."
+              : activeTool
+              ? `Ask anything with ${activeTool.label.toLowerCase()}...`
+              : ""
           }
           rows={1}
           autoFocus
-          className={`${activeTool ? "flex-1 min-w-[120px]" : "w-full"} bg-transparent resize-none outline-none text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]`}
+          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]"
           style={{ maxHeight: '250px' }}
         />
+          </div>
         </div>
         
         <div className="flex items-center justify-between mt-1.5 pt-0.5 px-0.5 relative">
@@ -1391,7 +1489,7 @@ const ChatComposer = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full right-0 mb-2 w-[240px] bg-white dark:bg-[#191919] border border-gray-200 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] z-50 overflow-hidden rounded-[24px] p-2"
+                    className="absolute bottom-full right-0 mb-2 w-[240px] bg-white dark:bg-[#191919] border border-gray-200 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] z-50 overflow-hidden rounded-[16px] p-2"
                   >
                     <div className="flex flex-col gap-0.5">
                       {models.map((model) => {
