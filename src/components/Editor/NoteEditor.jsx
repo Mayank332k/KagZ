@@ -1486,8 +1486,7 @@ const NoteEditor = () => {
   if (loading) {
     return (
       <div 
-        className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-gray-500 transition-colors"
-        style={{ backgroundColor: "color(display-p3 0.07451 0.07451 0.07451)" }}
+        className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-gray-500 transition-colors bg-white dark:bg-[color(display-p3_0.07451_0.07451_0.07451)]"
       >
         <Loading03Icon className="w-6 h-6 text-gray-400 animate-spin" />
       </div>
@@ -1496,8 +1495,7 @@ const NoteEditor = () => {
 
   return (
     <div 
-      className="flex flex-col h-full transition-colors"
-      style={{ backgroundColor: "color(display-p3 0.07451 0.07451 0.07451)" }}
+      className="flex flex-col h-full transition-colors bg-white dark:bg-[color(display-p3_0.07451_0.07451_0.07451)]"
     >
       <style dangerouslySetInnerHTML={{ __html: `
         .ProseMirror { outline: none; min-height: 100%; }
@@ -1638,13 +1636,15 @@ const NoteEditor = () => {
         }
 
         .page-title-input::placeholder {
+          color: rgba(55, 53, 47, 0.35) !important;
+        }
+
+        .dark .page-title-input::placeholder {
           color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
         }
 
         .ProseMirror,
-        .dark .ProseMirror,
         .ProseMirror p,
-        .dark .ProseMirror p,
         .ProseMirror h1,
         .ProseMirror h2,
         .ProseMirror h3,
@@ -1657,15 +1657,36 @@ const NoteEditor = () => {
         .ProseMirror blockquote,
         .ProseMirror td,
         .ProseMirror th {
+          color: #191919 !important;
+        }
+
+        .dark .ProseMirror,
+        .dark .ProseMirror p,
+        .dark .ProseMirror h1,
+        .dark .ProseMirror h2,
+        .dark .ProseMirror h3,
+        .dark .ProseMirror h4,
+        .dark .ProseMirror h5,
+        .dark .ProseMirror h6,
+        .dark .ProseMirror li,
+        .dark .ProseMirror span,
+        .dark .ProseMirror div,
+        .dark .ProseMirror blockquote,
+        .dark .ProseMirror td,
+        .dark .ProseMirror th {
           color: color(display-p3 0.92549 0.92157 0.90980) !important;
         }
 
         .ProseMirror p.is-editor-empty:first-child::before {
-          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
+          color: rgba(55, 53, 47, 0.35) !important;
           content: attr(data-placeholder);
           float: left;
           height: 0;
           pointer-events: none;
+        }
+
+        .dark .ProseMirror p.is-editor-empty:first-child::before {
+          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
         }
       `}} />
       {/* Top Bar */}
@@ -1850,13 +1871,12 @@ const NoteEditor = () => {
             }}
             placeholder="New page"
             spellCheck={globalSpellCheck}
-            style={{ color: "color(display-p3 0.92549 0.92157 0.90980)" }}
-            className={`page-title-input w-full text-[42px] leading-tight font-bold outline-none mb-6 transition-all duration-200 ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "bg-transparent"}`}
+            className={`page-title-input w-full text-[42px] leading-tight font-bold outline-none mb-6 transition-all duration-200 text-[#191919] dark:text-[color(display-p3_0.92549_0.92157_0.90980)] ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "bg-transparent"}`}
           />
           <EditorContent
             editor={editor}
             className={`flex-1 w-full prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none leading-relaxed ${pageType === "code" ? "font-mono" : ""}`}
-            style={{ fontSize: `${fontSize}px`, color: "color(display-p3 0.92549 0.92157 0.90980)" }}
+            style={{ fontSize: `${fontSize}px` }}
           />
 
           {/* AI Streaming Indicator Pill */}

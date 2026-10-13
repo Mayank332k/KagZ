@@ -100,10 +100,10 @@ const ToolMentionMenu = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12 }}
-      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-[#242424] dark:bg-[#202020] border border-black/10 dark:border-white/[0.08] shadow-lg z-[9999] overflow-hidden rounded-[16px] p-2 select-none"
+      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-black/10 dark:border-white/[0.08] shadow-lg z-[9999] overflow-hidden rounded-[16px] p-2 select-none"
     >
       {/* Section Header */}
-      <div className="px-3.5 pt-1.5 pb-1 text-[13px] font-medium text-neutral-400">
+      <div className="px-3.5 pt-1.5 pb-1 text-[13px] font-medium text-neutral-500 dark:text-neutral-400">
         Add
       </div>
 
@@ -122,8 +122,8 @@ const ToolMentionMenu = ({
               }}
               className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[10px] text-left transition-colors cursor-pointer w-full group ${
                 isSelected
-                  ? 'bg-white/[0.1] text-white'
-                  : 'hover:bg-white/[0.05] text-neutral-300'
+                  ? 'bg-black/[0.06] text-black dark:bg-white/[0.1] dark:text-white'
+                  : 'hover:bg-black/[0.04] text-neutral-800 dark:hover:bg-white/[0.05] dark:text-neutral-300'
               }`}
             >
               {/* Minimalist icon without any background wrapper */}
@@ -136,10 +136,10 @@ const ToolMentionMenu = ({
 
               {/* Title & Subtitle inline */}
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-[15.5px] font-medium text-white shrink-0">
+                <span className="text-[15.5px] font-medium text-neutral-900 dark:text-white shrink-0">
                   {tool.label}
                 </span>
-                <span className="text-[14px] text-neutral-400 truncate">
+                <span className="text-[14px] text-neutral-500 dark:text-neutral-400 truncate">
                   {tool.description}
                 </span>
               </div>

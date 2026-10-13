@@ -878,8 +878,7 @@ const Sidebar = () => {
     return (
       <>
         <div 
-          className="h-screen w-12 flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50"
-          style={{ backgroundColor: "color(display-p3 0.09412 0.09412 0.09412)" }}
+          className="h-screen w-12 flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50 bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
         >
           <button
             onClick={() => setIsCollapsed(false)}
@@ -1090,7 +1089,7 @@ const Sidebar = () => {
         onClick={() => setShowSettingsCard(false)}
       >
         <div
-          className="bg-[#191919] text-[#F0EFED] rounded-[12px] shadow-2xl border border-white/[0.06] flex w-[94vw] max-w-[1180px] h-[90vh] max-h-[820px] overflow-hidden text-sm relative"
+          className="bg-white dark:bg-[#191919] text-gray-900 dark:text-[#F0EFED] rounded-[12px] shadow-2xl border border-black/10 dark:border-white/[0.06] flex w-[94vw] max-w-[1180px] h-[90vh] max-h-[820px] overflow-hidden text-sm relative"
           style={{ fontFamily: 'ui-sans-serif, -apple-system, system-ui, "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif' }}
           onClick={(e) => {
             e.stopPropagation();
@@ -1103,25 +1102,25 @@ const Sidebar = () => {
           {/* Close button */}
           <button 
             onClick={() => setShowSettingsCard(false)} 
-            className="absolute top-4 right-4 p-1 hover:bg-white/[0.08] rounded-[5px] transition-colors text-[#7D7A75] hover:text-[#F0EFED] z-20 cursor-pointer"
+            className="absolute top-4 right-4 p-1 hover:bg-black/5 dark:hover:bg-white/[0.08] rounded-[5px] transition-colors text-gray-400 dark:text-[#7D7A75] hover:text-gray-900 dark:hover:text-[#F0EFED] z-20 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[17px] leading-none select-none">close</span>
           </button>
 
           {/* Left Sidebar */}
-          <div className="w-[270px] bg-[#202020] border-r border-white/[0.06] flex flex-col py-3.5 px-3 shrink-0 select-none">
+          <div className="w-[270px] bg-[#f7f7f5] dark:bg-[#202020] border-r border-black/[0.06] dark:border-white/[0.06] flex flex-col py-3.5 px-3 shrink-0 select-none">
             {/* Search settings (Beta) */}
             <div className="mb-2.5 px-0.5">
-              <div className="flex items-center gap-2 h-[32px] px-[8px] bg-white/[0.03] border border-white/[0.08] rounded-[6px] text-[#7D7A75] focus-within:border-white/20 transition-colors">
-                <span className="material-symbols-outlined text-[16px] select-none text-[#7D7A75] shrink-0">search</span>
+              <div className="flex items-center gap-2 h-[32px] px-[8px] bg-white dark:bg-white/[0.03] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] text-gray-400 dark:text-[#7D7A75] focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
+                <span className="material-symbols-outlined text-[16px] select-none text-gray-400 dark:text-[#7D7A75] shrink-0">search</span>
                 <input
                   type="text"
                   value={settingsSearchQuery}
                   onChange={(e) => setSettingsSearchQuery(e.target.value)}
                   placeholder="Search settings"
-                  className="bg-transparent text-[13.5px] text-[#F0EFED] placeholder:text-[#7D7A75] outline-none w-full"
+                  className="bg-transparent text-[13.5px] text-gray-900 dark:text-[#F0EFED] placeholder:text-gray-400 dark:placeholder:text-[#7D7A75] outline-none w-full"
                 />
-                <span className="text-[10px] font-[500] text-[#7D7A75] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.06] select-none shrink-0">Beta</span>
+                <span className="text-[10px] font-[500] text-gray-500 dark:text-[#7D7A75] uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] select-none shrink-0">Beta</span>
               </div>
             </div>
 
@@ -1130,18 +1129,18 @@ const Sidebar = () => {
               {/* Account & Preferences Group */}
               <div className="flex flex-col gap-[2px]">
                 <div className="px-[8px] pt-1.5 pb-1">
-                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">General</span>
+                  <span className="text-[12.5px] font-[500] leading-[18px] text-gray-500 dark:text-[#7D7A75]">General</span>
                 </div>
                 <button
                   onClick={() => setSettingsTab("preferences")}
                   aria-current={settingsTab === "preferences" ? "page" : undefined}
                   className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
                     settingsTab === "preferences"
-                      ? "bg-white/[0.055] text-[#F0EFED]"
-                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
+                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
                   }`}
                 >
-                  <SlidersHorizontalIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "preferences" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <SlidersHorizontalIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "preferences" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
                   <span className="truncate">Account & Preferences</span>
                 </button>
               </div>
@@ -1149,18 +1148,18 @@ const Sidebar = () => {
               {/* Workspace Group */}
               <div className="flex flex-col gap-[2px]">
                 <div className="px-[8px] pt-1.5 pb-1">
-                  <span className="text-[12.5px] font-[500] leading-[18px] text-[#7D7A75]">Workspace</span>
+                  <span className="text-[12.5px] font-[500] leading-[18px] text-gray-500 dark:text-[#7D7A75]">Workspace</span>
                 </div>
                 <button
                   onClick={() => setSettingsTab("typography")}
                   aria-current={settingsTab === "typography" ? "page" : undefined}
                   className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
                     settingsTab === "typography"
-                      ? "bg-white/[0.055] text-[#F0EFED]"
-                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
+                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
                   }`}
                 >
-                  <HugeiconsIcon icon={TextIcon} size={16} className={`shrink-0 ${settingsTab === "typography" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <HugeiconsIcon icon={TextIcon} size={16} className={`shrink-0 ${settingsTab === "typography" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
                   <span className="truncate">Typography & Editor</span>
                 </button>
                 <button
@@ -1168,11 +1167,11 @@ const Sidebar = () => {
                   aria-current={settingsTab === "privacy" ? "page" : undefined}
                   className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
                     settingsTab === "privacy"
-                      ? "bg-white/[0.055] text-[#F0EFED]"
-                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
+                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
                   }`}
                 >
-                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={16} className={`shrink-0 ${settingsTab === "privacy" ? "text-[#F0EFED]" : "text-[#7D7A75]"}`} />
+                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={16} className={`shrink-0 ${settingsTab === "privacy" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
                   <span className="truncate">Privacy & Data</span>
                 </button>
                 <button
@@ -1180,8 +1179,8 @@ const Sidebar = () => {
                   aria-current={settingsTab === "ai" ? "page" : undefined}
                   className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
                     settingsTab === "ai"
-                      ? "bg-white/[0.055] text-[#F0EFED]"
-                      : "text-[#BCBAB6] hover:bg-white/[0.035] hover:text-[#F0EFED]"
+                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
+                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
                   }`}
                 >
                   <img src="/kag-z.png" alt="KagZ AI" className="w-[17px] h-[17px] object-contain shrink-0 rounded-[3px] select-none" />
@@ -1191,10 +1190,10 @@ const Sidebar = () => {
             </div>
 
             {/* Bottom Logout */}
-            <div className="mt-auto pt-2 border-t border-white/[0.06] px-0.5">
+            <div className="mt-auto pt-2 border-t border-black/[0.06] dark:border-white/[0.06] px-0.5">
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-2.5 px-[8px] py-[5px] h-[32px] text-[13.5px] font-[500] rounded-[6px] transition-colors text-[#7D7A75] hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-[8px] py-[5px] h-[32px] text-[13.5px] font-[500] rounded-[6px] transition-colors text-gray-500 dark:text-[#7D7A75] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px] leading-none select-none">logout</span> Log out
               </button>
@@ -1202,19 +1201,19 @@ const Sidebar = () => {
           </div>
 
           {/* Right Content */}
-          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-[57px] pt-[36px] pb-[40px] relative bg-[#191919]">
+          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-[57px] pt-[36px] pb-[40px] relative bg-white dark:bg-[#191919]">
             {/* Account & Preferences Tab */}
             {settingsTab === "preferences" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-[600] leading-[32px] text-[#F0EFED] tracking-tight">Account & Preferences</h2>
-                <p className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-1 mb-8">
+                <h2 className="text-[26px] font-[600] leading-[32px] text-gray-900 dark:text-[#F0EFED] tracking-tight">Account & Preferences</h2>
+                <p className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-1 mb-8">
                   Manage your personal profile, credentials, and app preferences
                 </p>
 
                 <div className="flex flex-col gap-6">
                   {/* Account Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-3">My Account</h3>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-3">My Account</h3>
                     
                     <div className="flex flex-col gap-4">
                       <div className="flex items-center gap-4 py-2">
@@ -1226,15 +1225,15 @@ const Sidebar = () => {
                           </div>
                         )}
                         <div className="flex flex-col">
-                          <span className="font-[600] text-[#F0EFED] text-[16px] leading-tight">{displayName}</span>
-                          <span className="text-[13.5px] text-[#8A8884] mt-1">{user?.email || "No email"}</span>
+                          <span className="font-[600] text-gray-900 dark:text-[#F0EFED] text-[16px] leading-tight">{displayName}</span>
+                          <span className="text-[13.5px] text-gray-500 dark:text-[#8A8884] mt-1">{user?.email || "No email"}</span>
                         </div>
                       </div>
                       
-                      <div className="flex flex-col divide-y divide-white/[0.04]">
+                      <div className="flex flex-col divide-y divide-black/[0.06] dark:divide-white/[0.04]">
                         <div className="flex justify-between items-center py-3">
-                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Authentication Provider</span>
-                          <span className="text-[13px] text-[#BCBAB6] capitalize">
+                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Authentication Provider</span>
+                          <span className="text-[13px] text-gray-600 dark:text-[#BCBAB6] capitalize">
                             {user?.authProvider === 'google' ? (
                               <div className="flex items-center gap-1.5">
                                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -1251,25 +1250,25 @@ const Sidebar = () => {
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-3">
-                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Joined Date</span>
-                          <span className="text-[13px] text-[#BCBAB6]">{joinedDate}</span>
+                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Joined Date</span>
+                          <span className="text-[13px] text-gray-600 dark:text-[#BCBAB6]">{joinedDate}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Section Hairline Divider */}
-                  <div className="border-t border-white/[0.06] my-2" />
+                  <div className="border-t border-black/[0.06] dark:border-white/[0.06] my-2" />
 
                   {/* Appearance Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Appearance</h3>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-1">Appearance</h3>
                     
                     {/* Theme Dropdown */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Theme</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">
+                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Theme</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">
                           Choose a theme for KagZ on this device
                         </span>
                       </div>
@@ -1284,14 +1283,14 @@ const Sidebar = () => {
                             setShowFontDropdown(false);
                             setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none"
+                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none"
                         >
                           <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         {showThemeDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1306,7 +1305,7 @@ const Sidebar = () => {
                                   setTheme(opt.id);
                                   setShowThemeDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
                                 {theme === opt.id && (
@@ -1323,17 +1322,17 @@ const Sidebar = () => {
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">High contrast</span>
-                          <span className="text-[9.5px] font-[500] text-[#7D7A75] bg-white/[0.06] px-1.5 py-0.5 rounded select-none">Beta</span>
+                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">High contrast</span>
+                          <span className="text-[9.5px] font-[500] text-gray-500 dark:text-[#7D7A75] bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded select-none">Beta</span>
                         </div>
-                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">Increase contrast for improved interface visibility</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">Increase contrast for improved interface visibility</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600" : "bg-white/20"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600" : "bg-black/15 dark:bg-white/20"}`}
                       >
                         <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-3.5" : ""}`} />
                       </button>
@@ -1341,17 +1340,17 @@ const Sidebar = () => {
                   </div>
 
                   {/* Section Hairline Divider */}
-                  <div className="border-t border-white/[0.06] my-2" />
+                  <div className="border-t border-black/[0.06] dark:border-white/[0.06] my-2" />
 
                   {/* Input options Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-[#F0EFED] mb-1">Input options</h3>
+                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-1">Input options</h3>
                     
                     {/* On Startup & Reload Dropdown */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">On startup & reload</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5 max-w-[420px]">
+                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">On startup & reload</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5 max-w-[420px]">
                           {chatStartupMode === 'resume'
                             ? "Remembers last state and resumes previous chat on reload"
                             : "Opens fresh on a new page with a clean new chat"}
@@ -1367,14 +1366,14 @@ const Sidebar = () => {
                             setShowFontDropdown(false);
                             setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none"
+                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none"
                         >
                           <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         {showStartupDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[#202020] border border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1388,7 +1387,7 @@ const Sidebar = () => {
                                   setChatStartupMode(opt.id);
                                   setShowStartupDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
                                 {chatStartupMode === opt.id && (
@@ -1404,15 +1403,15 @@ const Sidebar = () => {
                     {/* Reasoning Process Toggle */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-[#F0EFED]">Reasoning process</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-[#BCBAB6] mt-0.5">Show step-by-step thinking orb animation when responding</span>
+                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Reasoning process</span>
+                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">Show step-by-step thinking orb animation when responding</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={isThinking}
                         onClick={() => setIsThinking(!isThinking)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-white/20"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-black/15 dark:bg-white/20"}`}
                       >
                         <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
                       </button>
@@ -1599,12 +1598,12 @@ const Sidebar = () => {
             {settingsTab === "ai" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[760px] w-full mx-auto select-none">
                 {/* 1. KagZ AI Brand Header */}
-                <div className="flex items-center justify-between pb-5 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
                   <div className="flex items-center gap-3.5">
                     <img src="/kag-z.png" alt="KagZ AI" className="w-14 h-14 object-contain select-none shrink-0" />
                     <div>
-                      <h2 className="text-[21px] font-semibold text-[#F0EFED] tracking-tight">KagZ AI</h2>
-                      <p className="text-[12.5px] text-[#8A8884] mt-0.5">
+                      <h2 className="text-[21px] font-semibold text-gray-900 dark:text-[#F0EFED] tracking-tight">KagZ AI</h2>
+                      <p className="text-[12.5px] text-gray-500 dark:text-[#8A8884] mt-0.5">
                         Intelligence models, persona tuning, and global instruction guidelines
                       </p>
                     </div>
@@ -1632,20 +1631,20 @@ const Sidebar = () => {
                 </div>
 
                 {/* 2. Model Engine (kagZ lite vs kagZ pro) */}
-                <div className="py-4 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Model Engine</h3>
-                    <p className="text-[12px] text-[#8A8884] mt-0.5">Select the default intelligence tier for chats and summaries</p>
+                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Model Engine</h3>
+                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">Select the default intelligence tier for chats and summaries</p>
                   </div>
 
-                  <div className="inline-flex p-1 rounded-[8px] bg-[#222222] border border-white/[0.06] shrink-0">
+                  <div className="inline-flex p-1 rounded-[8px] bg-black/[0.04] dark:bg-[#222222] border border-black/[0.06] dark:border-white/[0.06] shrink-0">
                     <button
                       type="button"
                       onClick={() => setSelectedModel('meta/llama-3.2-11b-vision-instruct')}
                       className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
                         selectedModel === 'meta/llama-3.2-11b-vision-instruct'
-                          ? 'bg-white/10 text-white shadow-sm'
-                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
                       }`}
                     >
                       kagZ lite
@@ -1656,7 +1655,7 @@ const Sidebar = () => {
                       className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
                         selectedModel === 'nvidia/nemotron-3-super-120b-a12b'
                           ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
                       }`}
                     >
                       kagZ pro
@@ -1665,10 +1664,10 @@ const Sidebar = () => {
                 </div>
 
                 {/* 3. Personality & Tone (Dropdown per sketch) */}
-                <div className="py-4 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Personality & Tone</h3>
-                    <p className="text-[12px] text-[#8A8884] mt-0.5">
+                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Personality & Tone</h3>
+                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">
                       {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc || "Set how conversational or direct the AI responds"}
                     </p>
                   </div>
@@ -1683,15 +1682,15 @@ const Sidebar = () => {
                         setShowStartupDropdown(false);
                         setShowFontDropdown(false);
                       }}
-                      className="flex items-center justify-between gap-2 min-w-[150px] px-3 py-1.5 text-[12.5px] rounded-[6px] border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
+                      className="flex items-center justify-between gap-2 min-w-[150px] px-3 py-1.5 text-[12.5px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
                     >
                       <span className="truncate">{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
-                      <span className={`material-symbols-outlined text-[15px] text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                      <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
                     </button>
 
                     {showPersonaDropdown && (
                       <div 
-                        className="absolute right-0 top-full mt-1.5 w-64 py-1.5 bg-[#202020] border border-white/[0.08] rounded-[8px] shadow-2xl z-50 text-[12.5px]"
+                        className="absolute right-0 top-full mt-1.5 w-64 py-1.5 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[8px] shadow-2xl z-50 text-[12.5px]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {AI_PERSONA_OPTIONS.map((opt) => (
@@ -1711,14 +1710,14 @@ const Sidebar = () => {
                                 showToast(err.response?.data?.message || "Failed to update persona", "error");
                               }
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 text-[#BCBAB6] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center justify-between px-3 py-2 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-[#F0EFED]">{opt.label}</span>
-                                <span className="text-[10px] text-[#7D7A75] bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
+                                <span className="font-medium text-gray-900 dark:text-[#F0EFED]">{opt.label}</span>
+                                <span className="text-[10px] text-gray-500 dark:text-[#7D7A75] bg-black/[0.04] dark:bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
                               </div>
-                              <span className="text-[11px] text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
+                              <span className="text-[11px] text-gray-500 dark:text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
                             </div>
                             {aiPersona === opt.id && (
                               <span className="material-symbols-outlined text-[15px] text-blue-500 select-none shrink-0 ml-2">check</span>
@@ -1731,30 +1730,30 @@ const Sidebar = () => {
                 </div>
 
                 {/* 4. Custom Instructions (Concise height, #292929, no border, 1-line intro) */}
-                <div className="py-4 border-b border-white/[0.06] flex flex-col">
+                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex flex-col">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Custom instructions</h3>
+                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Custom instructions</h3>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
                       countWords(aiCustomInstructions) > 100
                         ? "bg-red-500/10 text-red-400 font-semibold"
                         : countWords(aiCustomInstructions) > 85
                         ? "bg-amber-500/10 text-amber-400"
-                        : "text-[#7D7A75]"
+                        : "text-gray-500 dark:text-[#7D7A75]"
                     }`}>
                       {countWords(aiCustomInstructions)} / 100 words
                     </span>
                   </div>
-                  <p className="text-[12px] text-[#8A8884] mb-3">
+                  <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mb-3">
                     Tell KagZ AI how you want it to behave, format code, or structure answers.
                   </p>
 
-                  <div className="rounded-[12px] bg-[#292929] border-0 p-3.5 flex flex-col shadow-inner">
+                  <div className="rounded-[12px] bg-black/[0.03] dark:bg-[#292929] border border-black/[0.06] dark:border-0 p-3.5 flex flex-col shadow-inner">
                     <textarea
                       value={aiCustomInstructions}
                       onChange={(e) => setAiCustomInstructions(e.target.value)}
                       placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
                       rows={3}
-                      className="w-full bg-transparent border-0 outline-none text-[13.5px] text-[#F0EFED] placeholder:text-[#7D7A75] leading-normal resize-none custom-scrollbar min-h-[62px]"
+                      className="w-full bg-transparent border-0 outline-none text-[13.5px] text-gray-900 dark:text-[#F0EFED] placeholder:text-gray-400 dark:placeholder:text-[#7D7A75] leading-normal resize-none custom-scrollbar min-h-[62px]"
                     />
                     {countWords(aiCustomInstructions) > 100 && (
                       <p className="text-[11.5px] text-red-400 flex items-center gap-1 mt-2 shrink-0">
@@ -1768,20 +1767,20 @@ const Sidebar = () => {
                 {/* 5. Session Continuity (Resume last vs Fresh start) */}
                 <div className="py-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14.5px] font-[500] text-[#F0EFED]">Session Continuity</h3>
-                    <p className="text-[12px] text-[#8A8884] mt-0.5">
+                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Session Continuity</h3>
+                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">
                       {chatStartupMode === 'resume' ? 'Resumes your previous conversation state on reload' : 'Starts with a clean empty chat on reload'}
                     </p>
                   </div>
 
-                  <div className="inline-flex p-1 rounded-[8px] bg-[#222222] border border-white/[0.06] shrink-0">
+                  <div className="inline-flex p-1 rounded-[8px] bg-black/[0.04] dark:bg-[#222222] border border-black/[0.06] dark:border-white/[0.06] shrink-0">
                     <button
                       type="button"
                       onClick={() => setChatStartupMode('resume')}
                       className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
                         chatStartupMode === 'resume'
-                          ? 'bg-white/10 text-white shadow-sm'
-                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
                       }`}
                     >
                       Resume last
@@ -1791,8 +1790,8 @@ const Sidebar = () => {
                       onClick={() => setChatStartupMode('fresh')}
                       className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
                         chatStartupMode === 'fresh'
-                          ? 'bg-white/10 text-white shadow-sm'
-                          : 'text-[#8A8884] hover:text-[#F0EFED]'
+                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
                       }`}
                     >
                       Start fresh
@@ -2260,8 +2259,8 @@ const Sidebar = () => {
 
   return (
     <div
-      className="relative z-40 h-screen flex flex-col border-r border-gray-200 dark:border-[var(--color-dark-border)] font-sans shrink-0 transition-colors"
-      style={{ width: sidebarWidth, backgroundColor: "color(display-p3 0.09412 0.09412 0.09412)" }}
+      className="relative z-40 h-screen flex flex-col border-r border-gray-200 dark:border-[var(--color-dark-border)] font-sans shrink-0 transition-colors bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
+      style={{ width: sidebarWidth }}
     >
       {/* Resizer Handle */}
       <div
