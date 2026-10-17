@@ -86,7 +86,7 @@ const Tasks = () => {
 
     const fetchInitialData = async () => {
       try {
-        if (boards.length === 0) {
+        if (boards.length === 0 || tasks.length === 0) {
           setBoardsLoading(true);
         }
         const [boardsRes, tasksRes] = await Promise.all([
@@ -305,17 +305,24 @@ const Tasks = () => {
           >
             <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
-          {boards.map(board => (
-            <button
-              key={board._id}
-              onClick={() => handleSelectBoard(board._id)}
-              onContextMenu={(e) => handleBoardContextMenu(e, board)}
-              className={`flex items-center px-3.5 py-1.5 rounded-full text-[14px] font-medium transition-colors whitespace-nowrap ${activeBoardId === board._id ? "bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222] hover:text-gray-800 dark:hover:text-gray-200"}`}
-              title="Right-click to rename or delete"
-            >
-              {board.name}
-            </button>
-          ))}
+          {boards.length === 0 && boardsLoading ? (
+            <div className="flex items-center gap-1.5 animate-pulse">
+              <div className="w-20 h-7 rounded-full bg-gray-200/80 dark:bg-white/10" />
+              <div className="w-24 h-7 rounded-full bg-gray-200/60 dark:bg-white/5" />
+            </div>
+          ) : (
+            boards.map(board => (
+              <button
+                key={board._id}
+                onClick={() => handleSelectBoard(board._id)}
+                onContextMenu={(e) => handleBoardContextMenu(e, board)}
+                className={`flex items-center px-3.5 py-1.5 rounded-full text-[14px] font-medium transition-colors whitespace-nowrap ${activeBoardId === board._id ? "bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222] hover:text-gray-800 dark:hover:text-gray-200"}`}
+                title="Right-click to rename or delete"
+              >
+                {board.name}
+              </button>
+            ))
+          )}
           <AnimatePresence mode="popLayout">
             {isCreatingBoard ? (
               <motion.div 
@@ -373,7 +380,7 @@ const Tasks = () => {
           onTaskEdit={handleTaskEdit}
           onTaskDelete={handleTaskDelete}
           allowCreation={true}
-          isLoading={boardsLoading && boards.length === 0}
+          isLoading={boardsLoading && (boards.length === 0 || tasks.length === 0)}
         />
       )}
 

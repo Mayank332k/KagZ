@@ -6,7 +6,7 @@
   --bg-base: #ffffff;
   --bg-surface: #F8F9FA;
   --bg-hover: #F1F3F5;
-  --border: rgba(0, 0, 0, 0.08);
+  --border: rgba(0, 0, 0, 0.06);
   --chat-pill: #F1F3F5;
   --chat-pill-hover: #E9ECEF;
   --chat-border-strong: rgba(0, 0, 0, 0.2);
@@ -104,7 +104,7 @@
   --bg-base: rgb(19, 19, 19);
   --bg-surface: #111111;
   --bg-hover: rgb(32, 32, 32);
-  --border: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.07);
   --chat-pill: rgb(32, 32, 32);
   --chat-pill-hover: rgb(42, 42, 42);
   --chat-border-strong: rgba(255, 255, 255, 0.2);
@@ -236,8 +236,8 @@
 .input-wrapper {
   width: 100%;
   background-color: var(--composer-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
   padding: 4px 8px 4px 20px;
   display: flex;
   align-items: flex-end;
@@ -245,8 +245,16 @@
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.dark .input-wrapper {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .input-wrapper:focus-within {
-  border-color: var(--chat-border-strong);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark .input-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .composer-textarea {
@@ -321,11 +329,11 @@
 
 .message-bubble-user {
   max-width: 75%;
-  padding: 7px 13px;
-  border-radius: 13px;
+  padding: 8px 16px;
+  border-radius: 20px;
   background-color: var(--user-bubble-bg);
   color: var(--user-bubble-text);
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.5;
   font-weight: 400;
 }

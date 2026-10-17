@@ -18,8 +18,8 @@
   --color-dark-sidebar: color(display-p3 0.09412 0.09412 0.09412);
   --color-dark-title: color(display-p3 0.92549 0.92157 0.90980);
   --color-dark-muted: rgb(174, 172, 167);
-  --color-dark-border: #333333;
-  --color-dark-border-hover: #404040;
+  --color-dark-border: rgba(255, 255, 255, 0.07);
+  --color-dark-border-hover: rgba(255, 255, 255, 0.12);
   --color-dark-shiny-base: #4b5563;
   --color-dark-shiny-shine: #f9fafb;
 }

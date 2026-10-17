@@ -91,7 +91,7 @@ const Dashboard = () => {
               animate={{ width: rightPanelWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="h-full shrink-0 overflow-hidden relative flex flex-row border-l border-gray-200/80 dark:border-[var(--color-dark-border)] bg-white dark:bg-[var(--color-dark-bg)]"
+              className="h-full shrink-0 overflow-hidden relative flex flex-row border-l border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[var(--color-dark-bg)]"
             >
               {/* Drag Handle on Left Edge of Right Panel */}
               <div

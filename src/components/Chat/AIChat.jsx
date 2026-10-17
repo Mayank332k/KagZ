@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
 import { Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, ChatAdd01Icon, ExpandIcon, SidebarRightIcon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, ChatAdd01Icon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
@@ -707,6 +707,35 @@ const parseUserToolMessage = (content) => {
   return { tool: null, cleanContent: content };
 };
 
+const MessageSkeletonLoader = ({ isRightPanel = false }) => (
+  <div className={`w-full flex flex-col gap-3 py-2 animate-pulse ${isRightPanel ? 'px-1' : ''}`}>
+    {/* Assistant message skeleton */}
+    <div className="flex items-start gap-2.5 w-full">
+      <div className="shrink-0 pt-1">
+        <div className="w-5 h-5 rounded-full bg-black/10 dark:bg-white/10" />
+      </div>
+      <div className="flex flex-col gap-2 flex-1 max-w-[78%] pt-1">
+        <div className="h-3.5 bg-black/[0.08] dark:bg-white/10 rounded-md w-3/4" />
+        <div className="h-3.5 bg-black/[0.06] dark:bg-white/[0.07] rounded-md w-1/2" />
+      </div>
+    </div>
+    {/* User message skeleton */}
+    <div className="flex flex-col items-end w-full">
+      <div className="h-8 bg-black/[0.06] dark:bg-white/10 rounded-[20px] w-44 max-w-[70%]" />
+    </div>
+    {/* Another Assistant message skeleton */}
+    <div className="flex items-start gap-2.5 w-full">
+      <div className="shrink-0 pt-1">
+        <div className="w-5 h-5 rounded-full bg-black/10 dark:bg-white/10" />
+      </div>
+      <div className="flex flex-col gap-2 flex-1 max-w-[85%] pt-1">
+        <div className="h-3.5 bg-black/[0.08] dark:bg-white/10 rounded-md w-5/6" />
+        <div className="h-3.5 bg-black/[0.06] dark:bg-white/[0.07] rounded-md w-3/5" />
+      </div>
+    </div>
+  </div>
+);
+
 const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
   const { stopGeneration } = useContext(ChatContext);
@@ -716,7 +745,7 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
     return (
       <div className="flex flex-col items-end group/msg">
-        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[13px] px-3.5 py-1.5 rounded-[13px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
+        <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[13.5px] px-4 py-2 rounded-[20px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
           {msg.pageContext?.title && (
             <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[12px] font-medium text-gray-600 dark:text-gray-300 select-none">
               <span className="material-symbols-outlined text-[14px] leading-none text-current">description</span>
@@ -986,6 +1015,7 @@ const ChatComposer = ({
     retryLastMessage,
   } = useContext(ChatContext);
   const { activePage } = useContext(EditorContext);
+  const { showToast } = useToast();
   const [attachedPage, setAttachedPage] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -1085,14 +1115,14 @@ const ChatComposer = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Auto-add the open page into textarea context
+  // Auto-add the open page into textarea context ONLY if not in sidebar panel
   useEffect(() => {
-    if (activePage && activePage.id) {
+    if (!isRightPanel && activePage && activePage.id) {
       setAttachedPage(activePage);
-    } else {
+    } else if (!isRightPanel) {
       setAttachedPage(null);
     }
-  }, [activePage?.id]);
+  }, [activePage?.id, isRightPanel]);
 
   // Keep attached page in sync with live title/content updates in NoteEditor
   useEffect(() => {
@@ -1100,6 +1130,16 @@ const ChatComposer = ({
       setAttachedPage(activePage);
     }
   }, [activePage?.title, activePage?.content]);
+
+  const handleToggleAttachPage = () => {
+    if (attachedPage) {
+      setAttachedPage(null);
+    } else if (activePage && activePage.id) {
+      setAttachedPage(activePage);
+    } else {
+      showToast('No active page open to add', 'info');
+    }
+  };
 
   const onFormSubmit = (e) => {
     if (e) e.preventDefault();
@@ -1339,7 +1379,7 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-[var(--border)] rounded-[16px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:focus-within:border-white/20 transition-all duration-200 px-4 pt-2.5 pb-2.5 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.06] dark:border-white/[0.08] focus-within:border-black/[0.1] dark:focus-within:border-white/[0.12] rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-3.5 pt-2.5 pb-2 mx-auto">
         {/* Top Context Pills (Page Context) */}
         {attachedPage && (
           <div className="flex items-center gap-1.5 mb-1.5 pt-0.5 flex-wrap">
@@ -1449,25 +1489,52 @@ const ChatComposer = ({
           </div>
         </div>
         
-        <div className="flex items-center justify-between mt-1.5 pt-0.5 px-0.5 relative">
+        <div className="flex items-center justify-between mt-1 pt-0.5 relative">
           {/* Left Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 -ml-1">
+            <button
+              type="button"
+              onClick={handleToggleAttachPage}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
+                attachedPage 
+                  ? 'text-[#007AFF] dark:text-[#2f88ff] bg-[#007AFF]/10 dark:bg-[#007AFF]/15 hover:bg-[#007AFF]/20' 
+                  : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+              title={
+                attachedPage 
+                  ? `Page added: ${attachedPage.title || "Untitled"} (Click to remove)` 
+                  : activePage 
+                  ? `Add current page: ${activePage.title || "Untitled"}` 
+                  : "Add current page"
+              }
+              aria-label="Add current page context"
+            >
+              <HugeiconsIcon 
+                icon={Add01Icon} 
+                size={17} 
+                strokeWidth={1.8} 
+                className="shrink-0" 
+              />
+            </button>
+
             <button 
               type="button"
               onClick={() => setIsThinking(!isThinking)}
-              className={`h-8 transition-all duration-200 cursor-pointer select-none flex items-center border-0 ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
                 isThinking 
-                  ? 'px-3 gap-2 rounded-full bg-[#007AFF]/10 dark:bg-[#007AFF]/15 text-[#007AFF] dark:text-[#0A84FF] text-[13px] font-medium hover:bg-[#007AFF]/15 dark:hover:bg-[#007AFF]/20' 
-                  : 'w-8 justify-center rounded-full text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                  ? 'text-red-500 dark:text-red-400 hover:bg-red-500/10' 
+                  : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
               }`}
               title={isThinking ? "Thinking Enabled" : "Enable Thinking"}
               aria-label="Toggle Thinking"
             >
-              <HugeiconsIcon icon={Brain03Icon} size={isThinking ? 16 : 18} strokeWidth={1.8} className="shrink-0" />
-              {isThinking && <span className="leading-none text-[13px] font-medium">Thinking</span>}
+              <HugeiconsIcon 
+                icon={isThinking ? LimitationIcon : Brain03Icon} 
+                size={17} 
+                strokeWidth={1.8} 
+                className="shrink-0" 
+              />
             </button>
-
-
           </div>
 
           {/* Right Controls */}
@@ -1742,7 +1809,7 @@ const AIChat = ({ isRightPanel = false }) => {
   // If rendered as a Right Sidebar Panel in Dashboard
   if (isRightPanel) {
     return (
-      <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-gray-200 dark:border-[var(--color-dark-border)] overflow-hidden relative shadow-sm">
+      <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
         {/* Right Panel Header */}
         <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
           <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -1767,11 +1834,7 @@ const AIChat = ({ isRightPanel = false }) => {
 
         {/* Messages Scroll Area */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
-          {isLoadingMore && (
-            <div className="flex justify-center py-2">
-              <Loading03Icon className="w-5 h-5 animate-spin text-gray-400" />
-            </div>
-          )}
+          {isLoadingMore && <MessageSkeletonLoader />}
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
               <div className="relative w-full h-[28px] mb-1">
@@ -1924,11 +1987,7 @@ const AIChat = ({ isRightPanel = false }) => {
           <>
             {/* Chat Scroll Area */}
             <div className="chat-scroll-area custom-scrollbar" ref={chatScrollRef} onScroll={handleScroll}>
-              {isLoadingMore && (
-                <div className="flex justify-center py-4">
-                  <Loading03Icon className="w-6 h-6 animate-spin text-gray-400" />
-                </div>
-              )}
+              {isLoadingMore && <MessageSkeletonLoader isRightPanel={true} />}
               <div className="message-list">
                 {messages.map((msg, idx) => (
                   <RightPanelMessageItem

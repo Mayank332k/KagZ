@@ -878,7 +878,7 @@ const Sidebar = () => {
     return (
       <>
         <div 
-          className="h-screen w-12 flex flex-col items-center py-3 border-r border-[#e8e7e4] dark:border-[var(--color-dark-border)] transition-colors duration-300 relative z-50 bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
+          className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
         >
           <button
             onClick={() => setIsCollapsed(false)}
@@ -2259,7 +2259,7 @@ const Sidebar = () => {
 
   return (
     <div
-      className="relative z-40 h-screen flex flex-col border-r border-gray-200 dark:border-[var(--color-dark-border)] font-sans shrink-0 transition-colors bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
+      className="relative z-40 h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
       style={{ width: sidebarWidth }}
     >
       {/* Resizer Handle */}
@@ -2731,7 +2731,7 @@ const Sidebar = () => {
       </div>
 
       {/* Footer */}
-      <div className="h-11 px-2.5 flex items-center border-t border-gray-200/80 dark:border-[var(--color-dark-border)] justify-between shrink-0">
+      <div className="h-11 px-2.5 flex items-center border-t border-black/[0.06] dark:border-white/[0.07] justify-between shrink-0">
         <div
           onClick={(e) => {
             e.stopPropagation();
