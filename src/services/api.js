@@ -126,6 +126,7 @@ api.interceptors.response.use(
 // ── Cache Layer ───────────────────────────────────────────────────────────────
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const cache = new Map();
+const inFlight = new Map();
 
 /**
  * Get a cached response or fetch fresh data.
@@ -138,10 +139,19 @@ const cachedGet = (key, fetcher) => {
   if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
     return Promise.resolve(entry.data);
   }
-  return fetcher().then((res) => {
-    cache.set(key, { data: res, timestamp: Date.now() });
-    return res;
-  });
+  if (inFlight.has(key)) {
+    return inFlight.get(key);
+  }
+  const promise = fetcher()
+    .then((res) => {
+      cache.set(key, { data: res, timestamp: Date.now() });
+      return res;
+    })
+    .finally(() => {
+      inFlight.delete(key);
+    });
+  inFlight.set(key, promise);
+  return promise;
 };
 
 /**
@@ -154,10 +164,18 @@ export const invalidateCache = (...prefixes) => {
       cache.delete(key);
     }
   }
+  for (const [key] of inFlight) {
+    if (prefixes.some((p) => key.startsWith(p))) {
+      inFlight.delete(key);
+    }
+  }
 };
 
 /** Flush the entire cache */
-export const invalidateAll = () => cache.clear();
+export const invalidateAll = () => {
+  cache.clear();
+  inFlight.clear();
+};
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authAPI = {
@@ -182,9 +200,18 @@ export const authAPI = {
       return res;
     });
   },
-  me: () => api.get('/auth/me'),  // Auth check — never cached
+  me: (force = false) => {
+    if (force) {
+      invalidateCache('auth:me');
+    }
+    return cachedGet('auth:me', () => api.get('/auth/me'));
+  },
   refreshToken: () => api.post('/auth/refresh'),
-  updatePreferences: (preferences) => api.put('/auth/preferences', preferences),
+  updatePreferences: (preferences) =>
+    api.put('/auth/preferences', preferences).then((res) => {
+      invalidateCache('auth:me');
+      return res;
+    }),
   logout: () => {
     invalidateAll(); // clear everything on logout
     return api.post('/auth/logout').finally(() => invalidateAll());

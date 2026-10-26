@@ -37,13 +37,12 @@ const ActionModal = ({
     if (isOpen) {
       setInputValue(initialValue);
       setSelectedPageType('document'); // reset on open
-      // Slight delay to ensure element is mounted before focusing
       setTimeout(() => {
         inputRef.current?.focus();
         if (type === 'input') {
           inputRef.current?.select();
         }
-      }, 100);
+      }, 50);
     }
   }, [isOpen, initialValue, type]);
 
@@ -60,31 +59,47 @@ const ActionModal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center font-sans">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center font-sans p-4">
+          {/* Backdrop Scrim (§5: --c-scrim: 0.6 light / 0.8 dark) */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-black/50"
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-[2px]"
             onClick={isLoading ? undefined : onClose}
           />
           
-          {/* Modal Content */}
+          {/* Modal Container (§3: 16px radius, --shadow-pop-md, 160ms ease-out) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.96, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: "spring", duration: 0.3 }}
-            className="relative w-[19rem] bg-[rgb(255,255,255)] dark:bg-[var(--color-dark-surface)] rounded-[15px] shadow-2xl border border-gray-200 dark:border-[var(--color-dark-border)] overflow-hidden"
+            exit={{ opacity: 0, scale: 0.96, y: 6 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="relative w-[360px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#202020] rounded-[16px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[0_14px_28px_-6px_rgba(0,0,0,0.4),0_2px_4px_-1px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden select-none"
           >
-            <div className="p-4">
-              <h3 className="text-[17px] font-semibold text-gray-900 dark:text-gray-100 mb-1">{title}</h3>
-              {description && <p className="text-[14px] text-gray-500 dark:text-gray-400 leading-snug">{description}</p>}
+            <div className="p-5 pb-4">
+              {/* Destructive Warning Badge when isDanger */}
+              {isDanger && (
+                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500/10 dark:bg-red-500/15 text-[#eb5757] dark:text-[#ff7b72] mb-3.5">
+                  <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                    delete
+                  </span>
+                </div>
+              )}
+
+              <h3 className="text-[16px] leading-[22px] font-semibold text-[#2c2c2b] dark:text-[#f0efed] tracking-tight">
+                {title}
+              </h3>
+              
+              {description && (
+                <p className="text-[14px] leading-[20px] text-[#7d7a75] dark:text-[#ada9a3] mt-1.5 font-normal">
+                  {description}
+                </p>
+              )}
               
               {type === 'input' && (
-                <div className="mt-4 flex flex-col gap-4">
+                <div className="mt-3.5 flex flex-col gap-3">
                   <input
                     ref={inputRef}
                     type="text"
@@ -92,22 +107,34 @@ const ActionModal = ({
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="w-full bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[var(--color-dark-border)] rounded-lg px-3 py-2 text-[15px] outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-[#202020] focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 dark:text-gray-100"
+                    className="w-full h-8 px-2.5 rounded-[6px] text-[14px] leading-[16.8px] bg-[#f4f3f3] dark:bg-[#262626] border border-[#e6e5e3] dark:border-[#383836] text-[#2c2c2b] dark:text-[#f0efed] placeholder-[#a19e99] dark:placeholder-[#7d7a75] outline-none focus:border-[#2383e2] dark:focus:border-[#4fa7ff] focus:ring-2 focus:ring-[#2383e2]/25 transition-all"
                   />
 
                   {showPageTypeSelector && (
-                    <div className="flex items-center bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[var(--color-dark-border)] rounded-lg p-1">
+                    <div className="flex items-center bg-[#f4f3f3] dark:bg-[#262626] border border-[#e6e5e3] dark:border-[#383836] rounded-[6px] p-0.5">
                       <button 
+                        type="button"
                         onClick={() => setSelectedPageType('document')}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${selectedPageType === 'document' ? 'bg-white dark:bg-[#262626] shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer ${
+                          selectedPageType === 'document' 
+                            ? 'bg-white dark:bg-[#202020] shadow-sm text-[#2c2c2b] dark:text-[#f0efed]' 
+                            : 'text-[#7d7a75] dark:text-[#ada9a3] hover:text-[#2c2c2b] dark:hover:text-[#f0efed]'
+                        }`}
                       >
-                        <span className="material-symbols-outlined text-[16px] leading-none select-none">description</span> Document
+                        <span className="material-symbols-outlined text-[15px] leading-none select-none">description</span>
+                        <span>Document</span>
                       </button>
                       <button 
+                        type="button"
                         onClick={() => setSelectedPageType('code')}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${selectedPageType === 'code' ? 'bg-white dark:bg-[#262626] shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer ${
+                          selectedPageType === 'code' 
+                            ? 'bg-white dark:bg-[#202020] shadow-sm text-[#2c2c2b] dark:text-[#f0efed]' 
+                            : 'text-[#7d7a75] dark:text-[#ada9a3] hover:text-[#2c2c2b] dark:hover:text-[#f0efed]'
+                        }`}
                       >
-                        <span className="material-symbols-outlined text-[16px] leading-none select-none">folder_special</span> Code
+                        <span className="material-symbols-outlined text-[15px] leading-none select-none">code</span>
+                        <span>Code</span>
                       </button>
                     </div>
                   )}
@@ -117,15 +144,26 @@ const ActionModal = ({
               )}
             </div>
             
-            <div className="px-4 pb-4 pt-1 flex flex-col gap-2">
+            {/* Footer Buttons — 32px height, 6px radius (§3) */}
+            <div className="px-5 pb-5 pt-1 flex items-center justify-end gap-2">
               <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="h-8 px-3.5 rounded-[6px] text-[14px] leading-[16.8px] font-normal text-[#2c2c2b] dark:text-[#f0efed] border border-[#e6e5e3] dark:border-[#383836] bg-transparent hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {cancelText}
+              </button>
+
+              <button
+                type="button"
                 onClick={handleConfirm}
                 disabled={(type === 'input' && !inputValue.trim()) || confirmDisabled || isLoading}
-                className={`w-full px-4 py-2 text-[14px] font-medium text-white rounded-[8px] transition-all
-                  ${isDanger 
-                    ? 'bg-[rgb(216,57,51)] hover:opacity-90 focus:ring-2 focus:ring-[rgba(216,57,51,0.2)]' 
-                    : 'bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20'}
-                  disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2`}
+                className={`h-8 px-3.5 rounded-[6px] text-[14px] leading-[16.8px] font-medium text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isDanger 
+                    ? 'bg-[#eb5757] hover:bg-[#d83933] active:scale-[0.98]' 
+                    : 'bg-[#2383e2] hover:bg-[#105fad] active:scale-[0.98]'
+                }`}
               >
                 {isLoading ? (
                   <>
@@ -135,13 +173,6 @@ const ActionModal = ({
                 ) : (
                   confirmText
                 )}
-              </button>
-              <button
-                onClick={onClose}
-                disabled={isLoading}
-                className="w-full px-4 py-2 text-[14px] font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent border border-gray-200 dark:border-[var(--color-dark-border)] hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 rounded-[8px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {cancelText}
               </button>
             </div>
           </motion.div>

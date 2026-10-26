@@ -14,8 +14,8 @@ const authService = {
     const res = await authAPI.googleLogin(token);
     return res.data;
   },
-  getCurrentUser: async () => {
-    const res = await authAPI.me();
+  getCurrentUser: async (force = false) => {
+    const res = await authAPI.me(force);
     return res.data;
   },
   refreshToken: async () => {

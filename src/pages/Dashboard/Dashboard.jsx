@@ -9,7 +9,7 @@ const AIChat = lazy(() => import('../../components/Chat/AIChat'));
 const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isRightChatOpen, chatStartupMode, clearChat } = useContext(ChatContext);
+  const { isRightChatOpen, setIsRightChatOpen, chatStartupMode, clearChat } = useContext(ChatContext);
   const isChatRoute = location.pathname === '/dashboard/chat';
 
   // Save current route for 'resume' mode
@@ -75,7 +75,7 @@ const Dashboard = () => {
 
   return (
     <div 
-      className="flex h-screen w-screen overflow-hidden text-gray-800 dark:text-gray-200 font-sans bg-white dark:bg-[color(display-p3_0.07451_0.07451_0.07451)]"
+      className="flex h-screen w-screen overflow-hidden text-[var(--c-text-primary)] font-sans bg-[var(--c-surface)]"
     >
       <Sidebar />
       <main className="flex-1 h-full overflow-hidden flex flex-row">
@@ -91,7 +91,7 @@ const Dashboard = () => {
               animate={{ width: rightPanelWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="h-full shrink-0 overflow-hidden relative flex flex-row border-l border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[var(--color-dark-bg)]"
+              className="h-full shrink-0 overflow-hidden relative flex flex-row border-l border-[var(--c-border-hairline)] bg-[var(--c-surface-elevated)]"
             >
               {/* Drag Handle on Left Edge of Right Panel */}
               <div
@@ -113,6 +113,20 @@ const Dashboard = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Floating Action Button (FAB) — §6.7 & §7.5 measured */}
+        {!isChatRoute && !isRightChatOpen && (
+          <button
+            onClick={() => setIsRightChatOpen(true)}
+            aria-label="Open AI Assistant"
+            title="Ask AI"
+            className="fixed right-4 bottom-4 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer bg-white dark:bg-[#202020] text-[#2c2c2b] dark:text-[#f0efed] shadow-[0_0_0_1px_var(--c-border,#e6e5e3),0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_var(--c-border,#383836),0_4px_12px_-2px_rgba(0,0,0,0.2)] transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.06] z-50 group"
+          >
+            <span className="material-symbols-outlined text-[20px] leading-none select-none text-[#2383e2] dark:text-[#4fa7ff]">
+              auto_awesome
+            </span>
+          </button>
+        )}
       </main>
     </div>
   );

@@ -24,6 +24,7 @@ import {
 
 import { pagesAPI, chatAPI } from "../../services/api";
 import ActionModal from "../UI/ActionModal";
+import ActionListbox from "../UI/ActionListbox";
 import LocationDropdown from "../UI/LocationDropdown";
 import { useToast } from "../../context/ToastContext";
 import { validateAiInput, handleApiSizeError, validatePageContent } from "../../utils/aiValidation";
@@ -1495,7 +1496,7 @@ const NoteEditor = () => {
 
   return (
     <div 
-      className="flex flex-col h-full transition-colors bg-white dark:bg-[color(display-p3_0.07451_0.07451_0.07451)]"
+      className="flex flex-col h-full transition-colors bg-white dark:bg-[#191919]"
     >
       <style dangerouslySetInnerHTML={{ __html: `
         .ProseMirror { outline: none; min-height: 100%; }
@@ -1639,42 +1640,168 @@ const NoteEditor = () => {
           color: rgba(55, 53, 47, 0.35) !important;
         }
 
+        .page-title-input {
+          font-family: var(--font-sans);
+          font-weight: 700 !important;
+          font-size: 40px !important;
+          line-height: 48px !important;
+          letter-spacing: normal !important;
+          color: #2c2c2b !important;
+        }
+
+        .dark .page-title-input {
+          color: #f0efed !important;
+        }
+
+        .page-title-input::placeholder {
+          color: rgba(55, 53, 47, 0.35) !important;
+        }
+
         .dark .page-title-input::placeholder {
-          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
+          color: rgba(255, 255, 255, 0.25) !important;
         }
 
-        .ProseMirror,
-        .ProseMirror p,
-        .ProseMirror h1,
-        .ProseMirror h2,
-        .ProseMirror h3,
-        .ProseMirror h4,
-        .ProseMirror h5,
-        .ProseMirror h6,
-        .ProseMirror li,
-        .ProseMirror span,
-        .ProseMirror div,
-        .ProseMirror blockquote,
-        .ProseMirror td,
-        .ProseMirror th {
-          color: #191919 !important;
+        .ProseMirror {
+          font-family: var(--font-sans) !important;
+          font-size: 16px !important;
+          line-height: 24px !important;
+          font-weight: 400 !important;
+          color: #2c2c2b !important;
         }
 
-        .dark .ProseMirror,
-        .dark .ProseMirror p,
-        .dark .ProseMirror h1,
-        .dark .ProseMirror h2,
-        .dark .ProseMirror h3,
-        .dark .ProseMirror h4,
-        .dark .ProseMirror h5,
-        .dark .ProseMirror h6,
-        .dark .ProseMirror li,
-        .dark .ProseMirror span,
-        .dark .ProseMirror div,
-        .dark .ProseMirror blockquote,
-        .dark .ProseMirror td,
-        .dark .ProseMirror th {
-          color: color(display-p3 0.92549 0.92157 0.90980) !important;
+        .dark .ProseMirror {
+          color: #f0efed !important;
+        }
+
+        .ProseMirror p {
+          font-size: 16px !important;
+          line-height: 24px !important;
+          font-weight: 400 !important;
+          margin-top: 2px !important;
+          margin-bottom: 4px !important;
+          color: #2c2c2b !important;
+        }
+
+        .dark .ProseMirror p {
+          color: #f0efed !important;
+        }
+
+        .ProseMirror h1 {
+          font-size: 30px !important;
+          line-height: 39px !important;
+          font-weight: 600 !important;
+          margin-top: 28px !important;
+          margin-bottom: 4px !important;
+          color: #2c2c2b !important;
+          letter-spacing: normal !important;
+        }
+
+        .dark .ProseMirror h1 {
+          color: #f0efed !important;
+        }
+
+        .ProseMirror h2 {
+          font-size: 24px !important;
+          line-height: 31.2px !important;
+          font-weight: 600 !important;
+          margin-top: 20px !important;
+          margin-bottom: 4px !important;
+          color: #2c2c2b !important;
+          letter-spacing: normal !important;
+        }
+
+        .dark .ProseMirror h2 {
+          color: #f0efed !important;
+        }
+
+        .ProseMirror h3 {
+          font-size: 20px !important;
+          line-height: 26px !important;
+          font-weight: 600 !important;
+          margin-top: 16px !important;
+          margin-bottom: 4px !important;
+          color: #2c2c2b !important;
+          letter-spacing: normal !important;
+        }
+
+        .dark .ProseMirror h3 {
+          color: #f0efed !important;
+        }
+
+        .ProseMirror strong, .ProseMirror b {
+          font-weight: 600 !important;
+        }
+
+        .ProseMirror ul, .ProseMirror ol {
+          padding-left: 26px !important;
+          margin-top: 2px !important;
+          margin-bottom: 4px !important;
+        }
+
+        .ProseMirror li {
+          margin-bottom: 2px !important;
+          line-height: 24px !important;
+        }
+
+        .ProseMirror li > p {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+        }
+
+        .ProseMirror blockquote {
+          border-left: 3px solid currentColor !important;
+          margin: 8px 0 !important;
+          padding-left: 14px !important;
+          color: #7d7a75 !important;
+        }
+
+        .dark .ProseMirror blockquote {
+          color: #a19e99 !important;
+        }
+
+        .ProseMirror code:not(pre code) {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+          font-size: 0.85em !important;
+          line-height: 1.4 !important;
+          background: rgba(0, 0, 0, 0.05) !important;
+          color: #eb5757 !important;
+          border-radius: 3px !important;
+          padding: 1.5px 6px !important;
+        }
+
+        .dark .ProseMirror code:not(pre code) {
+          background: rgba(255, 255, 255, 0.08) !important;
+          color: #ff7b72 !important;
+        }
+
+        .ProseMirror hr {
+          border: 0 !important;
+          border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+          margin: 16px 0 !important;
+        }
+
+        .dark .ProseMirror hr {
+          border-top-color: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        .ProseMirror a {
+          color: inherit !important;
+          text-decoration: underline !important;
+          text-underline-offset: 2px !important;
+          text-decoration-color: rgba(55, 53, 47, 0.3) !important;
+          transition: color 0.1s ease-in !important;
+        }
+
+        .dark .ProseMirror a {
+          text-decoration-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .ProseMirror a:hover {
+          color: #2383e2 !important;
+        }
+
+        .ProseMirror ::selection {
+          background: rgba(35, 131, 226, 0.28) !important;
         }
 
         .ProseMirror p.is-editor-empty:first-child::before {
@@ -1686,20 +1813,20 @@ const NoteEditor = () => {
         }
 
         .dark .ProseMirror p.is-editor-empty:first-child::before {
-          color: color(display-p3 0.92549 0.92157 0.90980 / 0.35) !important;
+          color: rgba(255, 255, 255, 0.25) !important;
         }
       `}} />
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-12 py-6 shrink-0 relative">
+      {/* Top Bar — 44px transparent topbar */}
+      <div className="flex items-center justify-between h-[44px] pl-3 pr-4 shrink-0 relative bg-transparent">
         {/* Left: location selector — only for new/unplaced pages */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
             aria-label="Go back"
-            className="flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors mr-2"
+            className="flex items-center justify-center shrink-0 w-7 h-7 rounded-[6px] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors mr-1 cursor-pointer"
             title="Go back"
           >
-            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current" aria-hidden="true">keyboard_backspace</span>
+            <span className="material-symbols-outlined text-[18px] leading-none select-none text-current" aria-hidden="true">keyboard_backspace</span>
           </button>
           <LocationDropdown
             variant="header"
@@ -1717,7 +1844,7 @@ const NoteEditor = () => {
           />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Save Status Indicator */}
           <div className="flex items-center justify-end">
             {saveStatus === "saving" && (
@@ -1733,131 +1860,74 @@ const NoteEditor = () => {
             onClick={handleManualSave}
             disabled={!isDirty || saveStatus === "saving"}
             aria-label={!isDirty && pageId !== "new" && !isNewPage ? 'Page saved' : 'Save page'}
-            className={`text-sm font-semibold transition-all mr-4 ${!isDirty ? (pageId !== "new" && !isNewPage ? 'text-green-500 dark:text-green-400 cursor-default' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed') : 'text-black dark:text-white hover:opacity-70 active:scale-95'}`}
+            className={`text-[14px] leading-[16.8px] font-medium transition-all mr-2 ${!isDirty ? (pageId !== "new" && !isNewPage ? 'text-green-500 dark:text-green-400 cursor-default' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed') : 'text-black dark:text-[#f0efed] hover:opacity-70 active:scale-95 cursor-pointer'}`}
           >
             {!isDirty && pageId !== "new" && !isNewPage ? 'Saved' : 'Save'}
           </button>
 
-          {/* Action Menu Trigger — border-radius 10px */}
+          {/* Action Menu Trigger — 28px height, 6px radius */}
           <div className="relative" ref={actionMenuRef}>
             <button
               onClick={() => setShowActionMenu(!showActionMenu)}
-              className={`w-[32px] h-[32px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors ${showActionMenu ? "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
-              style={{ borderRadius: "10px" }}
+              className={`w-7 h-7 flex items-center justify-center rounded-[6px] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] transition-colors cursor-pointer ${showActionMenu ? "bg-black/[0.031] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]" : "hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"}`}
               title="More Actions"
               aria-label="More actions"
               aria-haspopup="true"
               aria-expanded={showActionMenu}
             >
-              <span className="material-symbols-outlined text-[20px] leading-none select-none" aria-hidden="true">more_horiz</span>
+              <span className="material-symbols-outlined text-[18px] leading-none select-none" aria-hidden="true">more_horiz</span>
             </button>
 
-            {/* Action Dropdown Card */}
+            {/* Action Dropdown Card — measured 265px ActionListbox */}
             {showActionMenu && (
-              <div className="absolute right-0 top-[40px] bg-[#ffffff] dark:bg-[var(--color-dark-surface)] rounded-[15px] shadow-xl border border-gray-200 dark:border-[var(--color-dark-border)] py-1.5 z-[100] text-sm font-sans w-[14rem]">
-                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                  Actions
-                </div>
-
-                
-                {/* Type Selection */}
-                <button
-                  onClick={() => {
-                    setPageType("document");
-                    setShowActionMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
-                >
-                  <div className="flex items-center">
-                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">description</span> Document
-                  </div>
-                  {pageType === "document" && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setPageType("code");
-                    setShowActionMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white justify-between transition-colors"
-                >
-                  <div className="flex items-center">
-                    <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">folder_special</span> Code
-                  </div>
-                  {pageType === "code" && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  )}
-                </button>
-
-                <div className="w-full h-px bg-gray-100 dark:bg-[var(--color-dark-border)] my-1.5" />
-
-                {/* Font Size */}
-                <div className="flex items-center justify-between px-4 py-2 text-[#8a817c] dark:text-white">
-                  <span className="flex items-center">
-                    <HugeiconsIcon icon={TextIcon} size={18} className="select-none mr-2" /> Text Size
-                  </span>
-                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-[10px] p-0.5">
-                    <button
-                      onClick={() =>
-                        setFontSize((prev) => Math.max(12, prev - 2))
-                      }
-                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-white rounded-[8px] hover:shadow-sm transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="text-[13px] font-medium text-gray-600 dark:text-white min-w-[3ch] text-center">
-                      {fontSize}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setFontSize((prev) => Math.min(32, prev + 2))
-                      }
-                      className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-white rounded-[8px] hover:shadow-sm transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div className="w-full h-px bg-gray-100 dark:bg-[var(--color-dark-border)] my-1.5" />
-
-                {/* Favorite */}
-                <button
-                  onClick={() => {
-                    toggleFavorite();
-                    setShowActionMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
-                >
-                  <span
-                    className={`material-symbols-outlined text-[16px] leading-none select-none mr-2 ${isFavorite ? "fill-yellow-400 text-yellow-500" : ""}`}
-                  >favorite</span>
-                  {isFavorite ? "Remove Favorite" : "Add to Favorites"}
-                </button>
-
-                {/* Delete */}
-                <button
-                  onClick={() => {
-                    setShowActionMenu(false);
-                    setShowDeleteModal(true);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 flex items-center text-red-500 transition-colors"
-                >
-                  <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete Page
-                </button>
+              <div className="absolute right-0 top-[34px] z-[9999]">
+                <ActionListbox
+                  isOpen={showActionMenu}
+                  onClose={() => setShowActionMenu(false)}
+                  title="Actions"
+                  sections={[
+                    {
+                      title: "Page",
+                      items: [
+                        {
+                          id: "favorite",
+                          label: isFavorite ? "Remove Favorite" : "Add to Favorites",
+                          icon: isFavorite ? "star" : "star_outline",
+                          onClick: toggleFavorite
+                        },
+                        {
+                          id: "copy-link",
+                          label: "Copy link to page",
+                          icon: "link",
+                          shortcut: "⌘⌃L",
+                          onClick: () => {
+                            navigator.clipboard?.writeText(window.location.href);
+                            showToast("Link copied to clipboard", "success");
+                          }
+                        },
+                        {
+                          id: "delete",
+                          label: "Delete Page",
+                          icon: "delete",
+                          shortcut: "Del",
+                          isDanger: true,
+                          onClick: () => setShowDeleteModal(true)
+                        }
+                      ]
+                    }
+                  ]}
+                />
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content Area — 720px centered document column */}
       <div
-        className="flex-1 overflow-y-auto px-12 py-16 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        
+        className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
-        <div className="max-w-4xl mx-auto h-full flex flex-col relative" ref={containerRef}>
+        <div className="max-w-[720px] mx-auto h-full flex flex-col relative" ref={containerRef}>
           <input
             type="text"
             aria-label="Page title"
@@ -1871,7 +1941,7 @@ const NoteEditor = () => {
             }}
             placeholder="New page"
             spellCheck={globalSpellCheck}
-            className={`page-title-input w-full text-[42px] leading-tight font-bold outline-none mb-6 transition-all duration-200 text-[#191919] dark:text-[color(display-p3_0.92549_0.92157_0.90980)] ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "bg-transparent"}`}
+            className={`page-title-input w-full text-[40px] leading-[48px] font-bold outline-none mb-4 transition-all duration-200 text-[#2c2c2b] dark:text-[#f0efed] ${titleError ? "animate-shake text-red-500 placeholder-red-400 bg-transparent" : "bg-transparent"}`}
           />
           <EditorContent
             editor={editor}
@@ -1908,7 +1978,7 @@ const NoteEditor = () => {
                 top: `${slashMenu.y}px`,
                 left: `${slashMenu.x}px`,
               }}
-              className="w-72 max-h-[340px] bg-white dark:bg-[#202020] border border-gray-200/80 dark:border-[#333333] shadow-xl rounded-[12px] p-1.5 z-[1000] text-sm flex flex-col font-sans"
+              className="w-72 max-h-[340px] bg-white dark:bg-[#202020] border border-gray-200/80 dark:border-[#333333] shadow-xl rounded-[6px] p-1.5 z-[1000] text-sm flex flex-col font-sans"
             >
               {/* Top Search Bar (like sidebar search) */}
               <div className="p-1 pb-1.5 border-b border-black/[0.06] dark:border-white/[0.08] mb-1">
@@ -2031,7 +2101,7 @@ const NoteEditor = () => {
                 top: `${slashMenu.y}px`,
                 left: `${slashMenu.x}px`,
               }}
-              className="w-72 bg-white dark:bg-[#202020] border border-gray-100 dark:border-[#333333] shadow-lg rounded-[12px] p-3 z-[1000] flex flex-col gap-2 font-sans"
+              className="w-72 bg-white dark:bg-[#202020] border border-gray-100 dark:border-[#333333] shadow-lg rounded-[16px] p-3 z-[1000] flex flex-col gap-2 font-sans"
             >
               <div className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider select-none px-1 uppercase">
                 Ask AI to write...
@@ -2052,7 +2122,7 @@ const NoteEditor = () => {
             </div>
           )}
 
-          {/* Notion-style Contextual Table Action Toolbar */}
+          {/* Contextual Table Action Toolbar */}
           {tableToolbar.isOpen && editor && editor.isActive("table") && !selectionToolbar.isOpen && (
             <div
               style={{
@@ -2148,7 +2218,7 @@ const NoteEditor = () => {
                 left: `${selectionToolbar.x}px`,
                 transform: `translateX(-50%) translateY(${selectionToolbar.transformY})`,
               }}
-              className="w-[192px] h-auto bg-white dark:bg-[#252525] p-2 border border-gray-200 dark:border-[#333] shadow-2xl rounded-[12px] z-[1000] flex flex-col font-sans animate-in fade-in zoom-in-95 duration-100 text-gray-700 dark:text-white"
+              className="w-[192px] h-auto bg-white dark:bg-[#252525] p-2 border border-gray-200 dark:border-[#333] shadow-2xl rounded-[6px] z-[1000] flex flex-col font-sans animate-in fade-in zoom-in-95 duration-100 text-gray-700 dark:text-white"
             >
               {selectionToolbar.showUrlInput ? (
                 <div className="relative">

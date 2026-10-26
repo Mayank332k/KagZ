@@ -46,38 +46,38 @@ const TreeNode = ({ node, level, navigate }) => {
     <div className="w-full">
       <div
         onClick={handleClick}
-        className={`flex items-center w-full py-2.5 px-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer group select-none`}
-        style={{ paddingLeft: `${paddingLeft + 12}px` }}
+        className={`flex items-center w-full h-[30px] px-2 rounded-[6px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer group select-none`}
+        style={{ paddingLeft: `${paddingLeft + 8}px` }}
       >
         <div
           onClick={handleToggle}
-          className="w-5 h-5 flex items-center justify-center mr-1 text-gray-400 hover:text-gray-800 transition-colors"
+          className="w-5 h-5 flex items-center justify-center mr-1 text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] transition-colors"
         >
           {isFolder ? (
             isOpen ? (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )
           ) : (
-            <div className="w-4 h-4" /> // spacing for alignment
+            <div className="w-3.5 h-3.5" />
           )}
         </div>
 
-        <div className="text-gray-500 mr-2.5">
+        <div className="text-[#7d7a75] dark:text-[#a19e99] mr-2">
           {isFolder ? (
             <Folder01Icon
-              className={`w-5 h-5 stroke-[1.5] ${isOpen ? "text-blue-500 fill-blue-500/10" : ""}`}
+              className={`w-4 h-4 stroke-[1.5] ${isOpen ? "text-blue-500 fill-blue-500/10" : ""}`}
             />
           ) : (
             React.createElement(getIcon(node.pageType), {
-              className: "w-4.5 h-4.5 stroke-[1.5]",
+              className: "w-4 h-4 stroke-[1.5]",
             })
           )}
         </div>
 
         <span
-          className={`text-[15px] truncate ${isFolder ? "font-medium text-gray-800 dark:text-gray-200" : "text-gray-600 dark:text-gray-400"}`}
+          className={`text-[14px] leading-[16.8px] truncate ${isFolder ? "font-medium text-[#2c2c2b] dark:text-[#f0efed]" : "text-[#5f5e59] dark:text-[#bcbab6]"}`}
         >
           {node.name}
         </span>

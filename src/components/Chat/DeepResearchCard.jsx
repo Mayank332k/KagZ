@@ -43,7 +43,7 @@ const DeepResearchCard = ({
   return (
     <div className="w-full min-w-0 my-3 select-none font-sans text-left">
       {/* Sleek Research Card Container (26, 26, 26 with no border) */}
-      <div className="rounded-[20px] bg-neutral-100 dark:bg-[#1a1a1a] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] w-full min-w-0 transition-all duration-300 ease-out">
+      <div className="rounded-[16px] bg-neutral-100 dark:bg-[#1a1a1a] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] w-full min-w-0 transition-all duration-300 ease-out">
         {/* 1. Topic Title (Primary Level: 18px font-semibold) */}
         <div className="mb-4">
           <h3 className="text-[18px] font-semibold text-gray-950 dark:text-white tracking-tight break-words">

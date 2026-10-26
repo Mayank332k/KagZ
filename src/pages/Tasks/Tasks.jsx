@@ -294,16 +294,16 @@ const Tasks = () => {
   const displayTasks = tasks.filter((t) => t.boardId === activeBoardId);
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#fbfbfa] dark:bg-[var(--color-dark-bg)]">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between px-6 py-4 shrink-0 bg-white dark:bg-[var(--color-dark-bg)]">
-        <div className="flex items-center gap-1.5 mr-4 overflow-x-auto custom-scrollbar pb-1">
+    <div className="flex flex-col w-full h-full bg-white dark:bg-[#191919]">
+      {/* Toolbar — 44px transparent topbar */}
+      <div className="flex items-center justify-between h-[44px] px-4 shrink-0 bg-transparent">
+        <div className="flex items-center gap-1.5 mr-4 overflow-x-auto custom-scrollbar">
           <button 
             onClick={() => navigate(-1)}
-            className="flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors mr-2"
+            className="flex items-center justify-center shrink-0 w-7 h-7 rounded-[6px] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors mr-1 cursor-pointer"
             title="Go back"
           >
-            <span className="material-symbols-outlined text-[20px] leading-none select-none text-current">keyboard_backspace</span>
+            <span className="material-symbols-outlined text-[18px] leading-none select-none text-current">keyboard_backspace</span>
           </button>
           {boards.length === 0 && boardsLoading ? (
             <div className="flex items-center gap-1.5 animate-pulse">
@@ -316,7 +316,11 @@ const Tasks = () => {
                 key={board._id}
                 onClick={() => handleSelectBoard(board._id)}
                 onContextMenu={(e) => handleBoardContextMenu(e, board)}
-                className={`flex items-center px-3.5 py-1.5 rounded-full text-[14px] font-medium transition-colors whitespace-nowrap ${activeBoardId === board._id ? "bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#222] hover:text-gray-800 dark:hover:text-gray-200"}`}
+                className={`flex items-center h-7 px-3 rounded-full text-[14px] leading-[16.8px] font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  activeBoardId === board._id 
+                    ? "bg-black/[0.05] dark:bg-white/[0.08] text-[#2c2c2b] dark:text-[#f0efed]" 
+                    : "text-[#7d7a75] dark:text-[#ada9a3] hover:text-black dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"
+                }`}
                 title="Right-click to rename or delete"
               >
                 {board.name}
@@ -330,7 +334,7 @@ const Tasks = () => {
                 animate={{ width: "auto", opacity: 1, scale: 1 }}
                 exit={{ width: 0, opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center px-3.5 py-1.5 rounded-full bg-gray-100 dark:bg-[#2a2a2a] ml-1 overflow-hidden origin-left"
+                className="flex items-center h-7 px-3 rounded-full bg-black/[0.05] dark:bg-white/[0.08] ml-1 overflow-hidden origin-left"
               >
                 <input 
                   type="text" 
@@ -345,7 +349,7 @@ const Tasks = () => {
                       setNewBoardName("");
                     }
                   }}
-                  className="bg-transparent outline-none text-[14px] font-medium text-gray-900 dark:text-white w-24 placeholder:text-gray-400 placeholder:font-normal"
+                  className="bg-transparent outline-none text-[14px] font-medium text-gray-900 dark:text-[#f0efed] w-24 placeholder:text-gray-400 placeholder:font-normal"
                   placeholder="Name..."
                 />
               </motion.div>
@@ -356,7 +360,7 @@ const Tasks = () => {
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 onClick={() => setIsCreatingBoard(true)}
-                className="flex items-center justify-center shrink-0 w-7 h-7 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#222] transition-colors ml-1"
+                className="flex items-center justify-center shrink-0 w-7 h-7 rounded-full text-[#7d7a75] hover:text-black dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors ml-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px] leading-none select-none">add_2</span>
               </motion.button>
@@ -389,6 +393,7 @@ const Tasks = () => {
         onClose={() => setTaskToDelete(null)}
         title="Delete Task"
         type="confirm"
+        isDanger={true}
         description="Are you sure you want to delete this task? This action cannot be undone."
         onConfirm={confirmDeleteTask}
         confirmText="Delete"
@@ -421,34 +426,43 @@ const Tasks = () => {
             onContextMenu={(e) => { e.preventDefault(); setBoardContextMenu(null); }}
           />
           <div 
-            className="fixed z-50 w-44 bg-white dark:bg-[#202020] rounded-[10px] shadow-[0_8px_30px_rgb(0,0,0,0.18)] border border-gray-100 dark:border-white/10 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            role="listbox"
+            className="fixed z-50 w-[200px] bg-white dark:bg-[#202020] rounded-[6px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] p-1 overflow-hidden select-none transition-all duration-160 ease-out animate-in fade-in"
             style={{
               top: Math.min(boardContextMenu.y, window.innerHeight - 100),
-              left: Math.min(boardContextMenu.x, window.innerWidth - 190)
+              left: Math.min(boardContextMenu.x, window.innerWidth - 210)
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
+              role="option"
               onClick={() => {
                 const targetBoard = boardContextMenu.board;
                 setBoardContextMenu(null);
                 setBoardModal({ isOpen: true, type: 'rename', board: targetBoard });
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
+              className="w-full h-[30px] flex items-center gap-2 px-2 rounded-[4px] text-[14px] leading-[16.8px] font-normal text-[#2c2c2b] dark:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer"
             >
-              <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none text-gray-400 dark:text-gray-500" />
+              <div className="w-5 h-5 flex items-center justify-center text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                <HugeiconsIcon icon={Edit03Icon} size={15} className="select-none" />
+              </div>
               <span>Rename board</span>
             </button>
-            <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
+            <div className="h-px w-full bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
             <button
+              type="button"
+              role="option"
               onClick={() => {
                 const targetBoard = boardContextMenu.board;
                 setBoardContextMenu(null);
                 setBoardModal({ isOpen: true, type: 'delete', board: targetBoard });
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="w-full h-[30px] flex items-center gap-2 px-2 rounded-[4px] text-[14px] leading-[16.8px] font-normal text-[#eb5757] dark:text-[#ff7b72] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer"
             >
-              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none text-red-400 dark:text-red-400/80" />
+              <div className="w-5 h-5 flex items-center justify-center text-current shrink-0">
+                <HugeiconsIcon icon={Delete02Icon} size={15} className="select-none" />
+              </div>
               <span>Delete board</span>
             </button>
           </div>

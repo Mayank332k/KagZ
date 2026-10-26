@@ -13,6 +13,7 @@ import InteractiveChoiceCard from './InteractiveChoiceCard';
 import DeepResearchCard from './DeepResearchCard';
 import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
 import MemoryUpdateIcon from './MemoryUpdateIcon';
+import { CHAT_MODELS } from '../../constants/chatModels';
 import './AIChat.css';
 
 // Time ago utility
@@ -392,39 +393,46 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
         <AnimatePresence>
           {showAddMenu && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 4 }}
+              role="listbox"
+              initial={{ opacity: 0, scale: 0.96, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 4 }}
-              transition={{ duration: 0.14 }}
-              className="absolute left-0 bottom-full mb-1.5 z-50 min-w-[220px] py-1 px-1 rounded-[12px] bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] flex flex-col gap-0.5 text-[13px]"
+              exit={{ opacity: 0, scale: 0.96, y: 4 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="absolute left-0 bottom-full mb-1.5 z-50 min-w-[220px] p-1 rounded-[6px] bg-white dark:bg-[#202020] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] flex flex-col gap-0.5 select-none"
             >
               <button
                 type="button"
+                role="option"
                 onClick={() => {
                   setShowAddMenu(false);
                   handleAddToCurrentPage();
                 }}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/5 dark:hover:bg-white/10 text-gray-800 dark:text-[#E5E5E5] transition-colors text-left cursor-pointer group"
+                className="flex items-center gap-2 h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] transition-colors text-left cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px] text-gray-400 dark:text-neutral-400 group-hover:text-gray-700 dark:group-hover:text-white leading-none shrink-0">
-                  post_add
-                </span>
+                <div className="w-5 h-5 flex items-center justify-center text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                  <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                    post_add
+                  </span>
+                </div>
                 <span className="truncate flex-1">
-                  Add to <strong className="font-medium text-gray-950 dark:text-white">{activePage?.title && activePage.title !== 'Untitled' ? activePage.title : 'Current page'}</strong>
+                  Add to <strong className="font-medium text-[#2c2c2b] dark:text-[#f0efed]">{activePage?.title && activePage.title !== 'Untitled' ? activePage.title : 'Current page'}</strong>
                 </span>
               </button>
 
               <button
                 type="button"
+                role="option"
                 onClick={() => {
                   setShowAddMenu(false);
                   handleCreateNewPage();
                 }}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/5 dark:hover:bg-white/10 text-gray-800 dark:text-[#E5E5E5] transition-colors text-left cursor-pointer group"
+                className="flex items-center gap-2 h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] transition-colors text-left cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px] text-gray-400 dark:text-neutral-400 group-hover:text-gray-700 dark:group-hover:text-white leading-none shrink-0">
-                  note_add
-                </span>
+                <div className="w-5 h-5 flex items-center justify-center text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                  <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                    note_add
+                  </span>
+                </div>
                 <span className="truncate flex-1">
                   Create new page
                 </span>
@@ -954,7 +962,14 @@ const parseInteractiveChoice = (content) => {
     if (result) return result;
   }
 
-  // 3. Fallback: Auto-detect delete confirmation
+  // 3. Raw JSON containing "question" and "options" anywhere in text
+  const rawJsonMatch = content.match(/\{[\s\r\n]*"(?:question|prompt)"[\s\S]*?"options"[\s\S]*?\}/);
+  if (rawJsonMatch) {
+    const result = tryParseJson(rawJsonMatch[0]);
+    if (result) return result;
+  }
+
+  // 4. Fallback: Auto-detect delete confirmation
   const isDeleteConfirmation = /(delete\s+(?:karna\s+chahte|kardun|karu|karein|karoon|this|these|task)|sure\s+you\s+want\s+to\s+delete|confirm\s+deletion)/i.test(content);
   if (isDeleteConfirmation && content.length < 350) {
     return {
@@ -965,6 +980,48 @@ const parseInteractiveChoice = (content) => {
       ],
     };
   }
+
+  // 5. Fallback: Detect markdown multiple-choice questions (e.g. A) / B), 1. / 2.)
+  const parseMarkdownChoices = () => {
+    const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+    const choiceRegex = /^(?:(?:\(([a-fA-F1-6])\))|(?:([a-fA-F1-6])[\.\)]))\s+(.+)$/;
+
+    const choices = [];
+    let questionLine = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const match = line.match(choiceRegex);
+      if (match) {
+        const titleAndDesc = match[3].trim();
+        const splitMatch = titleAndDesc.match(/^([^:\-\–—]+)\s*[:\-\–—]\s*(.+)$/);
+        if (splitMatch) {
+          choices.push({
+            title: splitMatch[1].trim(),
+            description: splitMatch[2].trim(),
+          });
+        } else {
+          choices.push({
+            title: titleAndDesc,
+            description: '',
+          });
+        }
+      } else if (choices.length === 0 && (line.includes('?') || line.endsWith(':'))) {
+        questionLine = line.replace(/\*+/g, '').trim();
+      }
+    }
+
+    if (choices.length >= 2 && choices.length <= 6) {
+      return {
+        question: questionLine || 'Please choose an option:',
+        options: choices,
+      };
+    }
+    return null;
+  };
+
+  const mdChoices = parseMarkdownChoices();
+  if (mdChoices) return mdChoices;
 
   return null;
 };
@@ -1285,19 +1342,7 @@ const ChatComposer = ({
     }
   };
 
-  const models = [
-    { 
-      value: 'meta/llama-3.2-11b-vision-instruct', 
-      label: 'kagZ lite',
-      subtitle: 'Fastest answers',
-    },
-    { 
-      value: 'nvidia/nemotron-3-super-120b-a12b', 
-      label: 'kagZ pro',
-      subtitle: 'Advanced reasoning',
-      badge: 'New',
-    },
-  ];
+  const models = CHAT_MODELS;
 
   const activeModel = models.find(m => m.value === selectedModel) || models[0];
 
@@ -1379,7 +1424,7 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.06] dark:border-white/[0.08] focus-within:border-black/[0.1] dark:focus-within:border-white/[0.12] rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-3.5 pt-2.5 pb-2 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.06] dark:border-white/[0.08] focus-within:border-black/[0.1] dark:focus-within:border-white/[0.12] rounded-[16px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-3.5 pt-2.5 pb-2 mx-auto">
         {/* Top Context Pills (Page Context) */}
         {attachedPage && (
           <div className="flex items-center gap-1.5 mb-1.5 pt-0.5 flex-wrap">
@@ -1483,7 +1528,7 @@ const ChatComposer = ({
           }
           rows={1}
           autoFocus
-          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15.5px] text-[var(--composer-text)] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar leading-[1.5] min-h-[26px]"
+          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[14px] leading-[20px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[26px]"
           style={{ maxHeight: '250px' }}
         />
           </div>
@@ -1543,20 +1588,25 @@ const ChatComposer = ({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-1.5 px-3.5 h-8 rounded-full text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+                className={`flex items-center gap-1 px-2.5 h-7 rounded-[6px] text-[13px] font-normal transition-colors duration-160 cursor-pointer ${
+                  isDropdownOpen
+                    ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]'
+                    : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                }`}
               >
                 <span>{activeModel.label}</span>
-                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
+                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
               </button>
 
               <AnimatePresence>
                 {isDropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    role="listbox"
+                    initial={{ opacity: 0, y: 4, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute bottom-full right-0 mb-2 w-[240px] bg-white dark:bg-[#191919] border border-gray-200 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] z-50 overflow-hidden rounded-[16px] p-2"
+                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="absolute bottom-full right-0 mb-1.5 w-[265px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-hidden rounded-[6px] p-1 select-none"
                   >
                     <div className="flex flex-col gap-0.5">
                       {models.map((model) => {
@@ -1566,29 +1616,35 @@ const ChatComposer = ({
                           <button
                             key={model.value}
                             type="button"
+                            role="option"
+                            aria-selected={isActive}
                             onClick={() => {
                               setSelectedModel(model.value);
                               setIsDropdownOpen(false);
                             }}
-                            className="flex items-start w-full px-3 py-2.5 rounded-[16px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.07] cursor-pointer"
+                            className={`flex items-start w-full px-2 py-1.5 rounded-[4px] text-left transition-colors duration-160 cursor-pointer ${
+                              isActive 
+                                ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
+                                : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                            }`}
                           >
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                            <div className="w-5 h-5 shrink-0 flex items-center justify-center mt-0.5 text-[var(--c-icon-primary)]">
                               {isActive && (
-                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-900 dark:text-white stroke-[2.2]">check</span>
+                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-brand)]">check</span>
                               )}
                             </div>
-                            <div className="flex flex-col ml-3 min-w-0 flex-1">
+                            <div className="flex flex-col ml-1.5 min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
-                                <span className="text-[14px] font-medium text-gray-900 dark:text-white leading-snug">
+                                <span className={`text-[14px] leading-snug ${isActive ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
                                   {model.label}
                                 </span>
                                 {model.badge && (
-                                  <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10.5px] font-medium text-gray-600 dark:text-gray-300">
+                                  <span className="px-1.5 py-0.5 rounded-[3px] bg-[var(--ca-hover)] text-[10px] font-medium text-[var(--c-text-tertiary)]">
                                     {model.badge}
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[12px] text-gray-500 dark:text-[#9a9a9a] leading-tight mt-0.5">
+                              <span className="text-[12px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
                                 {model.subtitle}
                               </span>
                             </div>
@@ -1596,23 +1652,29 @@ const ChatComposer = ({
                         );
                       })}
 
-                      <div className="h-[1px] bg-gray-100 dark:bg-white/10 my-1 mx-2" />
+                      <div className="h-px bg-[var(--c-border-hairline)] my-1" role="separator" />
 
                       <button
                         type="button"
+                        role="option"
+                        aria-selected={isThinking}
                         onClick={() => setIsThinking(!isThinking)}
-                        className="flex items-start w-full px-3 py-2.5 rounded-[16px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.07] cursor-pointer"
+                        className={`flex items-start w-full px-2 py-1.5 rounded-[4px] text-left transition-colors duration-160 cursor-pointer ${
+                          isThinking 
+                            ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
+                            : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                        }`}
                       >
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                        <div className="w-5 h-5 shrink-0 flex items-center justify-center mt-0.5 text-[var(--c-icon-primary)]">
                           {isThinking && (
-                            <span className="material-symbols-outlined text-[16px] leading-none select-none text-gray-900 dark:text-white stroke-[2.2]">check</span>
+                            <span className="material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-brand)]">check</span>
                           )}
                         </div>
-                        <div className="flex flex-col ml-3 min-w-0">
-                          <span className="text-[14px] font-medium text-gray-900 dark:text-white leading-snug">
+                        <div className="flex flex-col ml-1.5 min-w-0 flex-1">
+                          <span className={`text-[14px] leading-snug ${isThinking ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
                             Extended thinking
                           </span>
-                          <span className="text-[12px] text-gray-500 dark:text-[#9a9a9a] leading-tight mt-0.5">
+                          <span className="text-[12px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
                             Complex problem solving
                           </span>
                         </div>
@@ -1947,10 +2009,10 @@ const AIChat = ({ isRightPanel = false }) => {
         </div>
 
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-3xl mx-auto px-4 mt-[-10vh] z-10 relative">
+          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-4 mt-[-10vh] z-10 relative">
             {/* Logo Doodle */}
             <div className="flex items-center justify-center mb-8 relative group cursor-default">
-              <img src="/kag-z.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-110" />
+              <img src="/kag-z.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105" />
             </div>
 
             <div className="h-[40px] mb-8 w-full relative flex items-center justify-center">
@@ -1961,7 +2023,7 @@ const AIChat = ({ isRightPanel = false }) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -15 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="text-[24px] font-semibold text-gray-900 dark:text-[var(--color-dark-title)] tracking-tight absolute text-center w-full"
+                  className="text-[28px] sm:text-[30px] leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
                 >
                   {greetings[greetingIndex]}
                 </motion.h1>

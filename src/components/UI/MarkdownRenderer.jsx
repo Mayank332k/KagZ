@@ -177,4 +177,4 @@ const MarkdownRenderer = ({ content, isStreaming = false }) => {
   );
 };
 
-export default MarkdownRenderer;
+export default React.memo(MarkdownRenderer);

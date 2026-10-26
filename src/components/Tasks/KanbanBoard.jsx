@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -55,6 +55,20 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
   const [activeTaskMenu, setActiveTaskMenu] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState(null);
   const [isDraggingOverDelete, setIsDraggingOverDelete] = useState(false);
+
+  const tasksByStatus = useMemo(() => {
+    const grouped = { todo: [], in_progress: [], in_review: [], completed: [] };
+    if (!tasks || !Array.isArray(tasks)) return grouped;
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (grouped[t.status]) {
+        grouped[t.status].push(t);
+      } else {
+        grouped.todo.push(t);
+      }
+    }
+    return grouped;
+  }, [tasks]);
 
   useEffect(() => {
     const handleClose = () => setActiveTaskMenu(null);
@@ -193,7 +207,7 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
         {isLoading ? (
           <div className="flex w-full gap-6 px-1">
             {Array.from({ length: 3 }).map((_, colIdx) => (
-              <div key={colIdx} className="flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[20px] p-3 bg-[#f7f7f6] dark:bg-[#191919]">
+              <div key={colIdx} className="flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[16px] p-3 bg-[#f7f7f6] dark:bg-[#191919]">
                 <div className="flex items-center justify-between mb-4 px-1 animate-pulse">
                    <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-md bg-gray-200/80 dark:bg-white/10" />
@@ -217,12 +231,12 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
             ))}
           </div>
         ) : STATUSES.map((status) => {
-          const columnTasks = tasks.filter((t) => t.status === status.id);
+          const columnTasks = tasksByStatus[status.id] || [];
 
           return (
             <motion.div
               key={status.id}
-              className={`flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[20px] p-3 ${status.columnLightBg} ${status.columnDarkBg}`}
+              className={`flex flex-col w-[280px] md:w-[300px] shrink-0 max-h-full rounded-[16px] p-3 ${status.columnLightBg} ${status.columnDarkBg}`}
               onDragOver={(e) => handleDragOver(e, status.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, status.id)}
@@ -252,35 +266,38 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
               {/* Task List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar pb-2 flex flex-col gap-1.5">
                 <AnimatePresence>
-                  {columnTasks.map((task) => (
-                    <motion.div
-                      key={task._id || task.id}
-                      id={`task-${task._id || task.id}`}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task._id || task.id)}
-                      onDragEnd={(e) => handleDragEnd(e, task._id || task.id)}
-                      className={`group bg-white dark:bg-[#1f1f1f] border border-gray-100 dark:border-white/5 rounded-[8px] px-3 py-1 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col relative ${activeTaskMenu === (task._id || task.id) ? 'z-[100]' : 'z-10'}`}
-                    >
-                      <div className="flex justify-between items-center gap-2 min-h-[22px]">
-                        <p className="text-[13.5px] leading-snug font-medium text-gray-800 dark:text-gray-200 break-words">
-                          {task.task || task.title}
-                        </p>
-                        <div className="relative shrink-0">
-                          <button 
-                            onClick={(e) => handleOpenTaskMenu(e, task)}
-                            className={`opacity-0 group-hover:opacity-100 ${activeTaskMenu?.taskId === (task._id || task.id) ? 'opacity-100' : ''} text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-opacity p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#333]`}
-                            title="Task options"
-                          >
-                            <span className="material-symbols-outlined text-[16px] leading-none select-none">more_horiz</span>
-                          </button>
+                  {columnTasks.map((task) => {
+                    const taskId = task._id || task.id;
+                    return (
+                      <motion.div
+                        key={taskId}
+                        id={`task-${taskId}`}
+                        layout={draggedTaskId === taskId ? taskId : false}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, taskId)}
+                        onDragEnd={(e) => handleDragEnd(e, taskId)}
+                        className={`group bg-white dark:bg-[#202020] border border-black/[0.06] dark:border-white/[0.07] rounded-[6px] px-3 py-1.5 cursor-grab active:cursor-grabbing transition-colors duration-200 flex flex-col relative ${activeTaskMenu === taskId ? 'z-[100]' : 'z-10'}`}
+                      >
+                        <div className="flex justify-between items-center gap-2 min-h-[22px]">
+                          <p className="text-[14px] leading-[18px] font-medium text-[#2c2c2b] dark:text-[#f0efed] break-words">
+                            {task.task || task.title}
+                          </p>
+                          <div className="relative shrink-0">
+                            <button 
+                              onClick={(e) => handleOpenTaskMenu(e, task)}
+                              className={`opacity-0 group-hover:opacity-100 ${activeTaskMenu?.taskId === taskId ? 'opacity-100' : ''} text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] transition-opacity p-0.5 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055]`}
+                              title="Task options"
+                            >
+                              <span className="material-symbols-outlined text-[16px] leading-none select-none">more_horiz</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
 
                 {/* Inline Task Input */}
@@ -340,7 +357,8 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
             }}
           />
           <div 
-            className="fixed z-[99999] w-[180px] bg-white dark:bg-[#202020] rounded-[10px] shadow-[0_8px_30px_rgb(0,0,0,0.18)] border border-gray-100 dark:border-white/10 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150"
+            role="listbox"
+            className="fixed z-[99999] w-[200px] bg-white dark:bg-[#202020] rounded-[6px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] overflow-hidden p-1 select-none transition-all duration-160 ease-out animate-in fade-in"
             style={{
               top: activeTaskMenu.top,
               left: activeTaskMenu.left,
@@ -348,27 +366,35 @@ const KanbanBoard = ({ tasks, onTaskUpdate, allowCreation = false, onCreateTask,
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
+              role="option"
               onClick={() => {
                 const task = activeTaskMenu.task;
                 setActiveTaskMenu(null);
                 if (onTaskEdit) onTaskEdit(task);
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition-colors"
+              className="w-full h-[30px] flex items-center gap-2 px-2 rounded-[4px] text-[14px] leading-[16.8px] font-normal text-[#2c2c2b] dark:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer"
             >
-              <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none text-gray-400 dark:text-gray-500" />
-              <span className="font-medium">Edit task</span>
+              <div className="w-5 h-5 flex items-center justify-center text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                <HugeiconsIcon icon={Edit03Icon} size={15} className="select-none" />
+              </div>
+              <span>Edit task</span>
             </button>
-            <div className="h-[1px] w-full bg-gray-50 dark:bg-white/5 my-0.5" />
+            <div className="h-px w-full bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
             <button
+              type="button"
+              role="option"
               onClick={() => {
                 const taskId = activeTaskMenu.task._id || activeTaskMenu.task.id;
                 setActiveTaskMenu(null);
                 if (onTaskDelete) onTaskDelete(taskId);
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="w-full h-[30px] flex items-center gap-2 px-2 rounded-[4px] text-[14px] leading-[16.8px] font-normal text-[#eb5757] dark:text-[#ff7b72] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer"
             >
-              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none text-red-400 dark:text-red-400/80" />
-              <span className="font-medium">Delete task</span>
+              <div className="w-5 h-5 flex items-center justify-center text-current shrink-0">
+                <HugeiconsIcon icon={Delete02Icon} size={15} className="select-none" />
+              </div>
+              <span>Delete task</span>
             </button>
           </div>
         </>,

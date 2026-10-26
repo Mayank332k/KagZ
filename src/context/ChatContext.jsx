@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { chatAPI, invalidateCache } from '../services/api';
 import { useToast } from './ToastContext';
 import { validateAiInput } from '../utils/aiValidation';
 
 import { ChatContext } from './ChatContextDefinition';
+import { normalizeChatModel } from '../constants/chatModels';
 
 export const ChatProvider = ({ children }) => {
   const { showToast } = useToast();
@@ -87,7 +88,7 @@ export const ChatProvider = ({ children }) => {
   
   // Model & Thinking States
   const [selectedModel, setSelectedModel] = useState(
-    () => localStorage.getItem('noema-chat-model') || 'meta/llama-3.2-11b-vision-instruct',
+    () => normalizeChatModel(localStorage.getItem('noema-chat-model')),
   );
   const [isThinking, setIsThinking] = useState(
     () => localStorage.getItem('noema-chat-thinking') === 'true',
@@ -99,8 +100,9 @@ export const ChatProvider = ({ children }) => {
   const abortControllerRef = useRef(null);
 
   const updateSelectedModel = (model) => {
-    setSelectedModel(model);
-    localStorage.setItem('noema-chat-model', model);
+    const normalized = normalizeChatModel(model);
+    setSelectedModel(normalized);
+    localStorage.setItem('noema-chat-model', normalized);
   };
 
   const updateIsThinking = (enabled) => {
@@ -332,6 +334,9 @@ export const ChatProvider = ({ children }) => {
               }
             } else if (event.type === 'memory_saved') {
               const savedFact = event.data?.fact || event.data;
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('auth:memory-updated'));
+              }
               setMessages((prev) => {
                 const lastIndex = prev.length - 1;
                 if (lastIndex < 0) return prev;
@@ -586,41 +591,62 @@ export const ChatProvider = ({ children }) => {
     localStorage.removeItem('noema-last-chat-messages');
   };
 
+  const contextValue = useMemo(() => ({
+    messages,
+    setMessages,
+    query,
+    setQuery,
+    isStreaming,
+    currentSources,
+    setCurrentSources,
+    isRightChatOpen,
+    setIsRightChatOpen,
+    selectedModel,
+    setSelectedModel: updateSelectedModel,
+    isThinking,
+    setIsThinking: updateIsThinking,
+    sendMessage,
+    stopGeneration,
+    clearChat,
+    loadSession,
+    fetchMoreMessages,
+    nextCursor,
+    isLoadingMore,
+    hasMore,
+    sessionId,
+    setSessionId,
+    hasAutoOpened,
+    userClosedSidebar,
+    chatError,
+    clearChatError,
+    retryLastMessage,
+    chatStartupMode,
+    setChatStartupMode: updateChatStartupMode
+  }), [
+    messages,
+    query,
+    isStreaming,
+    currentSources,
+    isRightChatOpen,
+    selectedModel,
+    isThinking,
+    sendMessage,
+    stopGeneration,
+    loadSession,
+    fetchMoreMessages,
+    nextCursor,
+    isLoadingMore,
+    hasMore,
+    sessionId,
+    hasAutoOpened,
+    userClosedSidebar,
+    chatError,
+    retryLastMessage,
+    chatStartupMode
+  ]);
+
   return (
-    <ChatContext.Provider
-      value={{
-        messages,
-        setMessages,
-        query,
-        setQuery,
-        isStreaming,
-        currentSources,
-        setCurrentSources,
-        isRightChatOpen,
-        setIsRightChatOpen,
-        selectedModel,
-        setSelectedModel: updateSelectedModel,
-        isThinking,
-        setIsThinking: updateIsThinking,
-        sendMessage,
-        stopGeneration,
-        clearChat,
-        loadSession,
-        fetchMoreMessages,
-        nextCursor,
-        isLoadingMore,
-        hasMore,
-        sessionId,
-        setSessionId,
-        hasAutoOpened,
-        userClosedSidebar,
-        chatError,
-        clearChatError,
-        retryLastMessage,
-        chatStartupMode,
-        setChatStartupMode: updateChatStartupMode
-      }}
-    >
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   );

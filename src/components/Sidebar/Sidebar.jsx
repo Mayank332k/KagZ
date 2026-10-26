@@ -81,7 +81,7 @@ const SidebarSkeletonItem = () => (
 );
 
 const Sidebar = () => {
-  const { user, logout, updatePreferences } = useAuth();
+  const { user, logout, updatePreferences, memory: memoryStatus, refreshMemory } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -180,7 +180,7 @@ const Sidebar = () => {
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const savedWidth = Number(localStorage.getItem("noema-sidebar-width"));
-    return Number.isFinite(savedWidth) ? Math.min(600, Math.max(200, savedWidth)) : 288;
+    return Number.isFinite(savedWidth) ? Math.min(600, Math.max(200, savedWidth)) : 270;
   });
   const isResizing = useRef(false);
   const resizeCleanupRef = useRef(null);
@@ -194,6 +194,12 @@ const Sidebar = () => {
   const [showSettingsCard, setShowSettingsCard] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState("preferences");
+
+  useEffect(() => {
+    if (showSettingsCard && settingsTab === "ai") {
+      refreshMemory(true).catch(() => {});
+    }
+  }, [showSettingsCard, settingsTab, refreshMemory]);
   const [settingsSearchQuery, setSettingsSearchQuery] = useState("");
   const [extraContrast, setExtraContrast] = useState(() => localStorage.getItem("noema-high-contrast") === "true");
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem("noema-font-size") || "16", 10));
@@ -225,8 +231,12 @@ const Sidebar = () => {
     return text.trim().split(/\s+/).length;
   };
 
+  const savedAiPersona = user?.preferences?.aiPersona || "professional";
+  const savedAiInstructions = user?.preferences?.customInstructions || "";
+  const hasAiPrefsChanged = (aiPersona !== savedAiPersona) || (aiCustomInstructions !== savedAiInstructions);
+
   const handleSaveAiPrefs = async () => {
-    if (isSavingAiPrefs) return;
+    if (isSavingAiPrefs || !hasAiPrefsChanged || countWords(aiCustomInstructions) > 100) return;
     setIsSavingAiPrefs(true);
     try {
       await updatePreferences({
@@ -878,7 +888,7 @@ const Sidebar = () => {
     return (
       <>
         <div 
-          className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
+          className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]"
         >
           <button
             onClick={() => setIsCollapsed(false)}
@@ -906,12 +916,15 @@ const Sidebar = () => {
     if (node.type === "chat") {
       return (
         <div
-          className="fixed bg-[#ffffff] dark:bg-[var(--color-dark-sidebar)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--color-dark-border)] py-1.5 z-[100] text-[15px] font-sans"
-          style={{ top: menuPos.top, left: menuPos.left, width: "14rem" }}
+          role="listbox"
+          className="fixed bg-white dark:bg-[#202020] rounded-[6px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] p-1 z-[100] w-[220px] select-none transition-all duration-160 ease-out"
+          style={{ top: menuPos.top, left: menuPos.left }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-red-600 dark:text-red-400 flex items-center transition-colors"
+            type="button"
+            role="option"
+            className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#eb5757] dark:text-[#ff7b72] flex items-center text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
             onClick={() => {
               setActiveMenu(null);
               setModalState({
@@ -922,7 +935,10 @@ const Sidebar = () => {
               });
             }}
           >
-            <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete Chat
+            <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
+              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none" />
+            </div>
+            <span>Delete Chat</span>
           </button>
         </div>
       );
@@ -930,12 +946,15 @@ const Sidebar = () => {
 
     return (
       <div
-        className="fixed bg-[#ffffff] dark:bg-[var(--color-dark-sidebar)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--color-dark-border)] py-1.5 z-[100] text-[15px] font-sans"
-        style={{ top: menuPos.top, left: menuPos.left, width: "14rem" }}
+        role="listbox"
+        className="fixed bg-white dark:bg-[#202020] rounded-[6px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] p-1 z-[100] w-[220px] select-none transition-all duration-160 ease-out"
+        style={{ top: menuPos.top, left: menuPos.left }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+          type="button"
+          role="option"
+          className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
           onClick={async () => {
             setActiveMenu(null);
             try {
@@ -955,14 +974,20 @@ const Sidebar = () => {
             }
           }}
         >
-          <HugeiconsIcon icon={StarIcon} size={18} className={`select-none mr-2 ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
-          {node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+          <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
+            <HugeiconsIcon icon={StarIcon} size={16} className={`select-none ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-[#7d7a75] dark:text-[#a19e99]"}`} />
+          </div>
+          <span className="truncate">{node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}</span>
         </button>
-        <div className="h-px bg-gray-200 dark:bg-[var(--color-dark-border)] my-1"></div>
+
+        <div className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
+
         {(node.type === "workspace" || node.type === "folder") && (
           <>
             <button
-              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+              type="button"
+              role="option"
+              className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
               onClick={() => {
                 setActiveMenu(null);
                 setModalState({
@@ -973,10 +998,15 @@ const Sidebar = () => {
                 });
               }}
             >
-              <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">note_add</span> New Page
+              <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">note_add</span>
+              </div>
+              <span>New Page</span>
             </button>
             <button
-              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+              type="button"
+              role="option"
+              className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
               onClick={() => {
                 setActiveMenu(null);
                 setModalState({
@@ -987,13 +1017,19 @@ const Sidebar = () => {
                 });
               }}
             >
-              <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">folder</span> New Folder
+              <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>
+              </div>
+              <span>New Folder</span>
             </button>
-            <div className="h-px bg-gray-200 dark:bg-[var(--color-dark-border)] my-1"></div>
+            <div className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
           </>
         )}
+
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+          type="button"
+          role="option"
+          className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
           onClick={() => {
             setActiveMenu(null);
             setModalState({
@@ -1004,10 +1040,16 @@ const Sidebar = () => {
             });
           }}
         >
-          <HugeiconsIcon icon={Edit03Icon} size={18} className="select-none mr-2" /> Rename
+          <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+            <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none" />
+          </div>
+          <span>Rename</span>
         </button>
+
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-red-600 dark:text-red-400 flex items-center transition-colors"
+          type="button"
+          role="option"
+          className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#eb5757] dark:text-[#ff7b72] flex items-center text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
           onClick={() => {
             setActiveMenu(null);
             setModalState({
@@ -1018,7 +1060,10 @@ const Sidebar = () => {
             });
           }}
         >
-          <HugeiconsIcon icon={Delete02Icon} size={18} className="select-none mr-2" /> Delete
+          <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
+            <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none" />
+          </div>
+          <span>Delete</span>
         </button>
       </div>
     );
@@ -1029,12 +1074,15 @@ const Sidebar = () => {
 
     return (
       <div
-        className="fixed bg-[#ffffff] dark:bg-[var(--color-dark-sidebar)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--color-dark-border)] py-1.5 z-[100] text-[15px] font-sans"
-        style={{ top: addMenuPos.top, left: addMenuPos.left, width: "12rem" }}
+        role="listbox"
+        className="fixed bg-white dark:bg-[#202020] rounded-[6px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] p-1 z-[100] w-[180px] select-none transition-all duration-160 ease-out"
+        style={{ top: addMenuPos.top, left: addMenuPos.left }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+          type="button"
+          role="option"
+          className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
           onClick={() => {
             setActiveAddMenu(null);
             setModalState({
@@ -1045,10 +1093,15 @@ const Sidebar = () => {
             });
           }}
         >
-          <span className="material-symbols-outlined text-[16px] leading-none select-none mr-2">note_add</span> New Page
+          <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+            <span className="material-symbols-outlined text-[16px] leading-none select-none">note_add</span>
+          </div>
+          <span>New Page</span>
         </button>
         <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center text-[#8a817c] dark:text-white transition-colors"
+          type="button"
+          role="option"
+          className="w-full h-[30px] px-2 rounded-[4px] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] flex items-center text-[#2c2c2b] dark:text-[#f0efed] text-[14px] leading-[16.8px] font-normal transition-colors cursor-pointer"
           onClick={() => {
             setActiveAddMenu(null);
             setModalState({
@@ -1059,7 +1112,10 @@ const Sidebar = () => {
             });
           }}
         >
-          <span className="material-symbols-outlined text-[18px] leading-none select-none mr-2">folder</span> New Folder
+          <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
+            <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>
+          </div>
+          <span>New Folder</span>
         </button>
       </div>
     );
@@ -1089,8 +1145,8 @@ const Sidebar = () => {
         onClick={() => setShowSettingsCard(false)}
       >
         <div
-          className="bg-white dark:bg-[#191919] text-gray-900 dark:text-[#F0EFED] rounded-[12px] shadow-2xl border border-black/10 dark:border-white/[0.06] flex w-[94vw] max-w-[1180px] h-[90vh] max-h-[820px] overflow-hidden text-sm relative"
-          style={{ fontFamily: 'ui-sans-serif, -apple-system, system-ui, "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif' }}
+          className="bg-[var(--c-surface)] text-[var(--c-text-primary)] rounded-[16px] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] border border-[var(--c-border)] flex w-[92vw] max-w-[1040px] h-[86vh] max-h-[760px] overflow-hidden text-sm relative"
+          style={{ fontFamily: 'var(--ui-font, ui-sans-serif, -apple-system, system-ui, sans-serif)' }}
           onClick={(e) => {
             e.stopPropagation();
             setShowThemeDropdown(false);
@@ -1101,99 +1157,106 @@ const Sidebar = () => {
         >
           {/* Close button */}
           <button 
+            type="button"
             onClick={() => setShowSettingsCard(false)} 
-            className="absolute top-4 right-4 p-1 hover:bg-black/5 dark:hover:bg-white/[0.08] rounded-[5px] transition-colors text-gray-400 dark:text-[#7D7A75] hover:text-gray-900 dark:hover:text-[#F0EFED] z-20 cursor-pointer"
+            className="absolute top-3.5 right-3.5 w-7 h-7 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[6px] transition-colors duration-100 text-[var(--c-icon-secondary)] hover:text-[var(--c-text-primary)] z-20 cursor-pointer"
+            aria-label="Close settings"
           >
-            <span className="material-symbols-outlined text-[17px] leading-none select-none">close</span>
+            <span className="material-symbols-outlined text-[18px] leading-none select-none">close</span>
           </button>
 
-          {/* Left Sidebar */}
-          <div className="w-[270px] bg-[#f7f7f5] dark:bg-[#202020] border-r border-black/[0.06] dark:border-white/[0.06] flex flex-col py-3.5 px-3 shrink-0 select-none">
-            {/* Search settings (Beta) */}
-            <div className="mb-2.5 px-0.5">
-              <div className="flex items-center gap-2 h-[32px] px-[8px] bg-white dark:bg-white/[0.03] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] text-gray-400 dark:text-[#7D7A75] focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
-                <span className="material-symbols-outlined text-[16px] select-none text-gray-400 dark:text-[#7D7A75] shrink-0">search</span>
+          {/* Left Sidebar Nav */}
+          <div className="w-[240px] bg-[var(--c-surface-elevated)] border-r border-[var(--c-border-hairline)] flex flex-col py-3.5 px-2.5 shrink-0 select-none">
+            {/* Search settings */}
+            <div className="mb-2 px-0.5">
+              <div className="flex items-center gap-2 h-8 px-2.5 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-[8px] text-[var(--c-icon-secondary)] focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
+                <span className="material-symbols-outlined text-[16px] select-none text-[var(--c-icon-secondary)] shrink-0">search</span>
                 <input
                   type="text"
                   value={settingsSearchQuery}
                   onChange={(e) => setSettingsSearchQuery(e.target.value)}
                   placeholder="Search settings"
-                  className="bg-transparent text-[13.5px] text-gray-900 dark:text-[#F0EFED] placeholder:text-gray-400 dark:placeholder:text-[#7D7A75] outline-none w-full"
+                  className="bg-transparent text-[13px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] outline-none w-full"
                 />
-                <span className="text-[10px] font-[500] text-gray-500 dark:text-[#7D7A75] uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] select-none shrink-0">Beta</span>
+                <span className="text-[10px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-wider px-1.5 py-0.5 rounded-[3px] bg-[var(--ca-hover)] select-none shrink-0">Beta</span>
               </div>
             </div>
 
             {/* Categories */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-0.5">
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-0.5">
               {/* Account & Preferences Group */}
-              <div className="flex flex-col gap-[2px]">
-                <div className="px-[8px] pt-1.5 pb-1">
-                  <span className="text-[12.5px] font-[500] leading-[18px] text-gray-500 dark:text-[#7D7A75]">General</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="px-2 pt-1.5 pb-0.5">
+                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">General</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setSettingsTab("preferences")}
                   aria-current={settingsTab === "preferences" ? "page" : undefined}
-                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                  className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "preferences"
-                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
-                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
+                      ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
+                      : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <SlidersHorizontalIcon size={16} strokeWidth={1.8} className={`shrink-0 ${settingsTab === "preferences" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
+                  <SlidersHorizontalIcon size={15} strokeWidth={1.8} className="shrink-0" />
                   <span className="truncate">Account & Preferences</span>
                 </button>
               </div>
 
               {/* Workspace Group */}
-              <div className="flex flex-col gap-[2px]">
-                <div className="px-[8px] pt-1.5 pb-1">
-                  <span className="text-[12.5px] font-[500] leading-[18px] text-gray-500 dark:text-[#7D7A75]">Workspace</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="px-2 pt-1.5 pb-0.5">
+                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">Workspace</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setSettingsTab("typography")}
                   aria-current={settingsTab === "typography" ? "page" : undefined}
-                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                  className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "typography"
-                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
-                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
+                      ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
+                      : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <HugeiconsIcon icon={TextIcon} size={16} className={`shrink-0 ${settingsTab === "typography" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
+                  <HugeiconsIcon icon={TextIcon} size={15} className="shrink-0" />
                   <span className="truncate">Typography & Editor</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSettingsTab("privacy")}
                   aria-current={settingsTab === "privacy" ? "page" : undefined}
-                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                  className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "privacy"
-                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
-                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
+                      ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
+                      : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={16} className={`shrink-0 ${settingsTab === "privacy" ? "text-gray-900 dark:text-[#F0EFED]" : "text-gray-400 dark:text-[#7D7A75]"}`} />
+                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={15} className="shrink-0" />
                   <span className="truncate">Privacy & Data</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSettingsTab("ai")}
                   aria-current={settingsTab === "ai" ? "page" : undefined}
-                  className={`flex items-center gap-2.5 w-full px-[8px] py-[5px] h-[32px] rounded-[6px] text-[14.5px] font-[500] leading-[18px] transition-colors text-left cursor-pointer ${
+                  className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "ai"
-                      ? "bg-black/[0.06] dark:bg-white/[0.055] text-gray-900 dark:text-[#F0EFED]"
-                      : "text-gray-600 dark:text-[#BCBAB6] hover:bg-black/[0.035] dark:hover:bg-white/[0.035] hover:text-gray-900 dark:hover:text-[#F0EFED]"
+                      ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
+                      : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <img src="/kag-z.png" alt="KagZ AI" className="w-[17px] h-[17px] object-contain shrink-0 rounded-[3px] select-none" />
+                  <img src="/kag-z.png" alt="KagZ AI" className="w-4 h-4 object-contain shrink-0 rounded-[3px] select-none" />
                   <span className="truncate">KagZ AI</span>
                 </button>
               </div>
             </div>
 
             {/* Bottom Logout */}
-            <div className="mt-auto pt-2 border-t border-black/[0.06] dark:border-white/[0.06] px-0.5">
+            <div className="mt-auto pt-2 border-t border-[var(--c-border-hairline)] px-0.5">
               <button
+                type="button"
                 onClick={logout}
-                className="w-full flex items-center gap-2.5 px-[8px] py-[5px] h-[32px] text-[13.5px] font-[500] rounded-[6px] transition-colors text-gray-500 dark:text-[#7D7A75] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                className="w-full flex items-center gap-2 px-2 h-8 text-[13px] font-medium rounded-[6px] transition-colors duration-100 text-[var(--c-text-secondary)] hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px] leading-none select-none">logout</span> Log out
               </button>
@@ -1201,39 +1264,39 @@ const Sidebar = () => {
           </div>
 
           {/* Right Content */}
-          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-[57px] pt-[36px] pb-[40px] relative bg-white dark:bg-[#191919]">
+          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-12 py-8 relative bg-[var(--c-surface)]">
             {/* Account & Preferences Tab */}
             {settingsTab === "preferences" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-[600] leading-[32px] text-gray-900 dark:text-[#F0EFED] tracking-tight">Account & Preferences</h2>
-                <p className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-1 mb-8">
+              <div className="flex flex-col max-w-[680px] w-full mx-auto">
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Account & Preferences</h2>
+                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Manage your personal profile, credentials, and app preferences
                 </p>
 
                 <div className="flex flex-col gap-6">
                   {/* Account Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-3">My Account</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-2">My Account</h3>
                     
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-4 py-2">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3.5 py-1.5">
                         {avatar ? (
-                          <img src={avatar} alt="Avatar" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                          <img src={avatar} alt="Avatar" className="w-11 h-11 rounded-full object-cover shrink-0" />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-lg shrink-0">
+                          <div className="w-11 h-11 rounded-full bg-[var(--c-brand-subtle)] text-[var(--c-brand)] border border-[var(--c-brand)]/20 flex items-center justify-center font-semibold text-base shrink-0">
                             {displayName.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex flex-col">
-                          <span className="font-[600] text-gray-900 dark:text-[#F0EFED] text-[16px] leading-tight">{displayName}</span>
-                          <span className="text-[13.5px] text-gray-500 dark:text-[#8A8884] mt-1">{user?.email || "No email"}</span>
+                          <span className="font-semibold text-[var(--c-text-primary)] text-[15px] leading-tight">{displayName}</span>
+                          <span className="text-[13px] text-[var(--c-text-secondary)] mt-0.5">{user?.email || "No email"}</span>
                         </div>
                       </div>
                       
-                      <div className="flex flex-col divide-y divide-black/[0.06] dark:divide-white/[0.04]">
-                        <div className="flex justify-between items-center py-3">
-                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Authentication Provider</span>
-                          <span className="text-[13px] text-gray-600 dark:text-[#BCBAB6] capitalize">
+                      <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] border-t border-[var(--c-border-hairline)]">
+                        <div className="flex justify-between items-center py-2.5">
+                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Authentication Provider</span>
+                          <span className="text-[13px] text-[var(--c-text-secondary)] capitalize">
                             {user?.authProvider === 'google' ? (
                               <div className="flex items-center gap-1.5">
                                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -1249,26 +1312,26 @@ const Sidebar = () => {
                             )}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center py-3">
-                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Joined Date</span>
-                          <span className="text-[13px] text-gray-600 dark:text-[#BCBAB6]">{joinedDate}</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Joined Date</span>
+                          <span className="text-[13px] text-[var(--c-text-secondary)]">{joinedDate}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Section Hairline Divider */}
-                  <div className="border-t border-black/[0.06] dark:border-white/[0.06] my-2" />
+                  <div className="border-t border-[var(--c-border-hairline)] my-1" />
 
                   {/* Appearance Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-1">Appearance</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Appearance</h3>
                     
                     {/* Theme Dropdown */}
-                    <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center justify-between py-2.5 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Theme</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Theme</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
                           Choose a theme for KagZ on this device
                         </span>
                       </div>
@@ -1283,14 +1346,14 @@ const Sidebar = () => {
                             setShowFontDropdown(false);
                             setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal"
                         >
                           <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         {showThemeDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1305,11 +1368,11 @@ const Sidebar = () => {
                                   setTheme(opt.id);
                                   setShowThemeDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
                                 {theme === opt.id && (
-                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>
+                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>
                                 )}
                               </button>
                             ))}
@@ -1322,35 +1385,35 @@ const Sidebar = () => {
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">High contrast</span>
-                          <span className="text-[9.5px] font-[500] text-gray-500 dark:text-[#7D7A75] bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded select-none">Beta</span>
+                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">High contrast</span>
+                          <span className="text-[9.5px] font-medium text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1.5 py-0.5 rounded-[3px] select-none">Beta</span>
                         </div>
-                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">Increase contrast for improved interface visibility</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Increase contrast for improved interface visibility</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600" : "bg-black/15 dark:bg-white/20"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${extraContrast ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${extraContrast ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
 
                   {/* Section Hairline Divider */}
-                  <div className="border-t border-black/[0.06] dark:border-white/[0.06] my-2" />
+                  <div className="border-t border-[var(--c-border-hairline)] my-1" />
 
                   {/* Input options Section */}
                   <div>
-                    <h3 className="text-[17px] font-[600] leading-[22px] text-gray-900 dark:text-[#F0EFED] mb-1">Input options</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Input options</h3>
                     
                     {/* On Startup & Reload Dropdown */}
-                    <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center justify-between py-2.5 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">On startup & reload</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5 max-w-[420px]">
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">On startup & reload</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 max-w-[420px]">
                           {chatStartupMode === 'resume'
                             ? "Remembers last state and resumes previous chat on reload"
                             : "Opens fresh on a new page with a clean new chat"}
@@ -1366,14 +1429,14 @@ const Sidebar = () => {
                             setShowFontDropdown(false);
                             setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[155px] px-2.5 py-1 text-[13px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal"
                         >
                           <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         {showStartupDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[6px] shadow-2xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1387,11 +1450,11 @@ const Sidebar = () => {
                                   setChatStartupMode(opt.id);
                                   setShowStartupDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
                                 {chatStartupMode === opt.id && (
-                                  <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>
+                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>
                                 )}
                               </button>
                             ))}
@@ -1403,17 +1466,17 @@ const Sidebar = () => {
                     {/* Reasoning Process Toggle */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[14px] font-[500] leading-[20px] text-gray-800 dark:text-[#F0EFED]">Reasoning process</span>
-                        <span className="text-[14px] font-normal leading-[20px] text-gray-500 dark:text-[#BCBAB6] mt-0.5">Show step-by-step thinking orb animation when responding</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Reasoning process</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Show step-by-step thinking orb animation when responding</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={isThinking}
                         onClick={() => setIsThinking(!isThinking)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600" : "bg-black/15 dark:bg-white/20"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${isThinking ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${isThinking ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
@@ -1423,40 +1486,42 @@ const Sidebar = () => {
 
             {/* Dedicated Tab: Typography & Editor */}
             {settingsTab === "typography" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Typography & Editor</h2>
-                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+              <div className="flex flex-col max-w-[680px] w-full mx-auto">
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Typography & Editor</h2>
+                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Customize your reading and writing experience across notes and documents
                 </p>
 
                 <div className="flex flex-col gap-6">
                   {/* Editor typography */}
                   <div>
-                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Editor typography</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Editor typography</h3>
 
                     {/* Font Family */}
-                    <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center justify-between py-2.5 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font family</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Choose the default typeface</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font family</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Choose the default typeface</span>
                       </div>
                       <div className="relative shrink-0">
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowFontDropdown(!showFontDropdown);
                             setShowThemeDropdown(false);
                             setShowStartupDropdown(false);
+                            setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#d4d3cf] transition-colors cursor-pointer select-none"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal"
                         >
                           <span className="capitalize">{fontFamily === 'sans' ? 'Sans-serif' : fontFamily === 'serif' ? 'Serif' : fontFamily === 'system' ? 'System Default' : 'Monospace'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-gray-400 select-none transition-transform ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
                         </button>
                         
                         {showFontDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1467,14 +1532,15 @@ const Sidebar = () => {
                             ].map((f) => (
                               <button
                                 key={f.id}
+                                type="button"
                                 onClick={() => {
                                   setFontFamily(f.id);
                                   setShowFontDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{f.label}</span>
-                                {fontFamily === f.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                                {fontFamily === f.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
                               </button>
                             ))}
                           </div>
@@ -1485,43 +1551,45 @@ const Sidebar = () => {
                     {/* Font Size */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font size</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Adjust interface and editor text size ({fontSize}px)</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font size</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Adjust interface and editor text size ({fontSize}px)</span>
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600 dark:text-[#d4d3cf] bg-transparent rounded-[6px] border border-black/10 dark:border-white/10 px-1 py-0.5 shrink-0">
+                      <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0">
                         <button 
+                          type="button"
                           onClick={() => handleFontSizeChange(-1)}
                           disabled={fontSize <= 12}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
                         >-</button>
-                        <span className="text-[12px] w-7 text-center font-medium">{fontSize}</span>
+                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">{fontSize}</span>
                         <button 
+                          type="button"
                           onClick={() => handleFontSizeChange(1)}
                           disabled={fontSize >= 24}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
                         >+</button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-black/[0.06] dark:border-[#262626] my-2" />
+                  <div className="border-t border-[var(--c-border-hairline)] my-1" />
 
                   {/* Writing assistance */}
                   <div>
-                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Writing assistance</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Writing assistance</h3>
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Spell check</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Enable browser spell checker in notes</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Spell check</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Enable browser spell checker in notes</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={spellCheck}
                         onClick={() => setSpellCheck(!spellCheck)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${spellCheck ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${spellCheck ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   </div>
@@ -1531,29 +1599,29 @@ const Sidebar = () => {
 
             {/* Dedicated Tab: Privacy & Data */}
             {settingsTab === "privacy" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Privacy & Data</h2>
-                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+              <div className="flex flex-col max-w-[680px] w-full mx-auto">
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Privacy & Data</h2>
+                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Manage cookies, storage quotas, and local data persistence
                 </p>
 
                 <div className="flex flex-col gap-6">
                   <div>
-                    <h3 className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e6e5e3] mb-1.5">Cookies & Storage</h3>
-                    <div className="py-2.5">
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Cookies & Storage</h3>
+                    <div className="py-2.5 border-b border-[var(--c-border-hairline)]">
                       <div 
                         className="flex items-center justify-between cursor-pointer group"
                         onClick={() => setShowCookiePanel(!showCookiePanel)}
                       >
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium group-hover:text-black dark:group-hover:text-white transition-colors">Cookie preferences</span>
-                          <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Manage optional analytics and tracking cookies</span>
+                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Cookie preferences</span>
+                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Manage optional analytics and tracking cookies</span>
                         </div>
-                        <span className={`material-symbols-outlined text-[17px] select-none text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-transform ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
+                        <span className={`material-symbols-outlined text-[17px] select-none text-[var(--c-icon-secondary)] shrink-0 transition-transform duration-100 ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
                       </div>
                       
                       {showCookiePanel && (
-                        <div className="mt-3 flex flex-col gap-2.5 bg-black/[0.02] dark:bg-[#202020] p-3.5 rounded-[6px] border border-black/10 dark:border-white/10">
+                        <div className="mt-3 flex flex-col gap-2.5 bg-[var(--c-surface-input)] p-3.5 rounded-[6px] border border-[var(--c-border-hairline)]">
                           {[
                             { key: "essential", label: "Essential Cookies", desc: "Required for the app to function. Cannot be disabled.", locked: true },
                             { key: "analytics", label: "Analytics Cookies", desc: "Help us understand how you use KagZ.", locked: false },
@@ -1561,15 +1629,16 @@ const Sidebar = () => {
                           ].map((cookie) => (
                             <div key={cookie.key} className="flex items-center justify-between py-1">
                               <div className="flex flex-col mr-4">
-                                <span className="text-[12.5px] text-gray-800 dark:text-gray-200 font-medium">{cookie.label}</span>
-                                <span className="text-[11px] text-gray-500 dark:text-[#84827e]">{cookie.desc}</span>
+                                <span className="text-[12.5px] font-medium text-[var(--c-text-primary)]">{cookie.label}</span>
+                                <span className="text-[11px] text-[var(--c-text-secondary)]">{cookie.desc}</span>
                               </div>
                               <button
+                                type="button"
                                 onClick={() => handleCookieToggle(cookie.key)}
                                 disabled={cookie.locked}
-                                className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                                className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                               >
-                                <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`} />
+                                <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`} />
                               </button>
                             </div>
                           ))}
@@ -1577,14 +1646,15 @@ const Sidebar = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between py-2.5 mt-1">
+                    <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Local storage cache</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">{storageUsage} used of local device quota</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Local storage cache</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">{storageUsage} used of local device quota</span>
                       </div>
                       <button 
+                        type="button"
                         onClick={() => setShowClearDataModal(true)}
-                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
+                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-100 shrink-0 cursor-pointer"
                       >
                         Clear local data
                       </button>
@@ -1596,15 +1666,15 @@ const Sidebar = () => {
 
             {/* Dedicated Tab: KagZ AI */}
             {settingsTab === "ai" && !settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto select-none">
+              <div className="flex flex-col max-w-[680px] w-full mx-auto select-none">
                 {/* 1. KagZ AI Brand Header */}
-                <div className="flex items-center justify-between pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <div className="flex items-center justify-between pb-5 border-b border-[var(--c-border-hairline)]">
                   <div className="flex items-center gap-3.5">
-                    <img src="/kag-z.png" alt="KagZ AI" className="w-14 h-14 object-contain select-none shrink-0" />
+                    <img src="/kag-z.png" alt="KagZ AI" className="w-12 h-12 object-contain select-none shrink-0" />
                     <div>
-                      <h2 className="text-[21px] font-semibold text-gray-900 dark:text-[#F0EFED] tracking-tight">KagZ AI</h2>
-                      <p className="text-[12.5px] text-gray-500 dark:text-[#8A8884] mt-0.5">
-                        Intelligence models, persona tuning, and global instruction guidelines
+                      <h2 className="text-[20px] font-semibold text-[var(--c-text-primary)] tracking-tight">KagZ AI</h2>
+                      <p className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
+                        Persona tuning, custom instructions, and memory limits
                       </p>
                     </div>
                   </div>
@@ -1613,8 +1683,8 @@ const Sidebar = () => {
                   <button
                     type="button"
                     onClick={handleSaveAiPrefs}
-                    disabled={isSavingAiPrefs || countWords(aiCustomInstructions) > 100}
-                    className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 rounded-[6px] transition-all cursor-pointer shadow-sm shrink-0"
+                    disabled={isSavingAiPrefs || !hasAiPrefsChanged || countWords(aiCustomInstructions) > 100}
+                    className="flex items-center justify-center gap-1.5 px-3.5 h-8 text-[12.5px] font-medium text-white bg-[var(--c-brand)] hover:bg-[var(--c-brand-hover)] disabled:opacity-35 disabled:cursor-not-allowed rounded-[6px] transition-colors duration-100 cursor-pointer shadow-sm shrink-0"
                   >
                     {isSavingAiPrefs ? (
                       <>
@@ -1630,44 +1700,11 @@ const Sidebar = () => {
                   </button>
                 </div>
 
-                {/* 2. Model Engine (kagZ lite vs kagZ pro) */}
-                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
+                {/* 2. Personality & Tone */}
+                <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Model Engine</h3>
-                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">Select the default intelligence tier for chats and summaries</p>
-                  </div>
-
-                  <div className="inline-flex p-1 rounded-[8px] bg-black/[0.04] dark:bg-[#222222] border border-black/[0.06] dark:border-white/[0.06] shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedModel('meta/llama-3.2-11b-vision-instruct')}
-                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
-                        selectedModel === 'meta/llama-3.2-11b-vision-instruct'
-                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
-                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
-                      }`}
-                    >
-                      kagZ lite
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedModel('nvidia/nemotron-3-super-120b-a12b')}
-                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
-                        selectedModel === 'nvidia/nemotron-3-super-120b-a12b'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
-                      }`}
-                    >
-                      kagZ pro
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Personality & Tone (Dropdown per sketch) */}
-                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
-                  <div>
-                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Personality & Tone</h3>
-                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Personality & Tone</h3>
+                    <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
                       {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc || "Set how conversational or direct the AI responds"}
                     </p>
                   </div>
@@ -1682,45 +1719,36 @@ const Sidebar = () => {
                         setShowStartupDropdown(false);
                         setShowFontDropdown(false);
                       }}
-                      className="flex items-center justify-between gap-2 min-w-[150px] px-3 py-1.5 text-[12.5px] rounded-[6px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-gray-800 dark:text-[#F0EFED] transition-colors cursor-pointer select-none font-medium"
+                      className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-medium"
                     >
                       <span className="truncate">{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
-                      <span className={`material-symbols-outlined text-[15px] text-gray-400 dark:text-[#7D7A75] select-none transition-transform ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                      <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
                     </button>
 
                     {showPersonaDropdown && (
                       <div 
-                        className="absolute right-0 top-full mt-1.5 w-64 py-1.5 bg-white dark:bg-[#202020] border border-black/[0.08] dark:border-white/[0.08] rounded-[8px] shadow-2xl z-50 text-[12.5px]"
+                        className="absolute right-0 top-full mt-1.5 w-64 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {AI_PERSONA_OPTIONS.map((opt) => (
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={async () => {
+                            onClick={() => {
                               setAiPersona(opt.id);
                               setShowPersonaDropdown(false);
-                              try {
-                                await updatePreferences({
-                                  aiPersona: opt.id,
-                                  customInstructions: aiCustomInstructions,
-                                });
-                                showToast(`AI persona set to ${opt.label}`, "success");
-                              } catch (err) {
-                                showToast(err.response?.data?.message || "Failed to update persona", "error");
-                              }
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 text-gray-700 dark:text-[#BCBAB6] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center justify-between px-3 py-2 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-gray-900 dark:text-[#F0EFED]">{opt.label}</span>
-                                <span className="text-[10px] text-gray-500 dark:text-[#7D7A75] bg-black/[0.04] dark:bg-white/[0.06] px-1 py-0.2 rounded">{opt.badge}</span>
+                                <span className="font-medium text-[var(--c-text-primary)]">{opt.label}</span>
+                                <span className="text-[10px] text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1 py-0.2 rounded-[3px]">{opt.badge}</span>
                               </div>
-                              <span className="text-[11px] text-gray-500 dark:text-[#7D7A75] mt-0.5 leading-snug">{opt.desc}</span>
+                              <span className="text-[11px] text-[var(--c-text-tertiary)] mt-0.5 leading-snug">{opt.desc}</span>
                             </div>
                             {aiPersona === opt.id && (
-                              <span className="material-symbols-outlined text-[15px] text-blue-500 select-none shrink-0 ml-2">check</span>
+                              <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none shrink-0 ml-2">check</span>
                             )}
                           </button>
                         ))}
@@ -1729,34 +1757,34 @@ const Sidebar = () => {
                   </div>
                 </div>
 
-                {/* 4. Custom Instructions (Concise height, #292929, no border, 1-line intro) */}
-                <div className="py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex flex-col">
+                {/* 3. Custom Instructions */}
+                <div className="py-4 border-b border-[var(--c-border-hairline)] flex flex-col">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Custom instructions</h3>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Custom instructions</h3>
+                    <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-[3px] ${
                       countWords(aiCustomInstructions) > 100
-                        ? "bg-red-500/10 text-red-400 font-semibold"
+                        ? "bg-red-500/10 text-red-500 font-semibold"
                         : countWords(aiCustomInstructions) > 85
-                        ? "bg-amber-500/10 text-amber-400"
-                        : "text-gray-500 dark:text-[#7D7A75]"
+                        ? "bg-amber-500/10 text-amber-500"
+                        : "bg-[var(--ca-hover)] text-[var(--c-text-tertiary)]"
                     }`}>
                       {countWords(aiCustomInstructions)} / 100 words
                     </span>
                   </div>
-                  <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mb-3">
+                  <p className="text-[12px] text-[var(--c-text-secondary)] mb-3">
                     Tell KagZ AI how you want it to behave, format code, or structure answers.
                   </p>
 
-                  <div className="rounded-[12px] bg-black/[0.03] dark:bg-[#292929] border border-black/[0.06] dark:border-0 p-3.5 flex flex-col shadow-inner">
+                  <div className="rounded-[8px] bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
                     <textarea
                       value={aiCustomInstructions}
                       onChange={(e) => setAiCustomInstructions(e.target.value)}
                       placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
                       rows={3}
-                      className="w-full bg-transparent border-0 outline-none text-[13.5px] text-gray-900 dark:text-[#F0EFED] placeholder:text-gray-400 dark:placeholder:text-[#7D7A75] leading-normal resize-none custom-scrollbar min-h-[62px]"
+                      className="w-full bg-transparent border-0 outline-none text-[13px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] leading-normal resize-none custom-scrollbar min-h-[62px]"
                     />
                     {countWords(aiCustomInstructions) > 100 && (
-                      <p className="text-[11.5px] text-red-400 flex items-center gap-1 mt-2 shrink-0">
+                      <p className="text-[11.5px] text-red-500 flex items-center gap-1 mt-2 shrink-0">
                         <span className="material-symbols-outlined text-[14px]">warning</span>
                         Instructions exceed 100 words limit. Excess words will be trimmed.
                       </p>
@@ -1764,23 +1792,23 @@ const Sidebar = () => {
                   </div>
                 </div>
 
-                {/* 5. Session Continuity (Resume last vs Fresh start) */}
-                <div className="py-4 flex items-center justify-between">
+                {/* 4. Session Continuity (Resume last vs Fresh start) */}
+                <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14.5px] font-[500] text-gray-900 dark:text-[#F0EFED]">Session Continuity</h3>
-                    <p className="text-[12px] text-gray-500 dark:text-[#8A8884] mt-0.5">
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Session Continuity</h3>
+                    <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
                       {chatStartupMode === 'resume' ? 'Resumes your previous conversation state on reload' : 'Starts with a clean empty chat on reload'}
                     </p>
                   </div>
 
-                  <div className="inline-flex p-1 rounded-[8px] bg-black/[0.04] dark:bg-[#222222] border border-black/[0.06] dark:border-white/[0.06] shrink-0">
+                  <div className="inline-flex p-0.5 rounded-[6px] bg-[var(--c-surface-input)] border border-[var(--c-border-hairline)] shrink-0">
                     <button
                       type="button"
                       onClick={() => setChatStartupMode('resume')}
-                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
                         chatStartupMode === 'resume'
-                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
-                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
+                          ? 'bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm'
+                          : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]'
                       }`}
                     >
                       Resume last
@@ -1788,14 +1816,44 @@ const Sidebar = () => {
                     <button
                       type="button"
                       onClick={() => setChatStartupMode('fresh')}
-                      className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
                         chatStartupMode === 'fresh'
-                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
-                          : 'text-gray-500 dark:text-[#8A8884] hover:text-gray-900 dark:hover:text-[#F0EFED]'
+                          ? 'bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm'
+                          : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]'
                       }`}
                     >
                       Start fresh
                     </button>
+                  </div>
+                </div>
+
+                {/* 5. AI Memory Status */}
+                <div className="py-4 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">AI Memory</h3>
+                    <span className={`text-[12.5px] font-mono font-medium ${
+                      (memoryStatus?.isFull || (memoryStatus?.usagePercent ?? 0) >= 85)
+                        ? "text-red-500/80 dark:text-red-400/80"
+                        : (memoryStatus?.usagePercent ?? 0) >= 60
+                        ? "text-amber-500/80 dark:text-amber-400/80"
+                        : "text-[var(--c-text-secondary)]"
+                    }`}>
+                      {memoryStatus ? `${memoryStatus.usagePercent ?? 0}%` : "0%"}
+                    </span>
+                  </div>
+
+                  {/* Frosted blur rounded progress bar (light 50% opacity) */}
+                  <div className="w-full h-3.5 rounded-full backdrop-blur-md bg-black/[0.025] dark:bg-white/[0.04] overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-300 opacity-50 ${
+                        (memoryStatus?.isFull || (memoryStatus?.usagePercent ?? 0) >= 85)
+                          ? "bg-[#eb5757]"
+                          : (memoryStatus?.usagePercent ?? 0) >= 60
+                          ? "bg-amber-500"
+                          : "bg-[#2383e2] dark:bg-[#4fa7ff]"
+                      }`}
+                      style={{ width: `${Math.min(memoryStatus?.usagePercent ?? 0, 100)}%` }}
+                    />
                   </div>
                 </div>
               </div>
@@ -1803,18 +1861,18 @@ const Sidebar = () => {
 
             {/* Real-time Search Results View */}
             {settingsSearchQuery && (
-              <div className="flex flex-col max-w-[760px] w-full mx-auto">
-                <h2 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Search Results</h2>
-                <p className="text-[13px] text-gray-500 dark:text-[#8f8e8b] mt-1 mb-8">
+              <div className="flex flex-col max-w-[680px] w-full mx-auto">
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Search Results</h2>
+                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Settings matching &ldquo;{settingsSearchQuery}&rdquo;
                 </p>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col">
                   {matchesQuery("Theme", "theme") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Theme</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">System, Light, or Dark theme</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Theme</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">System, Light, or Dark theme</span>
                       </div>
                       <div className="relative shrink-0">
                         <button
@@ -1823,14 +1881,14 @@ const Sidebar = () => {
                             e.stopPropagation();
                             setShowThemeDropdown(!showThemeDropdown);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent text-gray-800 dark:text-[#d4d3cf] cursor-pointer"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
                         >
                           <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
-                          <span className="material-symbols-outlined text-[15px] text-gray-400 select-none">expand_more</span>
+                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">expand_more</span>
                         </button>
                         {showThemeDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1845,10 +1903,10 @@ const Sidebar = () => {
                                   setTheme(opt.id);
                                   setShowThemeDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
-                                {theme === opt.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                                {theme === opt.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
                               </button>
                             ))}
                           </div>
@@ -1858,28 +1916,28 @@ const Sidebar = () => {
                   )}
 
                   {matchesQuery("High contrast", "contrast") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">High contrast</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Increase contrast for improved visibility</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">High contrast</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Increase contrast for improved visibility</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${extraContrast ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${extraContrast ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${extraContrast ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${extraContrast ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   )}
 
                   {matchesQuery("Startup", "Resume last chat reload") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">On startup & reload</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Resume last chat or start fresh on reload</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">On startup & reload</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Resume last chat or start fresh on reload</span>
                       </div>
                       <div className="relative shrink-0">
                         <button
@@ -1888,14 +1946,14 @@ const Sidebar = () => {
                             e.stopPropagation();
                             setShowStartupDropdown(!showStartupDropdown);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[145px] px-2.5 py-1 text-[12.5px] rounded-[6px] border border-black/10 dark:border-white/10 bg-transparent text-gray-800 dark:text-[#d4d3cf] cursor-pointer"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
                         >
                           <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
-                          <span className="material-symbols-outlined text-[15px] text-gray-400 select-none">expand_more</span>
+                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">expand_more</span>
                         </button>
                         {showStartupDropdown && (
                           <div 
-                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-[#202020] border border-black/10 dark:border-[#303030] rounded-[6px] shadow-xl z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -1909,10 +1967,10 @@ const Sidebar = () => {
                                   setChatStartupMode(opt.id);
                                   setShowStartupDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-gray-700 dark:text-[#d4d3cf] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
-                                {chatStartupMode === opt.id && <span className="material-symbols-outlined text-[15px] text-blue-500 select-none">check</span>}
+                                {chatStartupMode === opt.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
                               </button>
                             ))}
                           </div>
@@ -1922,83 +1980,86 @@ const Sidebar = () => {
                   )}
 
                   {matchesQuery("Reasoning", "Thinking mode") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Reasoning process</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Thinking orb animation</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Reasoning process</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Thinking orb animation</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={isThinking}
                         onClick={() => setIsThinking(!isThinking)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${isThinking ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${isThinking ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${isThinking ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${isThinking ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   )}
 
                   {matchesQuery("Font", "Typography text size") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Font size</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Interface text size ({fontSize}px)</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font size</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Interface text size ({fontSize}px)</span>
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600 dark:text-[#d4d3cf] bg-transparent rounded-[6px] border border-black/10 dark:border-white/10 px-1 py-0.5 shrink-0">
+                      <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0">
                         <button 
+                          type="button"
                           onClick={() => handleFontSizeChange(-1)}
                           disabled={fontSize <= 12}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer text-sm"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] cursor-pointer text-sm transition-colors duration-100"
                         >-</button>
-                        <span className="text-[12px] w-7 text-center font-medium">{fontSize}</span>
+                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">{fontSize}</span>
                         <button 
+                          type="button"
                           onClick={() => handleFontSizeChange(1)}
                           disabled={fontSize >= 24}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer text-sm"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] cursor-pointer text-sm transition-colors duration-100"
                         >+</button>
                       </div>
                     </div>
                   )}
 
                   {matchesQuery("Spell", "Spell check") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Spell check</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Browser spell checker</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Spell check</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Browser spell checker</span>
                       </div>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={spellCheck}
                         onClick={() => setSpellCheck(!spellCheck)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 cursor-pointer ${spellCheck ? "bg-blue-600 dark:bg-blue-500" : "bg-black/20 dark:bg-[#404040]"}`}
+                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform ${spellCheck ? "translate-x-3.5" : ""}`} />
+                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`} />
                       </button>
                     </div>
                   )}
 
                   {matchesQuery("Storage", "Local data clear") && (
-                    <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">Local storage</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">{storageUsage} used</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Local storage</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">{storageUsage} used</span>
                       </div>
                       <button 
+                        type="button"
                         onClick={() => setShowClearDataModal(true)}
-                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
+                        className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-100 shrink-0 cursor-pointer"
                       >
                         Clear local data
                       </button>
                     </div>
                   )}
 
-                  {matchesQuery("KagZ AI", "personality tone instructions friend prompt") && (
-                    <div className="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-[#262626]">
+                  {matchesQuery("KagZ AI", "personality tone instructions friend prompt memory") && (
+                    <div className="flex items-center justify-between py-3">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#d4d3cf] font-medium">KagZ AI Settings</span>
-                        <span className="text-[12px] text-gray-500 dark:text-[#84827e] mt-0.5">Customize AI personality ({aiPersona.replace('_', ' ')}) and custom instructions</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">KagZ AI Settings</span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Customize AI personality ({aiPersona.replace('_', ' ')}), instructions, and memory limits</span>
                       </div>
                       <button
                         type="button"
@@ -2006,7 +2067,7 @@ const Sidebar = () => {
                           setSettingsSearchQuery("");
                           setSettingsTab("ai");
                         }}
-                        className="px-3 py-1 text-[12px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-[5px] transition-colors cursor-pointer"
+                        className="px-3 h-7 flex items-center text-[12px] font-medium text-[var(--c-brand)] bg-[var(--c-brand-subtle)] hover:bg-[var(--c-brand)]/20 rounded-[6px] transition-colors duration-100 cursor-pointer"
                       >
                         Configure
                       </button>
@@ -2101,7 +2162,7 @@ const Sidebar = () => {
 
   const renderTree = (nodes, level = 0, expansionState = expandedFolders, onToggle = toggleFolder) => {
     return nodes.map((node) => {
-      // Clear visual indentation hierarchy per level matching Notion / Linear
+      // Clear visual indentation hierarchy per level
       const paddingLeft = `${10 + level * 14}px`;
       const isExpanded = debouncedSearchQuery ? true : expansionState[node.id];
 
@@ -2114,10 +2175,10 @@ const Sidebar = () => {
             <NavLink
               to={node.path}
               className={({ isActive }) =>
-                `group/row relative flex items-center w-full h-[28px] pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 ${
+                `group/row relative flex items-center w-full h-[30px] pr-8 text-[14px] leading-[16.8px] rounded-[6px] mb-[1px] transition-all duration-150 ${
                   isActive
-                    ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
-                    : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
+                    ? "bg-black/[0.031] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed] font-medium"
+                    : "text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"
                 }`
               }
               style={{ paddingLeft }}
@@ -2150,7 +2211,7 @@ const Sidebar = () => {
           {(() => {
             return (
               <div
-                className="group flex items-center justify-between w-full h-[28px] pr-1.5 text-[13px] font-medium text-gray-800 dark:text-[#e3e2e0] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer"
+                className="group flex items-center justify-between w-full h-[30px] pr-1.5 text-[14px] leading-[16.8px] font-medium text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer"
                 style={{ paddingLeft }}
                 onClick={() => onToggle(node.id)}
               >
@@ -2259,7 +2320,7 @@ const Sidebar = () => {
 
   return (
     <div
-      className="relative z-40 h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f7f7f5] dark:bg-[color(display-p3_0.09412_0.09412_0.09412)]"
+      className="relative z-40 h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f9f8f7] dark:bg-[#202020]"
       style={{ width: sidebarWidth }}
     >
       {/* Resizer Handle */}
@@ -2267,7 +2328,7 @@ const Sidebar = () => {
         onMouseDown={handleMouseDown}
         className="absolute top-0 right-[-4px] w-[8px] h-full cursor-col-resize z-50 hover:bg-gray-300/50 transition-colors"
       />
-      {/* Top Header & Search Bar (Notion Style) */}
+      {/* Top Header & Search Bar */}
       <div className="px-3 pt-3 pb-1 flex flex-col gap-2 shrink-0">
         {/* Top Controls Row */}
         <div className="flex items-center justify-between">
@@ -2333,12 +2394,13 @@ const Sidebar = () => {
         {/* Search or Ask Bar */}
         <button
           onClick={() => setIsSearchActive(true)}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-transparent hover:border-black/25 dark:hover:border-white/25 transition-colors text-left group cursor-pointer"
+          className="w-[246px] h-8 mx-auto mt-3 flex items-center justify-between rounded-[8px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] transition-[background,border] duration-20 ease-in text-left group cursor-pointer"
+          style={{ paddingLeft: '8px', paddingRight: '6px' }}
         >
-          <span className="text-[13px] text-gray-400 dark:text-[#7d7a75] group-hover:text-gray-600 dark:group-hover:text-[#a8a6a1] select-none">
+          <span className="text-[14px] leading-[16.8px] text-[var(--c-text-tertiary)] group-hover:text-[var(--c-text-primary)] select-none">
             Search or ask
           </span>
-          <kbd className="text-[11px] font-sans font-medium text-gray-400 dark:text-[#6e6b66] bg-transparent border border-black/[0.08] dark:border-white/[0.1] rounded px-1.5 py-0.5 leading-none select-none">
+          <kbd className="text-[11px] font-sans font-medium text-[var(--c-text-tertiary)] bg-transparent border border-[var(--c-border)] rounded px-1.5 py-0.5 leading-none select-none">
             ⌘K
           </kbd>
         </button>
@@ -2364,10 +2426,10 @@ const Sidebar = () => {
               >
                 <motion.div
                   layout
-                  className={`flex items-center h-7 rounded-full overflow-hidden ${
+                  className={`flex items-center h-8 rounded-full overflow-hidden transition-colors ${
                     isChatActive
-                      ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2.5 font-medium"
-                      : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
+                      ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] px-3.5 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                      : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] w-8 justify-center"
                   }`}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 >
@@ -2381,10 +2443,10 @@ const Sidebar = () => {
                     {isChatActive && (
                       <motion.span
                         initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 5 }}
+                        animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
                         exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="text-[13px] font-medium whitespace-nowrap overflow-hidden leading-none"
+                        className="text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none"
                       >
                         {item.label}
                       </motion.span>
@@ -2404,10 +2466,10 @@ const Sidebar = () => {
                 return (
                   <motion.div
                     layout
-                    className={`flex items-center h-7 rounded-full overflow-hidden ${
+                    className={`flex items-center h-8 rounded-full overflow-hidden transition-colors ${
                       active
-                        ? "bg-[#ecebe9] dark:bg-white/[0.1] text-black dark:text-white px-2.5 font-medium"
-                        : "bg-transparent text-[#8a817c] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] w-7 justify-center"
+                        ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] px-3.5 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                        : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] w-8 justify-center"
                     }`}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
@@ -2421,10 +2483,10 @@ const Sidebar = () => {
                       {active && (
                         <motion.span
                           initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 5 }}
+                          animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
                           exit={{ opacity: 0, width: 0, marginLeft: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[13px] font-medium whitespace-nowrap overflow-hidden leading-none"
+                          className="text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none"
                         >
                           {item.label}
                         </motion.span>
@@ -2445,10 +2507,10 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("recent-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-[#a19e99] dark:text-[#7d7a75] hover:text-black dark:hover:text-[#f0efed] transition-colors"
             >
               <span className="material-symbols-outlined text-[14px] leading-none shrink-0 opacity-70 select-none">tab_recent</span>
-              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Recents</span>
+              <span className="text-[12px] leading-[16px] font-medium tracking-[0.04em] uppercase">Recents</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
           </div>
@@ -2458,7 +2520,7 @@ const Sidebar = () => {
             <div className="overflow-hidden w-full flex flex-col pt-0.5 pb-0.5">
               <button
                 onClick={handleCreateRootPage}
-                className="group flex items-center gap-2 w-full h-[28px] px-2.5 mb-[1px] text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full h-[30px] px-2 mb-[1px] text-[14px] leading-[16.8px] font-normal text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                   <span className="material-symbols-outlined text-[15px] leading-none select-none">add_2</span>
@@ -2486,10 +2548,10 @@ const Sidebar = () => {
                     <NavLink
                       to={recent.path}
                       className={({ isActive }) =>
-                        `group/row relative flex items-center w-full h-[28px] px-2.5 pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 ${
+                        `group/row relative flex items-center w-full h-[30px] px-2 pr-8 text-[14px] leading-[16.8px] rounded-[6px] mb-[1px] transition-all duration-150 ${
                           isActive
-                            ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
-                            : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
+                            ? "bg-black/[0.031] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed] font-medium"
+                            : "text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"
                         }`
                       }
                     >
@@ -2523,11 +2585,11 @@ const Sidebar = () => {
         <div className="flex flex-col mb-2 shrink-0">
           <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-[#a19e99] dark:text-[#7d7a75] hover:text-black dark:hover:text-[#f0efed] transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
               <HugeiconsIcon icon={Blockchain04Icon} size={13.5} className="shrink-0 opacity-70 select-none text-current" />
-              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Workspaces</span>
+              <span className="text-[12px] leading-[16px] font-medium tracking-[0.04em] uppercase">Workspaces</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
             <button
@@ -2578,10 +2640,10 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("favorites-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-[#a19e99] dark:text-[#7d7a75] hover:text-black dark:hover:text-[#f0efed] transition-colors"
             >
               <HugeiconsIcon icon={StarIcon} size={15.5} className="shrink-0 opacity-70 select-none" />
-              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Favorites</span>
+              <span className="text-[12px] leading-[16px] font-medium tracking-[0.04em] uppercase">Favorites</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
           </div>
@@ -2625,10 +2687,10 @@ const Sidebar = () => {
           <div className="group flex items-center justify-between w-full pt-1.5 px-1.5 pb-0.5 shrink-0">
             <div
               onClick={() => toggleFolder("chat-history-section")}
-              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-gray-400 dark:text-[#888680] hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1.5 select-none cursor-pointer px-1 py-0.5 rounded text-[#a19e99] dark:text-[#7d7a75] hover:text-black dark:hover:text-[#f0efed] transition-colors"
             >
               <HugeiconsIcon icon={MessageCircleIcon} size={15.5} className="shrink-0 opacity-70 select-none" />
-              <span className="text-[11px] font-medium tracking-[0.06em] uppercase">Chat History</span>
+              <span className="text-[12px] leading-[16px] font-medium tracking-[0.04em] uppercase">Chat History</span>
               <span className={`material-symbols-outlined text-[13px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-60 group-hover:opacity-100 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}>chevron_right</span>
             </div>
             <button
@@ -2652,7 +2714,7 @@ const Sidebar = () => {
             <div className="overflow-hidden w-full h-full flex flex-col pt-0.5 pb-1 min-h-0">
               <button
                 onClick={handleStartNewChat}
-                className="group flex items-center gap-2 w-full h-[28px] px-2.5 mb-[1px] text-[13px] font-normal text-gray-500 dark:text-[#8a8883] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
+                className="group flex items-center gap-2 w-full h-[30px] px-2 mb-[1px] text-[14px] leading-[16.8px] font-normal text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                   <HugeiconsIcon icon={ChatAdd01Icon} size={15} className="select-none leading-none" />
@@ -2683,10 +2745,10 @@ const Sidebar = () => {
                         return (
                           <>
                             <div
-                              className={`relative flex items-center w-full h-[28px] px-2.5 pr-8 text-[13px] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer ${
+                              className={`relative flex items-center w-full h-[30px] px-2 pr-8 text-[14px] leading-[16.8px] rounded-[6px] mb-[1px] transition-all duration-150 cursor-pointer ${
                                 isChatActive
-                                  ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium before:absolute before:left-0.5 before:top-1.5 before:bottom-1.5 before:w-[2.5px] before:rounded-full before:bg-blue-500/80 dark:before:bg-blue-400"
-                                  : "text-gray-600 dark:text-[#a8a6a1] hover:text-black dark:hover:text-white hover:bg-black/[0.035] dark:hover:bg-white/[0.05]"
+                                  ? "bg-black/[0.031] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed] font-medium"
+                                  : "text-[#5f5e59] dark:text-[#bcbab6] hover:text-[#2c2c2b] dark:hover:text-[#f0efed] hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"
                               }`}
                               onClick={() => {
                                 loadSession(session.sessionId);
@@ -2737,7 +2799,7 @@ const Sidebar = () => {
             e.stopPropagation();
             setShowSettingsCard(true);
           }}
-          className="flex items-center gap-2 overflow-hidden cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] py-1 px-1.5 rounded-[6px] transition-colors min-w-0"
+          className="flex items-center gap-2 overflow-hidden cursor-pointer hover:bg-black/[0.031] dark:hover:bg-white/[0.055] py-1 px-1.5 rounded-[6px] transition-colors min-w-0"
         >
           {user?.avatar ? (
             <img

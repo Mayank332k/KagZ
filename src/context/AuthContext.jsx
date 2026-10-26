@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import authService from '../services/auth.service';
 import { AuthContext } from './AuthContextDefinition';
 const AUTH_EVENT_KEY = 'noema-auth-event';
@@ -9,16 +9,29 @@ const broadcastAuthChange = (type) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [memory, setMemory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Single place to apply a /auth/me payload so user + memory never drift.
+  const applyUserPayload = useCallback((res) => {
+    if (!res?.success || !res.user) return false;
+    setUser(res.user);
+    if (res.memory) setMemory(res.memory);
+    return true;
+  }, []);
+
+  const refreshMemory = useCallback(async (force = false) => {
+    const res = await authService.getCurrentUser(force);
+    applyUserPayload(res);
+    return res?.memory ?? null;
+  }, [applyUserPayload]);
 
   useEffect(() => {
     const initAuth = async () => {
       try {
         const res = await authService.getCurrentUser();
-        if (res.success && res.user) {
-          setUser(res.user);
-        }
+        applyUserPayload(res);
       } catch {
         console.log('No active session found.');
       } finally {
@@ -27,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     };
     
     initAuth();
-  }, []);
+  }, [applyUserPayload]);
 
   useEffect(() => {
     const handleAuthEvent = (event) => {
@@ -36,14 +49,15 @@ export const AuthProvider = ({ children }) => {
 
       if (type === 'logout') {
         setUser(null);
+        setMemory(null);
         setError(null);
         return;
       }
 
       if (type === 'login') {
-        authService.getCurrentUser()
+        authService.getCurrentUser(true)
           .then((res) => {
-            if (res.success && res.user) setUser(res.user);
+            if (!applyUserPayload(res)) setUser(null);
           })
           .catch(() => setUser(null));
       }
@@ -51,19 +65,31 @@ export const AuthProvider = ({ children }) => {
 
     window.addEventListener('storage', handleAuthEvent);
     return () => window.removeEventListener('storage', handleAuthEvent);
-  }, []);
+  }, [applyUserPayload]);
 
   useEffect(() => {
     const handleSessionExpired = () => {
       localStorage.removeItem('noema-token');
       localStorage.removeItem('noema-refresh-token');
       setUser(null);
+      setMemory(null);
       setError('Your session has expired. Please log in again.');
     };
 
     window.addEventListener('auth:session-expired', handleSessionExpired);
     return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
+
+  // Refresh memory usage when the agent saves a new fact, so the UI
+  // doesn't show stale numbers until the dropdown is reopened.
+  useEffect(() => {
+    const handleMemoryUpdated = () => {
+      refreshMemory(true).catch(() => {});
+    };
+
+    window.addEventListener('auth:memory-updated', handleMemoryUpdated);
+    return () => window.removeEventListener('auth:memory-updated', handleMemoryUpdated);
+  }, [refreshMemory]);
 
   const loginWithGoogle = async (token) => {
     setLoading(true);
@@ -73,6 +99,7 @@ export const AuthProvider = ({ children }) => {
       if (res.success && res.user) {
         if (res.token) localStorage.setItem('noema-token', res.token);
         if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
+        setMemory(res.memory ?? null);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -94,6 +121,7 @@ export const AuthProvider = ({ children }) => {
       if (res.success && res.user) {
         if (res.token) localStorage.setItem('noema-token', res.token);
         if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
+        setMemory(res.memory ?? null);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -115,6 +143,7 @@ export const AuthProvider = ({ children }) => {
       if (res.success && res.user) {
         if (res.token) localStorage.setItem('noema-token', res.token);
         if (res.refreshToken) localStorage.setItem('noema-refresh-token', res.refreshToken);
+        setMemory(res.memory ?? null);
         setUser(res.user);
         broadcastAuthChange('login');
         return res;
@@ -138,6 +167,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('noema-token');
       localStorage.removeItem('noema-refresh-token');
       setUser(null);
+      setMemory(null);
       broadcastAuthChange('logout');
     }
   };
@@ -156,7 +186,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, login, register, logout, updatePreferences }}>
+    <AuthContext.Provider value={{ user, memory, refreshMemory, loading, error, loginWithGoogle, login, register, logout, updatePreferences }}>
       {children}
     </AuthContext.Provider>
   );

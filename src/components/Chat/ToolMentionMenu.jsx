@@ -96,15 +96,16 @@ const ToolMentionMenu = ({
   return (
     <motion.div
       ref={menuRef}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.12 }}
-      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-black/10 dark:border-white/[0.08] shadow-lg z-[9999] overflow-hidden rounded-[16px] p-2 select-none"
+      role="listbox"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 4 }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[6px] p-1 select-none"
     >
       {/* Section Header */}
-      <div className="px-3.5 pt-1.5 pb-1 text-[13px] font-medium text-neutral-500 dark:text-neutral-400">
-        Add
+      <div className="px-2 py-1 text-[12px] leading-[16px] font-medium text-[#7d7a75] dark:text-[#ada9a3]">
+        Plugins & Tools
       </div>
 
       {/* Items List */}
@@ -116,30 +117,32 @@ const ToolMentionMenu = ({
             <button
               key={tool.id}
               type="button"
+              role="option"
+              aria-selected={isSelected}
               onMouseDown={(e) => {
                 e.preventDefault();
                 onSelect(tool);
               }}
-              className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-[10px] text-left transition-colors cursor-pointer w-full group ${
+              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] text-left transition-colors cursor-pointer w-full group ${
                 isSelected
-                  ? 'bg-black/[0.06] text-black dark:bg-white/[0.1] dark:text-white'
-                  : 'hover:bg-black/[0.04] text-neutral-800 dark:hover:bg-white/[0.05] dark:text-neutral-300'
+                  ? 'bg-black/[0.055] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'
+                  : 'hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'
               }`}
             >
               {/* Minimalist icon without any background wrapper */}
               <span
-                className="shrink-0 flex items-center justify-center select-none"
+                className="shrink-0 w-5 h-5 flex items-center justify-center select-none"
                 style={{ color: tool.iconColor }}
               >
-                <HugeiconsIcon icon={tool.icon} size={20} strokeWidth={1.8} />
+                <HugeiconsIcon icon={tool.icon} size={18} strokeWidth={1.8} />
               </span>
 
               {/* Title & Subtitle inline */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-[15.5px] font-medium text-neutral-900 dark:text-white shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <span className="text-[14px] leading-[16.8px] font-medium text-[#2c2c2b] dark:text-[#f0efed] shrink-0">
                   {tool.label}
                 </span>
-                <span className="text-[14px] text-neutral-500 dark:text-neutral-400 truncate">
+                <span className="text-[12px] leading-[15px] text-[#7d7a75] dark:text-[#ada9a3] truncate">
                   {tool.description}
                 </span>
               </div>
