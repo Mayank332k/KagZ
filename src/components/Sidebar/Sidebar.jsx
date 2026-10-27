@@ -395,7 +395,7 @@ const Sidebar = () => {
       label: "Home",
       path: "/dashboard/page/new",
       icon: () => (
-        <HugeiconsIcon icon={Home01Icon} size={19} className="leading-none select-none" />
+        <HugeiconsIcon icon={Home01Icon} size={16} className="leading-none select-none" />
       ),
     },
     {
@@ -403,7 +403,7 @@ const Sidebar = () => {
       label: "Chat",
       path: "/dashboard/chat",
       icon: () => (
-        <HugeiconsIcon icon={MessageCircleIcon} size={19} className="leading-none select-none" />
+        <HugeiconsIcon icon={MessageCircleIcon} size={16} className="leading-none select-none" />
       ),
     },
     {
@@ -411,7 +411,7 @@ const Sidebar = () => {
       label: "Tasks",
       path: "/dashboard/tasks",
       icon: () => (
-        <HugeiconsIcon icon={ListTodoIcon} size={19} className="leading-none select-none" />
+        <HugeiconsIcon icon={ListTodoIcon} size={16} className="leading-none select-none" />
       ),
     },
   ];
@@ -2394,7 +2394,7 @@ const Sidebar = () => {
         {/* Search or Ask Bar */}
         <button
           onClick={() => setIsSearchActive(true)}
-          className="w-[246px] h-8 mx-auto mt-3 flex items-center justify-between rounded-[8px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] transition-[background,border] duration-20 ease-in text-left group cursor-pointer"
+          className="w-full h-8 mt-1 flex items-center justify-between rounded-[8px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] transition-[background,border] duration-20 ease-in text-left group cursor-pointer"
           style={{ paddingLeft: '8px', paddingRight: '6px' }}
         >
           <span className="text-[14px] leading-[16.8px] text-[var(--c-text-tertiary)] group-hover:text-[var(--c-text-primary)] select-none">
@@ -2407,9 +2407,8 @@ const Sidebar = () => {
       </div>
 
       {/* Animated Quick Actions Bar (3 pills: Home, Chat, Tasks) */}
-      <div className="px-3 pt-2 pb-2 flex items-center justify-start gap-1.5">
+      <div className="px-3 pt-1 pb-1.5 flex items-center justify-start gap-1">
         {topNavItems.map((item) => {
-
           if (item.id === "chat") {
             const isChatActive =
               isRightChatOpen || location.pathname === "/dashboard/chat";
@@ -2422,77 +2421,59 @@ const Sidebar = () => {
                   }
                   setIsRightChatOpen((prev) => !prev);
                 }}
-                className="block cursor-pointer"
+                className="block cursor-pointer outline-none"
               >
-                <motion.div
-                  layout
-                  className={`flex items-center h-8 rounded-full overflow-hidden transition-colors ${
+                <div
+                  className={`flex items-center h-7 rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
                     isChatActive
-                      ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] px-3.5 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                      : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] w-8 justify-center"
+                      ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                      : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
                   }`}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 >
-                  <motion.div
-                    layout="position"
-                    className="shrink-0 flex items-center justify-center"
-                  >
+                  <div className="w-7 h-7 shrink-0 flex items-center justify-center">
                     <item.icon />
-                  </motion.div>
-                  <AnimatePresence initial={false}>
-                    {isChatActive && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
-                        exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+                  </div>
+                  <span
+                    className={`text-[12.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
+                      isChatActive
+                        ? "max-w-[70px] opacity-100 pr-2.5 pl-0.5"
+                        : "max-w-0 opacity-0 pr-0 pl-0 pointer-events-none"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
               </button>
             );
           }
 
           return (
-            <NavLink key={item.id} to={item.path} className="block">
+            <NavLink key={item.id} to={item.path} className="block outline-none">
               {({ isActive: routerIsActive }) => {
                 const isActive =
                   item.id === "home" ? isHomeActive() : routerIsActive;
                 const active = isActive && !isSearchActive;
                 return (
-                  <motion.div
-                    layout
-                    className={`flex items-center h-8 rounded-full overflow-hidden transition-colors ${
+                  <div
+                    className={`flex items-center h-7 rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
                       active
-                        ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] px-3.5 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                        : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] w-8 justify-center"
+                        ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#2c2c2b] dark:text-[#f0efed] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                        : "bg-black/[0.03] dark:bg-white/[0.04] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#ada9a3] dark:hover:text-[#f0efed] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
                     }`}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
-                    <motion.div
-                      layout="position"
-                      className="shrink-0 flex items-center justify-center"
-                    >
+                    <div className="w-7 h-7 shrink-0 flex items-center justify-center">
                       <item.icon />
-                    </motion.div>
-                    <AnimatePresence initial={false}>
-                      {active && (
-                        <motion.span
-                          initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
-                          exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none"
-                        >
-                          {item.label}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                    </div>
+                    <span
+                      className={`text-[12.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
+                        active
+                          ? "max-w-[70px] opacity-100 pr-2.5 pl-0.5"
+                          : "max-w-0 opacity-0 pr-0 pl-0 pointer-events-none"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
                 );
               }}
             </NavLink>
