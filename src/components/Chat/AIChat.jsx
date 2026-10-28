@@ -1082,7 +1082,7 @@ const ChatComposer = ({
   const [isMentionOpen, setIsMentionOpen] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
-  const [choiceSelectedIndex, setChoiceSelectedIndex] = useState(0);
+  const [choiceSelectedIndex, setChoiceSelectedIndex] = useState(-1);
 
   // Rotating prompt suggestions for empty query
   const activeSuggestions = useMemo(() => {
@@ -1329,7 +1329,7 @@ const ChatComposer = ({
       }
       if (query === '' && e.key === 'ArrowUp') {
         e.preventDefault();
-        setChoiceSelectedIndex((prev) => (prev - 1 + opts.length) % opts.length);
+        setChoiceSelectedIndex((prev) => (prev <= 0 ? opts.length - 1 : prev - 1));
         return;
       }
     }
@@ -1709,15 +1709,15 @@ const ChatComposer = ({
 
       {/* Subtle Bottom Keyboard Helper (matching Linear / Apple native spec) */}
       {activeChoicePrompt && (
-        <div className="flex items-center justify-center gap-2 mt-2.5 text-[12px] text-[#777777] select-none font-sans">
+        <div className="flex items-center justify-center gap-2 mt-2.5 text-[12px] text-[#8E8B86] dark:text-[#777777] select-none font-sans">
           <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↑</kbd>
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↓</kbd>
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↑</kbd>
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↓</kbd>
             <span>to navigate</span>
           </span>
           <span>·</span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-[#1c1c1c] border border-[#3A3A3A] text-[11px] text-[#999999] font-mono leading-none">↵</kbd>
+            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↵</kbd>
             <span>to select</span>
           </span>
           <span>·</span>

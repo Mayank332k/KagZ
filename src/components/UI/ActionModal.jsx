@@ -79,15 +79,6 @@ const ActionModal = ({
             className="relative w-[360px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#202020] rounded-[16px] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[0_14px_28px_-6px_rgba(0,0,0,0.4),0_2px_4px_-1px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden select-none"
           >
             <div className="p-5 pb-4">
-              {/* Destructive Warning Badge when isDanger */}
-              {isDanger && (
-                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500/10 dark:bg-red-500/15 text-[#eb5757] dark:text-[#ff7b72] mb-3.5">
-                  <span className="material-symbols-outlined text-[20px] leading-none select-none">
-                    delete
-                  </span>
-                </div>
-              )}
-
               <h3 className="text-[16px] leading-[22px] font-semibold text-[#2c2c2b] dark:text-[#f0efed] tracking-tight">
                 {title}
               </h3>

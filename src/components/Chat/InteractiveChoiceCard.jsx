@@ -1,22 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { marked } from 'marked';
 
 /**
  * InteractiveChoiceCard
  *
- * Ultra-compact, sleek dark-mode choice card:
- * - Reduced height by 40%+ to eliminate wasted vertical space and preserve chat visibility
- * - Monochromatic grayscale palette (--bg: #111111, --modal: #181818, --selected: #242424, --control: #303030, --border: #3A3A3A, --divider: #383838)
- * - Compact number squircle (28x28px), tight typography and padding
- * - Scrollable options (max-h: 160px) for multiple choices
+ * Compact, sleek question card:
+ * - Rounded surface with a quiet header (question + dismiss)
+ * - Numbered option rows with title/description and inset hairline dividers
+ * - Footer with "Something else" custom input and a Skip pill
+ * - Theme-aware: light surfaces by default, original dark palette under `.dark`
  *
  * @param {Object} props
- * @param {string} props.question - Primary prompt/question (#E8E8E8)
+ * @param {string} props.question - Primary prompt/question (supports inline markdown: **bold**, *italic*, `code`)
  * @param {Array<{ title: string, description?: string }>} props.options - Choices
  * @param {Function} props.onSelect - Callback with chosen text
  * @param {Function} [props.onSkip] - Callback when user skips
  * @param {Function} [props.onDismiss] - Callback when user closes (X)
  */
+
+// Parse inline markdown (bold, italic, code) without block elements
+const parseInlineMarkdown = (text) => {
+  if (!text || typeof text !== 'string') return text;
+  // Configure marked for inline-only parsing
+  return marked.parseInline(text);
+};
+
+const normalizeOption = (opt) => {
+  if (opt === null || opt === undefined) return null;
+  if (typeof opt === 'string') {
+    return { title: opt, description: '' };
+  }
+  const title = opt.title || opt.text || opt.label || '';
+  if (!title) return null;
+  return {
+    title,
+    description: opt.description || opt.desc || opt.subtitle || '',
+  };
+};
+
 const InteractiveChoiceCard = ({
   question,
   options = [],
@@ -26,9 +48,18 @@ const InteractiveChoiceCard = ({
   onSkip,
   onDismiss,
 }) => {
-  const [internalSelectedIndex, setInternalSelectedIndex] = useState(0);
+  const normalizedOptions = useMemo(
+    () => (Array.isArray(options) ? options.map(normalizeOption).filter(Boolean) : []),
+    [options]
+  );
+
+  const [internalSelectedIndex, setInternalSelectedIndex] = useState(-1);
   const selectedIndex = controlledIndex !== undefined ? controlledIndex : internalSelectedIndex;
   const setSelectedIndex = onSelectedIndexChange || setInternalSelectedIndex;
+  const activeIndex = selectedIndex >= 0 && normalizedOptions.length > 0
+    ? Math.min(selectedIndex, normalizedOptions.length - 1)
+    : -1;
+
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customText, setCustomText] = useState('');
   const inputRef = useRef(null);
@@ -39,13 +70,36 @@ const InteractiveChoiceCard = ({
     }
   }, [showCustomInput]);
 
+  // Clear the highlighted option whenever the question changes.
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [question, setSelectedIndex]);
+
+  const handleChoose = useCallback((opt) => {
+    if (!opt) return;
+    const answer = opt.title || opt.text || String(opt);
+    if (onSelect) onSelect(answer);
+  }, [onSelect]);
+
+  const handleCustomSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!customText.trim()) return;
+    if (onSelect) onSelect(customText.trim());
+  };
+
+  const resetCustomInput = () => {
+    setShowCustomInput(false);
+    setCustomText('');
+  };
+
   // Keyboard navigation: 1-9, ArrowUp/ArrowDown, Enter, Escape
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
         if (e.key === 'Escape') {
           if (showCustomInput) {
-            setShowCustomInput(false);
+            resetCustomInput();
             e.stopPropagation();
           } else if (onDismiss) {
             onDismiss();
@@ -56,66 +110,55 @@ const InteractiveChoiceCard = ({
 
       if (e.key === 'Escape') {
         if (onDismiss) onDismiss();
+      } else if (normalizedOptions.length === 0) {
+        return;
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % options.length);
+        setSelectedIndex((prev) => (prev < 0 ? 0 : (prev + 1) % normalizedOptions.length));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + options.length) % options.length);
+        setSelectedIndex((prev) => (prev <= 0 ? normalizedOptions.length - 1 : prev - 1));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (options[selectedIndex]) {
-          handleChoose(options[selectedIndex]);
+        const targetIndex = activeIndex >= 0 ? activeIndex : 0;
+        if (normalizedOptions[targetIndex]) {
+          handleChoose(normalizedOptions[targetIndex]);
         }
       } else {
         const num = parseInt(e.key, 10);
-        if (!isNaN(num) && num >= 1 && num <= options.length) {
+        if (!isNaN(num) && num >= 1 && num <= normalizedOptions.length) {
           e.preventDefault();
-          handleChoose(options[num - 1]);
+          handleChoose(normalizedOptions[num - 1]);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [options, selectedIndex, showCustomInput, onDismiss]);
+  }, [activeIndex, normalizedOptions, handleChoose, showCustomInput, onDismiss, setSelectedIndex]);
 
-  const handleChoose = (opt) => {
-    if (!opt) return;
-    const answer = opt.title || opt.text || String(opt);
-    if (onSelect) onSelect(answer);
-  };
-
-  const handleCustomSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (!customText.trim()) return;
-    if (onSelect) onSelect(customText.trim());
-  };
-
-  if (!question && (!options || options.length === 0)) return null;
+  if (!question && normalizedOptions.length === 0) return null;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 4 }}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-[770px] mx-auto mb-1 rounded-[16px] bg-[#1E1E1E] border border-[#2C2C2C] shadow-[0_12px_40px_rgba(0,0,0,0.5)] text-[#E8E8E8] select-none flex flex-col font-sans transition-colors duration-200 overflow-hidden"
+      initial={{ opacity: 0, y: 8, scale: 0.995 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 6, scale: 0.995 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[20px] border border-[#E6E5E3] bg-white font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:border-[#333333] dark:bg-[#1E1E1E] dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
     >
       {/* HEADER */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-2">
-        <h3 className="text-[14px] font-normal leading-snug tracking-tight text-[#D4D4D4] truncate flex-1">
-          {question}
+      <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5 sm:px-5">
+        <h3 className="min-w-0 flex-1 truncate text-[14px] font-normal leading-snug tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14.5px]">
+          <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(question) }} />
         </h3>
-        <span className="text-[11px] font-mono text-gray-400 dark:text-neutral-500 bg-white/5 px-1.5 py-0.5 rounded-[4px] shrink-0 select-none hidden sm:inline-block">
-          Press 1-{Math.min(options.length, 9)} or ↵
-        </span>
+
         {onDismiss && (
           <button
             type="button"
             onClick={onDismiss}
             aria-label="Close"
-            className="p-1 -mr-1 text-[#777777] hover:text-[#999999] transition-colors duration-180 cursor-pointer rounded-md flex items-center justify-center shrink-0"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#8E8B86] transition-colors hover:bg-black/[0.04] hover:text-[#5F5E59] dark:text-[#8A8A8A] dark:hover:bg-white/[0.06] dark:hover:text-[#D4D4D4]"
           >
             <span className="material-symbols-outlined text-[18px] leading-none select-none">
               close
@@ -124,12 +167,12 @@ const InteractiveChoiceCard = ({
         )}
       </div>
 
-      {/* OPTIONS STACK */}
+      <div className="h-px w-full bg-[#EDECEA] dark:bg-[#2A2A2A]" />
+
+      {/* OPTIONS */}
       <div className="flex flex-col">
-        {options.slice(0, 4).map((opt, idx) => {
-          const isSelected = selectedIndex === idx;
-          const title = opt.title || opt.text || String(opt);
-          const description = opt.description || opt.desc || '';
+        {normalizedOptions.map((opt, idx) => {
+          const isSelected = activeIndex === idx;
 
           return (
             <div
@@ -141,85 +184,78 @@ const InteractiveChoiceCard = ({
                 handleChoose(opt);
               }}
               onMouseEnter={() => setSelectedIndex(idx)}
-              className={`
-                group relative flex items-start sm:items-center gap-3 px-4 py-2 cursor-pointer transition-colors duration-150 ${idx > 0 ? 'border-t border-[#2C2C2C]' : ''}
-                ${isSelected
-                  ? 'bg-[#2A2A2A]'
-                  : 'bg-transparent hover:bg-[#252525]'
-                }
-              `}
+              className={`group relative flex min-h-[54px] cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors duration-150 sm:px-5 ${
+                isSelected
+                  ? 'bg-black/[0.025] dark:bg-white/[0.035]'
+                  : 'bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
+              }`}
             >
-              {/* Number box */}
-              <div
-                className={`
-                  w-[28px] h-[28px] rounded-[6px] flex items-center justify-center shrink-0 transition-colors duration-150 text-[13px] font-medium
-                  ${isSelected
-                    ? 'bg-[#3A3A3A] text-[#EEEEEE]'
-                    : 'bg-[#2E2E2E] text-[#999999] group-hover:bg-[#333333] group-hover:text-[#BBBBBB]'
-                  }
-                `}
-              >
+              <div className="flex h-[26px] w-[28px] shrink-0 items-center justify-center rounded-[7px] bg-[#F0EFED] text-[12.5px] font-medium leading-none text-[#8E8B86] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:text-[#B3B3B3] dark:group-hover:bg-[#333333]">
                 {idx + 1}
               </div>
 
-              {/* Title & Description */}
-              <div className="flex flex-col min-w-0 flex-1 justify-center mt-0.5 sm:mt-0">
-                <span className="text-[13.5px] font-normal text-[#EAEAEA] leading-tight tracking-tight truncate">
-                  {title}
-                </span>
-                {description && (
-                  <p className="text-[12px] font-normal text-[#888888] leading-none mt-0.5 truncate">
-                    {description}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13.5px] font-normal leading-tight tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14px]">
+                  <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.title) }} />
+                </div>
+                {opt.description && (
+                  <p className="mt-0.5 truncate text-[12px] font-normal leading-tight text-[#8E8B86] dark:text-[#8A8A8A] sm:text-[12.5px]">
+                    <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.description) }} />
                   </p>
                 )}
               </div>
 
-              {/* Return arrow ↵ on selected */}
-              <div
-                className={`
-                  shrink-0 transition-opacity duration-150 self-center
-                  ${isSelected ? 'opacity-100' : 'opacity-0'}
-                `}
-              >
-                <span className="text-[11.5px] font-mono text-gray-400 dark:text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[5px] select-none inline-flex items-center gap-1">
-                  <span>Enter</span>
-                  <span className="text-[12px] leading-none">↵</span>
-                </span>
-              </div>
+              {idx < normalizedOptions.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-[#EDECEA] dark:bg-[#2A2A2A] sm:left-5 sm:right-5"
+                />
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* BOTTOM ACTION */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-[#2C2C2C]">
-        <AnimatePresence mode="wait">
+      {/* FOOTER */}
+      <div className="relative flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 right-4 top-0 h-px bg-[#EDECEA] dark:bg-[#2A2A2A] sm:left-5 sm:right-5"
+        />
+
+        <AnimatePresence mode="wait" initial={false}>
           {!showCustomInput ? (
             <div
               key="custom-trigger"
               role="button"
               tabIndex={0}
               onClick={() => setShowCustomInput(true)}
-              className="flex items-center gap-3 group cursor-pointer"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowCustomInput(true);
+                }
+              }}
+              className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3"
             >
-              <div className="w-[28px] h-[28px] rounded-[6px] bg-[#2E2E2E] group-hover:bg-[#333333] flex items-center justify-center shrink-0 transition-colors duration-150">
-                <span className="material-symbols-outlined text-[15px] text-[#999999] group-hover:text-[#BBBBBB] transition-colors leading-none select-none">
+              <div className="flex h-[26px] w-[28px] shrink-0 items-center justify-center rounded-[7px] bg-[#F0EFED] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:group-hover:bg-[#333333]">
+                <span className="material-symbols-outlined text-[15px] leading-none text-[#8E8B86] select-none dark:text-[#B3B3B3]">
                   edit
                 </span>
               </div>
-              <span className="text-[13.5px] font-normal text-[#A3A3A3] group-hover:text-[#D4D4D4] transition-colors duration-150">
+              <span className="truncate text-[13.5px] font-normal text-[#8E8B86] transition-colors duration-150 group-hover:text-[#2C2C2B] dark:text-[#8A8A8A] dark:group-hover:text-[#E0E0E0] sm:text-[14px]">
                 Something else
               </span>
             </div>
           ) : (
             <motion.form
               key="custom-form"
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: '100%' }}
-              exit={{ opacity: 0, width: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               onSubmit={handleCustomSubmit}
-              className="flex items-center gap-3 flex-1 mr-4"
+              className="flex min-w-0 flex-1 items-center gap-2"
             >
               <input
                 ref={inputRef}
@@ -227,24 +263,22 @@ const InteractiveChoiceCard = ({
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 placeholder="Type custom response..."
-                className="w-full bg-[#111111] border border-[#3A3A3A] rounded-[8px] px-3 py-1.5 text-[13px] text-[#E8E8E8] placeholder-[#777777] focus:outline-none focus:border-[#555555] transition-colors"
+                className="h-8 w-full min-w-0 rounded-[9px] border border-[#D4D3CF] bg-[#F4F3F3] px-3 text-[12.5px] text-[#2C2C2B] outline-none transition-colors placeholder-[#A19E99] focus:border-[#A19E99] dark:border-[#3A3A3A] dark:bg-[#151515] dark:text-[#E8E8E8] dark:placeholder-[#777777] dark:focus:border-[#555555]"
               />
               <button
                 type="submit"
                 disabled={!customText.trim()}
-                className="px-3 py-1.5 rounded-[6px] bg-[#3A3A3A] hover:bg-[#444444] text-[#E5E5E5] text-[13px] font-normal disabled:opacity-30 transition-colors duration-150 cursor-pointer shrink-0"
+                className="h-8 shrink-0 rounded-[9px] bg-[#2C2C2B] px-3 text-[12.5px] font-medium text-white transition-colors duration-150 hover:bg-black disabled:opacity-30 dark:bg-[#EDEDED] dark:text-[#1E1E1E] dark:hover:bg-white"
               >
                 Send
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowCustomInput(false);
-                  setCustomText('');
-                }}
-                className="p-1 text-[#777777] hover:text-[#999999] transition-colors duration-150 cursor-pointer shrink-0"
+                onClick={resetCustomInput}
+                aria-label="Cancel custom response"
+                className="flex h-8 w-7 shrink-0 items-center justify-center rounded-[8px] text-[#8E8B86] transition-colors duration-150 hover:bg-black/[0.04] hover:text-[#5F5E59] dark:text-[#8A8A8A] dark:hover:bg-white/[0.06] dark:hover:text-[#D4D4D4]"
               >
-                <span className="material-symbols-outlined text-[17px] leading-none select-none">
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">
                   close
                 </span>
               </button>
@@ -256,7 +290,7 @@ const InteractiveChoiceCard = ({
           <button
             type="button"
             onClick={onSkip}
-            className="px-3.5 py-1.5 rounded-[6px] bg-white/10 hover:bg-white/15 text-[#D4D4D4] text-[13px] font-medium transition-colors duration-150 cursor-pointer shrink-0 ml-auto"
+            className="shrink-0 rounded-[8px] bg-[#ECEBE9] px-3.5 py-1.5 text-[12.5px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-[#E2E1DE] dark:bg-[#474747] dark:text-[#F0F0F0] dark:hover:bg-[#545454]"
           >
             Skip
           </button>
