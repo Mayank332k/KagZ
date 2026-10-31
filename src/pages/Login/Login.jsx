@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { Loading03Icon } from 'hugeicons-react';
 import useAsyncAction from '../../hooks/useAsyncAction';
 import landingImg from '../../assets/img.png';
+
+const RuleRow = ({ error = false, children }) => (
+    <div className={`flex items-center gap-2 pb-1.5 ${error ? 'text-[#FF6B6B]' : 'text-[#F0EFEC]/40'}`}>
+        <X className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+        <span>{children}</span>
+    </div>
+);
 
 const Login = () => {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -17,6 +24,7 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [localError, setLocalError] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
+    const reduceMotion = useReducedMotion();
 
     const { user, loginWithGoogle, login, register, loading, error } = useAuth();
     const navigate = useNavigate();
@@ -52,8 +60,14 @@ const Login = () => {
     }
 
     const handleUsernameChange = (e) => setUsername(e.target.value);
-    const handlePasswordChange = (e) => setPassword(e.target.value);
-    const handleConfirmPasswordChange = (e) => setConfirmPassword(e.target.value);
+    const handlePasswordChange = (e) => {
+        setPassword(e.target.value);
+        setFieldErrors((prev) => (prev.password ? { ...prev, password: undefined } : prev));
+    };
+    const handleConfirmPasswordChange = (e) => {
+        setConfirmPassword(e.target.value);
+        setFieldErrors((prev) => (prev.confirmPassword ? { ...prev, confirmPassword: undefined } : prev));
+    };
 
     const toggleMode = () => {
         setIsSignUp(!isSignUp);
@@ -64,7 +78,7 @@ const Login = () => {
 
     const getPasswordRules = (pass) => {
         return {
-            length: pass.length >= 8,
+            minLength: pass.length >= 8,
             upper: /[A-Z]/.test(pass),
             lower: /[a-z]/.test(pass),
             number: /[0-9]/.test(pass),
@@ -82,6 +96,28 @@ const Login = () => {
         else if (rulesPassed === 4) { strength = 3; colorClass = 'bg-[#FFD166]'; }
         else if (rulesPassed === 5) { strength = 4; colorClass = 'bg-[#87D69B]'; }
     }
+
+    const strengthLabel = rulesPassed === 5
+        ? 'Strong'
+        : rulesPassed === 4
+            ? 'Good'
+            : rulesPassed === 3
+                ? 'Fair'
+                : rulesPassed > 0
+                    ? 'Weak'
+                    : 'No password';
+
+    const missingRules = [
+        !rules.minLength && { key: 'minLength', label: 'At least 8 characters' },
+        !rules.upper && { key: 'upper', label: 'Uppercase letter' },
+        !rules.lower && { key: 'lower', label: 'Lowercase letter' },
+        !rules.number && { key: 'number', label: 'Number' },
+        !rules.special && { key: 'special', label: 'Special character' }
+    ].filter(Boolean);
+
+    const passwordsMismatch = isSignUp && confirmPassword.length > 0 && password !== confirmPassword;
+    const meterColorClass = passwordsMismatch ? 'bg-[#FF6B6B]' : colorClass;
+    const meterStatus = passwordsMismatch ? `${strengthLabel}, passwords do not match` : strengthLabel;
 
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
@@ -246,69 +282,97 @@ const Login = () => {
                             {fieldErrors.password && !isSignUp && (
                                 <p className="mt-1.5 text-left text-[13px] text-[#FF6B6B]">{fieldErrors.password}</p>
                             )}
-                            
-                            {isSignUp && password.length > 0 && (
-                                <div className="mt-3 flex flex-col gap-2.5">
-                                    <div className="flex gap-1.5 h-1.5 w-full">
-                                        <div className={`flex-1 rounded-full transition-colors duration-300 ${strength >= 1 ? colorClass : 'bg-white/10'}`}></div>
-                                        <div className={`flex-1 rounded-full transition-colors duration-300 ${strength >= 2 ? colorClass : 'bg-white/10'}`}></div>
-                                        <div className={`flex-1 rounded-full transition-colors duration-300 ${strength >= 3 ? colorClass : 'bg-white/10'}`}></div>
-                                        <div className={`flex-1 rounded-full transition-colors duration-300 ${strength >= 4 ? colorClass : 'bg-white/10'}`}></div>
-                                    </div>
-                                    
-                                    <div className="flex flex-col gap-1.5 mt-1 text-[12px]">
-                                        {!rules.length && (
-                                             <div className="flex items-center gap-2 text-white/40">
-                                                <X className="w-3.5 h-3.5" /> Minimum 8 characters
-                                            </div>
-                                        )}
-                                        {!rules.upper && (
-                                            <div className="flex items-center gap-2 text-white/40">
-                                                <X className="w-3.5 h-3.5" /> Uppercase letter
-                                            </div>
-                                        )}
-                                        {!rules.lower && (
-                                            <div className="flex items-center gap-2 text-white/40">
-                                                <X className="w-3.5 h-3.5" /> Lowercase letter
-                                            </div>
-                                        )}
-                                        {!rules.number && (
-                                            <div className="flex items-center gap-2 text-white/40">
-                                                <X className="w-3.5 h-3.5" /> Number
-                                            </div>
-                                        )}
-                                        {!rules.special && (
-                                            <div className="flex items-center gap-2 text-white/40">
-                                                <X className="w-3.5 h-3.5" /> Special character
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
-                        <AnimatePresence>
-                            {isSignUp && rulesPassed === 5 && (
+                        {isSignUp && (
+                            <div>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    disabled={loading || isSubmitting}
+                                    value={confirmPassword}
+                                    onChange={handleConfirmPasswordChange}
+                                    placeholder="Confirm your password"
+                                    className={`w-full h-[40px] bg-white/5 border rounded-[10px] px-4 text-[15px] text-[#F0EFEC] placeholder-[#F0EFEC]/20 outline-none transition-all duration-150 ease-out ${fieldErrors.confirmPassword ? 'border-[#FF6B6B] focus:border-[#FF6B6B]' : 'border-white/10 focus:border-white/20 focus:bg-white/10'}`}
+                                />
+                                {fieldErrors.confirmPassword && (
+                                    <p className="mt-1.5 text-left text-[13px] text-[#FF6B6B]">{fieldErrors.confirmPassword}</p>
+                                )}
+                            </div>
+                        )}
+
+                        <AnimatePresence initial={false}>
+                            {isSignUp && password.length > 0 && (
                                 <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                                    key="password-strength"
+                                    initial={reduceMotion ? false : { height: 0, marginTop: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', marginTop: 16, opacity: 1 }}
+                                    exit={reduceMotion ? { opacity: 0 } : { height: 0, marginTop: 0, opacity: 0 }}
+                                    transition={reduceMotion ? { duration: 0 } : {
+                                        height: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+                                        marginTop: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+                                        opacity: { duration: 0.2, ease: 'easeOut' }
+                                    }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="relative mt-4">
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            required
-                                            disabled={loading || isSubmitting}
-                                            value={confirmPassword}
-                                            onChange={handleConfirmPasswordChange}
-                                            placeholder="Confirm your password"
-                                            className={`w-full h-[40px] bg-white/5 border rounded-[10px] pl-4 pr-12 text-[15px] text-[#F0EFEC] placeholder-[#F0EFEC]/20 outline-none transition-all duration-150 ease-out ${fieldErrors.confirmPassword ? 'border-[#FF6B6B] focus:border-[#FF6B6B]' : 'border-white/10 focus:border-white/20 focus:bg-white/10'}`}
-                                        />
-                                        {fieldErrors.confirmPassword && (
-                                            <p className="mt-1.5 text-left text-[13px] text-[#FF6B6B]">{fieldErrors.confirmPassword}</p>
-                                        )}
+                                    <div className="flex flex-col gap-2.5">
+                                        <div
+                                            role="progressbar"
+                                            aria-label="Password strength"
+                                            aria-valuemin={0}
+                                            aria-valuemax={5}
+                                            aria-valuenow={rulesPassed}
+                                            aria-valuetext={meterStatus}
+                                            className="flex gap-1.5 h-1.5 w-full"
+                                        >
+                                            {[1, 2, 3, 4].map((step) => (
+                                                <div key={step} className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                                    <motion.div
+                                                        initial={reduceMotion ? false : { scaleX: 0 }}
+                                                        animate={{ scaleX: strength >= step ? 1 : 0 }}
+                                                        transition={reduceMotion ? { duration: 0 } : {
+                                                            duration: 0.5,
+                                                            ease: 'easeOut',
+                                                            delay: (step - 1) * 0.06
+                                                        }}
+                                                        className={`h-full w-full rounded-full origin-left transition-colors duration-300 ${meterColorClass}`}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <p className="sr-only" aria-live="polite">
+                                            {passwordsMismatch ? 'Passwords do not match' : `Password strength: ${strengthLabel}`}
+                                        </p>
+
+                                        <ul className="flex flex-col text-[12px]">
+                                            <AnimatePresence initial={false}>
+                                                {missingRules.map((rule) => (
+                                                    <motion.li
+                                                        key={rule.key}
+                                                        initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                                                        transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <RuleRow>{rule.label}</RuleRow>
+                                                    </motion.li>
+                                                ))}
+                                                {passwordsMismatch && (
+                                                    <motion.li
+                                                        key="mismatch"
+                                                        initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                                                        transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <RuleRow error>Passwords do not match</RuleRow>
+                                                    </motion.li>
+                                                )}
+                                            </AnimatePresence>
+                                        </ul>
                                     </div>
                                 </motion.div>
                             )}
@@ -316,7 +380,7 @@ const Login = () => {
 
                         <button
                             type="submit"
-                            disabled={loading || isSubmitting || !username || !password || (isSignUp && (!confirmPassword || rulesPassed < 5))}
+                            disabled={loading || isSubmitting || !username || !password || (isSignUp && (!confirmPassword || rulesPassed < 5 || password !== confirmPassword))}
                             className="w-full h-[40px] mt-2 bg-white text-black font-medium text-[15px] rounded-[10px] hover:bg-white/90 active:scale-[0.99] transition-all duration-150 ease-out disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
                         >
                             {isSubmitting || loading ? (

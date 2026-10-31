@@ -193,6 +193,7 @@ const Sidebar = () => {
 
   const [showSettingsCard, setShowSettingsCard] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settingsTab, setSettingsTab] = useState("preferences");
 
   useEffect(() => {
@@ -1142,7 +1143,9 @@ const Sidebar = () => {
     return createPortal(
       <div
         className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-[4px]"
-        onClick={() => setShowSettingsCard(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setShowSettingsCard(false);
+        }}
       >
         <div
           className="bg-[var(--c-surface)] text-[var(--c-text-primary)] rounded-[16px] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] border border-[var(--c-border)] flex w-[92vw] max-w-[1040px] h-[86vh] max-h-[760px] overflow-hidden text-sm relative"
@@ -1255,7 +1258,7 @@ const Sidebar = () => {
             <div className="mt-auto pt-2 border-t border-[var(--c-border-hairline)] px-0.5">
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => setShowLogoutConfirm(true)}
                 className="w-full flex items-center gap-2 px-2 h-8 text-[13px] font-medium rounded-[6px] transition-colors duration-100 text-[var(--c-text-secondary)] hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px] leading-none select-none">logout</span> Log out
@@ -2077,6 +2080,20 @@ const Sidebar = () => {
               </div>
             )}
           </div>
+        </div>
+
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionModal
+            isOpen={showLogoutConfirm}
+            onClose={() => setShowLogoutConfirm(false)}
+            title="Log out?"
+            type="confirm"
+            description="You'll need to sign in again to access your workspaces, pages, and chats."
+            onConfirm={logout}
+            confirmText="Log out"
+            cancelText="Cancel"
+            isDanger
+          />
         </div>
       </div>,
       document.body
