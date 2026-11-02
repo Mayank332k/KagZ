@@ -5,9 +5,8 @@ import { AiCodeBlock } from '@/components/lightswind/ai-code-block';
 
 /**
  * Remark plugin that identifies the active trailing token while streaming,
- * wrapping it in a frosted-stream-token container with a pulsating frosted cursor.
- * When the next token lands, the previous token settles into crisp text, creating
- * an ultra-smooth, organic blur-reveal effect.
+ * wrapping it in a stream-token-landing container with an elegant stream caret.
+ * Uses phrasing node representation so it remains safely inline without splitting blocks.
  */
 function createRemarkStreamingBlur(isStreaming) {
   return () => (tree) => {
@@ -16,6 +15,8 @@ function createRemarkStreamingBlur(isStreaming) {
 
     function walk(node, parent, index) {
       if (!node) return;
+      // Do not inject landing wrappers inside code blocks or inline code
+      if (node.type === 'code' || node.type === 'inlineCode') return;
       if (node.type === 'text' && node.value && node.value.trim().length > 0) {
         lastInfo = { node, parent, index };
       }
@@ -40,22 +41,22 @@ function createRemarkStreamingBlur(isStreaming) {
           newNodes.push({ type: 'text', value: lead });
         }
 
-        // Active blurred token
+        // Active landing token (phrasing node converted to inline span)
         newNodes.push({
-          type: 'paragraph',
+          type: 'strong',
           data: {
             hName: 'span',
-            hProperties: { className: 'frosted-stream-token' },
+            hProperties: { className: 'stream-token-landing' },
           },
           children: [{ type: 'text', value: trailing }],
         });
 
-        // Ambient frosted cursor
+        // Elegant stream caret
         newNodes.push({
-          type: 'paragraph',
+          type: 'strong',
           data: {
             hName: 'span',
-            hProperties: { className: 'frosted-stream-cursor', 'aria-hidden': 'true' },
+            hProperties: { className: 'stream-caret', 'aria-hidden': 'true' },
           },
           children: [],
         });

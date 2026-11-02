@@ -40,7 +40,10 @@ const timeAgo = (date) => {
 const formatSource = (src) => {
   if (src.url) {
     try {
-      const parsed = new URL(src.url);
+      const normalizedUrl = src.url.startsWith('http://') || src.url.startsWith('https://')
+        ? src.url
+        : `https://${src.url}`;
+      const parsed = new URL(normalizedUrl);
       const domain = parsed.hostname.replace(/^www\./, '');
       const domainMap = {
         'nobroker.in': 'NoBroker',
@@ -62,15 +65,18 @@ const formatSource = (src) => {
         siteName,
         isWeb: true,
         title: src.title || domain,
-        url: src.url,
+        url: normalizedUrl,
       };
     } catch {
+      const fallbackUrl = src.url.startsWith('http://') || src.url.startsWith('https://')
+        ? src.url
+        : `https://${src.url}`;
       return {
         domain: 'web',
         siteName: 'Web',
         isWeb: true,
         title: src.title || 'Web Result',
-        url: src.url,
+        url: fallbackUrl,
       };
     }
   }
@@ -80,36 +86,181 @@ const formatSource = (src) => {
     siteName: 'Workspace Note',
     isWeb: false,
     title: src.title || 'Untitled Note',
-    pageId: src.pageId,
+    pageId: src.pageId || src._id || src.id,
   };
 };
 
-const SourcesPill = ({ sources, align = 'side' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [openUpwards, setOpenUpwards] = useState(false);
-  const containerRef = useRef(null);
+const SourcesSheetContext = React.createContext({
+  openSources: () => {},
+});
+
+const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
   const navigate = useNavigate();
+  const [openingIndex, setOpeningIndex] = useState(null);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') onClose();
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
+  if (!sources || sources.length === 0) return null;
 
+  return (
+    <div className="absolute inset-0 z-[150] flex flex-col justify-end pointer-events-auto">
+      {/* Backdrop overlay */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-[2px]"
+      />
+
+      {/* Sheet Content matching Obsidian / Mobile bottom sheet inspiration */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 380 }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={{ top: 0, bottom: 0.5 }}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 60 || info.velocity.y > 220) {
+            onClose();
+          }
+        }}
+        className={`relative z-10 bg-[#eeece8] dark:bg-[#161616] border-t border-black/[0.08] dark:border-white/[0.08] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden ${
+          isRightPanel
+            ? 'w-full rounded-t-[28px]'
+            : 'w-full sm:w-[94%] max-w-[560px] mx-auto rounded-t-[34px] border-x border-black/[0.08] dark:border-white/[0.08]'
+        }`}
+      >
+        {/* Top bar with grab handle & subtle controls */}
+        <div className="relative pt-3 pb-2 px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-1.5 z-10">
+            <span className="text-[12px] font-medium tracking-tight text-neutral-600 dark:text-neutral-400">
+              Sources
+            </span>
+            <span className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
+              • {sources.length}
+            </span>
+          </div>
+
+          {/* Centered Grab Handle Pill */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 top-3 cursor-grab active:cursor-grabbing py-1"
+            onClick={onClose}
+          >
+            <div className="w-12 h-1 bg-black/25 dark:bg-[#505050] rounded-full" />
+          </div>
+
+          {/* Subtle Close Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="z-10 w-6 h-6 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close"
+            aria-label="Close"
+          >
+            <span className="material-symbols-outlined text-[15px] leading-none select-none">close</span>
+          </button>
+        </div>
+
+        {/* Inner nested rounded component with color hierarchy */}
+        <div className="mx-3.5 sm:mx-4 mb-4 rounded-[20px] bg-white dark:bg-[#2d2d2f] border border-black/[0.06] dark:border-white/[0.06] shadow-sm overflow-hidden divide-y divide-black/[0.06] dark:divide-[#3c3c3e] max-h-[52vh] overflow-y-auto custom-scrollbar">
+          {sources.map((item, idx) => (
+            <div
+              key={idx}
+              onClick={() => {
+                setOpeningIndex(idx);
+                if (item.isWeb && item.url) {
+                  const targetUrl = item.url.startsWith('http://') || item.url.startsWith('https://')
+                    ? item.url
+                    : `https://${item.url}`;
+                  window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                  setTimeout(() => {
+                    setOpeningIndex(null);
+                    onClose();
+                  }, 120);
+                } else {
+                  const targetPageId = item.pageId || item._id || item.id;
+                  if (targetPageId) {
+                    navigate(`/dashboard/page/${targetPageId}`);
+                    setTimeout(() => {
+                      setOpeningIndex(null);
+                      onClose();
+                    }, 120);
+                  } else {
+                    setOpeningIndex(null);
+                    onClose();
+                  }
+                }
+              }}
+              className="group flex items-center justify-between px-4 py-3.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.05] active:bg-black/[0.06] dark:active:bg-white/[0.09] transition-colors cursor-pointer select-none"
+            >
+              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                <div className="w-5 h-5 flex items-center justify-center shrink-0 text-neutral-500 dark:text-[#a0a0a0]">
+                  {item.isWeb ? (
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=32`}
+                      alt=""
+                      className="w-4 h-4 rounded-xs object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'block';
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined text-[19px] leading-none select-none">
+                      description
+                    </span>
+                  )}
+                  {item.isWeb && (
+                    <span
+                      style={{ display: 'none' }}
+                      className="material-symbols-outlined text-[18px] leading-none select-none"
+                    >
+                      language
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[14.5px] font-normal text-gray-900 dark:text-[#ececec] truncate leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {item.title}
+                  </span>
+                  <span className="text-[12px] text-gray-400 dark:text-[#8e8e93] truncate mt-0.5">
+                    {item.isWeb ? item.domain || item.siteName : 'Workspace Note'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="shrink-0 text-neutral-400 dark:text-[#6a6a6a] group-hover:text-neutral-700 dark:group-hover:text-neutral-300 transition-colors pl-2 flex items-center justify-center min-w-[20px]">
+                {openingIndex === idx ? (
+                  <div className="w-3.5 h-3.5 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
+                    {item.isWeb ? 'arrow_outward' : 'chevron_right'}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const SourcesPill = ({ sources }) => {
+  const { openSources } = useContext(SourcesSheetContext);
   if (!sources || sources.length === 0) return null;
 
   const formattedSources = sources.map(formatSource);
@@ -117,35 +268,15 @@ const SourcesPill = ({ sources, align = 'side' }) => {
   const primaryLabel = primarySource.domain !== 'workspace' ? primarySource.domain : primarySource.title;
   const extraCount = sources.length - 1;
 
-  const isTopAlign = align === 'top';
-
-  const handleToggle = (e) => {
-    e.stopPropagation();
-    if (!isOpen && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom - 130; // 130px for composer footer
-      const shouldOpenUp = spaceBelow < 280 && rect.top > 250;
-      setOpenUpwards(shouldOpenUp);
-
-      // Smooth auto-scroll so the popover is completely in view and never goes under textarea
-      setTimeout(() => {
-        if (!shouldOpenUp && spaceBelow < 280) {
-          containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }, 50);
-    }
-    setIsOpen((prev) => !prev);
-  };
-
   return (
-    <div className="relative inline-flex items-center self-start w-fit mt-2 mb-1" ref={containerRef}>
-      {/* Single Unified Pill for Source + Quantity */}
+    <div className="relative inline-flex items-center self-start w-fit mt-2 mb-1">
       <button
         type="button"
-        onClick={handleToggle}
-        className="sources-peanut-btn group inline-flex items-center gap-2 h-[30px] px-3.5 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none"
+        onClick={(e) => {
+          e.stopPropagation();
+          openSources(formattedSources);
+        }}
+        className="sources-peanut-btn group inline-flex items-center gap-2 h-[30px] px-3.5 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none cursor-pointer"
         title="View sources"
       >
         <span className="text-[13px] font-medium text-[var(--sources-pill-text)] group-hover:text-black dark:group-hover:text-white transition-colors truncate max-w-[180px]">
@@ -157,118 +288,6 @@ const SourcesPill = ({ sources, align = 'side' }) => {
           </span>
         )}
       </button>
-
-      {/* Floating Popover Window on Right Side matching Image 2 */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className={`sources-popover-card absolute z-[120] w-[330px] sm:w-[350px] p-4 text-gray-800 dark:text-gray-200 ${
-              isTopAlign
-                ? 'bottom-full mb-3 left-0'
-                : 'left-full ml-[7px]'
-            }`}
-            style={
-              !isTopAlign
-                ? openUpwards
-                  ? { bottom: '-26px' }
-                  : { top: '-26px' }
-                : undefined
-            }
-          >
-            {/* Directional pointer arrow pointing directly to the capsule */}
-            {isTopAlign ? (
-              <svg
-                className="absolute -bottom-[8px] left-[24px] pointer-events-none"
-                width="16"
-                height="9"
-                viewBox="0 0 16 9"
-                fill="none"
-              >
-                <path
-                  d="M0.5 0.5L7.29289 7.5C7.68342 7.89052 8.31658 7.89052 8.70711 7.5L15.5 0.5"
-                  stroke="var(--sources-arrow-stroke)"
-                  strokeWidth="1"
-                />
-                <path
-                  d="M1 0L7.64645 7.14645C8.03697 7.53697 8.67014 7.53697 9.06066 7.14645L15.7071 0H1Z"
-                  fill="var(--sources-arrow-fill)"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="absolute -left-[8px] pointer-events-none"
-                style={openUpwards ? { bottom: '32px' } : { top: '32px' }}
-                width="9"
-                height="16"
-                viewBox="0 0 9 16"
-                fill="none"
-              >
-                <path
-                  d="M8.5 0.5L1 7.29289C0.609476 7.68342 0.609476 8.31658 1 8.70711L8.5 15.5"
-                  stroke="var(--sources-arrow-stroke)"
-                  strokeWidth="1"
-                />
-                <path
-                  d="M9 1L1.5 7.64645C1.10948 8.03697 1.10948 8.67014 1.5 9.06066L9 15.7071V1Z"
-                  fill="var(--sources-arrow-fill)"
-                />
-              </svg>
-            )}
-
-            {/* Centered Header */}
-            <h4 className="text-center font-medium text-[13.5px] text-gray-700 dark:text-gray-300 pb-2.5 border-b border-black/[0.08] dark:border-white/10 mb-1.5 tracking-tight">
-              Sources
-            </h4>
-
-            {/* Sources List */}
-            <div className="flex flex-col max-h-[320px] overflow-y-auto pr-0.5">
-              {formattedSources.map((item, i) => (
-                <React.Fragment key={i}>
-                  <div
-                    onClick={() => {
-                      if (item.isWeb && item.url) {
-                        window.open(item.url, '_blank', 'noopener,noreferrer');
-                      } else if (item.pageId) {
-                        navigate(`/dashboard/page/${item.pageId}`);
-                        setIsOpen(false);
-                      }
-                    }}
-                    className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer group text-left"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {item.isWeb ? (
-                        <img
-                          src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=32`}
-                          alt=""
-                          className="w-3.5 h-3.5 rounded-sm object-contain shrink-0 opacity-75 group-hover:opacity-100"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="material-symbols-outlined text-[14px] leading-none select-none text-gray-500 dark:text-gray-400 shrink-0">book</span>
-                      )}
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 truncate">
-                        {item.siteName}
-                      </span>
-                    </div>
-                    <div className="text-[12.5px] font-medium text-gray-800 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white line-clamp-1 leading-snug">
-                      {item.title}
-                    </div>
-                  </div>
-                  {i < formattedSources.length - 1 && (
-                    <div className="h-[1px] w-full bg-black/[0.06] dark:bg-white/[0.07] my-1" />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
@@ -1756,6 +1775,7 @@ const AIChat = ({ isRightPanel = false }) => {
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
+  const [activeSources, setActiveSources] = useState(null);
 
   const handleDockToSidebar = () => {
     setIsRightChatOpen(true);
@@ -1871,220 +1891,181 @@ const AIChat = ({ isRightPanel = false }) => {
   // If rendered as a Right Sidebar Panel in Dashboard
   if (isRightPanel) {
     return (
-      <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
-        {/* Right Panel Header */}
-        <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
-          <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-            <button
-              onClick={() => clearChat()}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="New Chat"
-              aria-label="New Chat"
-            >
-              <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
-            </button>
-            <button
-              onClick={() => navigate('/dashboard/chat')}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Expand Chat"
-              aria-label="Expand Chat"
-            >
-              <HugeiconsIcon icon={ExpandIcon} size={19} className="shrink-0 select-none" />
-            </button>
-          </div>
-        </div>
-
-        {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
-          {isLoadingMore && <MessageSkeletonLoader />}
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-              <div className="relative w-full h-[28px] mb-1">
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={greetingIndex}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="text-base font-semibold text-gray-700 dark:text-gray-200 absolute w-full text-center"
-                  >
-                    {greetings[greetingIndex]}
-                  </motion.p>
-                </AnimatePresence>
-              </div>
-            </div>
-          ) : (
-            messages.map((msg, idx) => (
-              <ChatMessageItem
-                key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
-                msg={msg}
-                isLatest={idx === messages.length - 1}
-                isStreaming={isStreaming}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Input Composer */}
-        <div className="p-4 bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-10 relative">
-          <AnimatePresence>
-            {showScrollButton && (
-              <motion.button
-                type="button"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => {
-                  setShowScrollButton(false);
-                  scrollToBottom('smooth');
-                }}
-                className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
-                title="Scroll to bottom"
-                aria-label="Scroll to bottom"
+      <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
+        <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
+          {/* Right Panel Header */}
+          <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
+            <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <button
+                onClick={() => clearChat()}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="New Chat"
+                aria-label="New Chat"
               >
-                <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
-              </motion.button>
+                <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/chat')}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Expand Chat"
+                aria-label="Expand Chat"
+              >
+                <HugeiconsIcon icon={ExpandIcon} size={19} className="shrink-0 select-none" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Scroll Area */}
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
+            {isLoadingMore && <MessageSkeletonLoader />}
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                <div className="relative w-full h-[28px] mb-1">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={greetingIndex}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                      className="text-base font-semibold text-gray-700 dark:text-gray-200 absolute w-full text-center"
+                    >
+                      {greetings[greetingIndex]}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+              </div>
+            ) : (
+              messages.map((msg, idx) => (
+                <ChatMessageItem
+                  key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
+                  msg={msg}
+                  isLatest={idx === messages.length - 1}
+                  isStreaming={isStreaming}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Input Composer */}
+          <div className="p-4 bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-10 relative">
+            <AnimatePresence>
+              {showScrollButton && (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => {
+                    setShowScrollButton(false);
+                    scrollToBottom('smooth');
+                  }}
+                  className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
+                  title="Scroll to bottom"
+                  aria-label="Scroll to bottom"
+                >
+                  <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <ChatComposer 
+              textareaRef={textareaRef}
+              query={query}
+              setQuery={setQuery}
+              handleKeyDown={handleKeyDown}
+              handleSend={handleSend}
+              isStreaming={isStreaming}
+              dismissedChoiceId={dismissedChoiceId}
+              setDismissedChoiceId={setDismissedChoiceId}
+              isRightPanel={isRightPanel}
+            />
+          </div>
+
+          {/* Full-width bottom sheet sources in window mode */}
+          <AnimatePresence>
+            {activeSources && (
+              <SourcesBottomSheet
+                sources={activeSources}
+                onClose={() => setActiveSources(null)}
+                isRightPanel={true}
+              />
             )}
           </AnimatePresence>
-          <ChatComposer 
-            textareaRef={textareaRef}
-            query={query}
-            setQuery={setQuery}
-            handleKeyDown={handleKeyDown}
-            handleSend={handleSend}
-            isStreaming={isStreaming}
-            dismissedChoiceId={dismissedChoiceId}
-            setDismissedChoiceId={setDismissedChoiceId}
-            isRightPanel={isRightPanel}
-          />
         </div>
-      </div>
+      </SourcesSheetContext.Provider>
     );
   }
 
 
   // Full Screen View (/dashboard/chat)
   return (
-    <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
-      <div className="chat-container flex-1">
-        {/* Header with Blurs & Actions */}
-        <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
-          <button 
-            onClick={() => {
-              if (window.history.state && window.history.state.idx > 0) {
-                navigate(-1);
-              } else {
-                const lastPage = localStorage.getItem('noema-last-page-route');
-                navigate(lastPage || '/dashboard/page/new');
-              }
-            }}
-            className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            title="Go back"
-            aria-label="Go back"
-          >
-            <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
-          </button>
-          
-          <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
+    <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
+      <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
+        <div className="chat-container flex-1">
+          {/* Header with Blurs & Actions */}
+          <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
             <button 
-              onClick={() => clearChat()}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="New Chat"
-              aria-label="New Chat"
+              onClick={() => {
+                if (window.history.state && window.history.state.idx > 0) {
+                  navigate(-1);
+                } else {
+                  const lastPage = localStorage.getItem('noema-last-page-route');
+                  navigate(lastPage || '/dashboard/page/new');
+                }
+              }}
+              className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Go back"
+              aria-label="Go back"
             >
-              <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
+              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
             </button>
+            
+            <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
+              <button 
+                onClick={() => clearChat()}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="New Chat"
+                aria-label="New Chat"
+              >
+                <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
+              </button>
 
-            <button 
-              onClick={handleDockToSidebar}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Open in Sidebar"
-              aria-label="Open in Sidebar"
-            >
-              <HugeiconsIcon icon={SidebarRightIcon} size={19} className="shrink-0 select-none" />
-            </button>
-          </div>
-        </div>
-
-        {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-4 mt-[-10vh] z-10 relative">
-            {/* Logo Doodle */}
-            <div className="flex items-center justify-center mb-8 relative group cursor-default">
-              <img src="/kag-z.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105" />
-            </div>
-
-            <div className="h-[40px] mb-8 w-full relative flex items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.h1
-                  key={greetingIndex}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="text-[28px] sm:text-[30px] leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
-                >
-                  {greetings[greetingIndex]}
-                </motion.h1>
-              </AnimatePresence>
-            </div>
-
-            {/* Centered Composer */}
-            <div className="w-full max-w-[770px] mb-8 relative z-20 px-4">
-              <ChatComposer 
-                textareaRef={textareaRef}
-                query={query}
-                setQuery={setQuery}
-                handleKeyDown={handleKeyDown}
-                handleSend={handleSend}
-                isStreaming={isStreaming}
-                dismissedChoiceId={dismissedChoiceId}
-                setDismissedChoiceId={setDismissedChoiceId}
-                isRightPanel={isRightPanel}
-              />
+              <button 
+                onClick={handleDockToSidebar}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Open in Sidebar"
+                aria-label="Open in Sidebar"
+              >
+                <HugeiconsIcon icon={SidebarRightIcon} size={19} className="shrink-0 select-none" />
+              </button>
             </div>
           </div>
-        ) : (
-          <>
-            {/* Chat Scroll Area */}
-            <div className="chat-scroll-area custom-scrollbar" ref={chatScrollRef} onScroll={handleScroll}>
-              {isLoadingMore && <MessageSkeletonLoader isRightPanel={true} />}
-              <div className="message-list">
-                {messages.map((msg, idx) => (
-                  <RightPanelMessageItem
-                    key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
-                    msg={msg}
-                    isLatest={idx === messages.length - 1}
-                    isStreaming={isStreaming}
-                  />
-                ))}
+
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-4 mt-[-10vh] z-10 relative">
+              {/* Logo Doodle */}
+              <div className="flex items-center justify-center mb-8 relative group cursor-default">
+                <img src="/kag-z.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105" />
               </div>
-            </div>
 
-            {/* Footer with Composer */}
-            <div className="chat-footer">
-              <div className="w-full max-w-[770px] mx-auto px-4 relative z-20 pointer-events-auto">
-                <AnimatePresence>
-                  {showScrollButton && (
-                    <motion.button
-                      type="button"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={() => {
-                        setShowScrollButton(false);
-                        scrollToBottom('smooth');
-                      }}
-                      className="absolute -top-13 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
-                      title="Scroll to bottom"
-                      aria-label="Scroll to bottom"
-                    >
-                      <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
-                    </motion.button>
-                  )}
+              <div className="h-[40px] mb-8 w-full relative flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.h1
+                    key={greetingIndex}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                    className="text-[28px] sm:text-[30px] leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
+                  >
+                    {greetings[greetingIndex]}
+                  </motion.h1>
                 </AnimatePresence>
+              </div>
+
+              {/* Centered Composer */}
+              <div className="w-full max-w-[770px] mb-8 relative z-20 px-4">
                 <ChatComposer 
                   textareaRef={textareaRef}
                   query={query}
@@ -2098,10 +2079,75 @@ const AIChat = ({ isRightPanel = false }) => {
                 />
               </div>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              {/* Chat Scroll Area */}
+              <div className="chat-scroll-area custom-scrollbar" ref={chatScrollRef} onScroll={handleScroll}>
+                {isLoadingMore && <MessageSkeletonLoader isRightPanel={true} />}
+                <div className="message-list">
+                  {messages.map((msg, idx) => (
+                    <RightPanelMessageItem
+                      key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
+                      msg={msg}
+                      isLatest={idx === messages.length - 1}
+                      isStreaming={isStreaming}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer with Composer */}
+              <div className="chat-footer">
+                <div className="w-full max-w-[770px] mx-auto px-4 relative z-20 pointer-events-auto">
+                  <AnimatePresence>
+                    {showScrollButton && (
+                      <motion.button
+                        type="button"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={() => {
+                          setShowScrollButton(false);
+                          scrollToBottom('smooth');
+                        }}
+                        className="absolute -top-13 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
+                        title="Scroll to bottom"
+                        aria-label="Scroll to bottom"
+                      >
+                        <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                  <ChatComposer 
+                    textareaRef={textareaRef}
+                    query={query}
+                    setQuery={setQuery}
+                    handleKeyDown={handleKeyDown}
+                    handleSend={handleSend}
+                    isStreaming={isStreaming}
+                    dismissedChoiceId={dismissedChoiceId}
+                    setDismissedChoiceId={setDismissedChoiceId}
+                    isRightPanel={isRightPanel}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Bottom-middle floating sheet on full chat page */}
+          <AnimatePresence>
+            {activeSources && (
+              <SourcesBottomSheet
+                sources={activeSources}
+                onClose={() => setActiveSources(null)}
+                isRightPanel={false}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </SourcesSheetContext.Provider>
   );
 };
 

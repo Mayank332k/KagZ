@@ -181,6 +181,9 @@ const NoteEditor = () => {
   const isSavingRef = useRef(false);
   const fetchRequestIdRef = useRef(0);
 
+  // Derived: page has content (not empty/whitespace)
+  const hasContent = content.trim().length > 0;
+
   
   const [slashMenu, setSlashMenu] = useState({
     isOpen: false,
@@ -1078,6 +1081,28 @@ const NoteEditor = () => {
 
   
   
+  // Page-level AI actions (work on entire page content)
+  const handlePageAIAction = async (promptType) => {
+    setShowActionMenu(false);
+    if (!editor || editor.isDestroyed) return;
+    const fullText = editor.getText();
+    if (!fullText.trim()) {
+      showToast("Page is empty. Add some content first!", "warning");
+      return;
+    }
+    await runInlineAIStream({
+      promptType,
+      text: fullText,
+      fromPos: 0,
+      toPos: editor.state.doc.content.size,
+    });
+  };
+
+
+
+
+  
+  
   const toggleFavorite = async () => {
     const newFav = !isFavorite;
     setIsFavorite(newFav);
@@ -1487,9 +1512,12 @@ const NoteEditor = () => {
   if (loading) {
     return (
       <div 
-        className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-gray-500 transition-colors bg-white dark:bg-[color(display-p3_0.07451_0.07451_0.07451)]"
+        className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-gray-500 transition-colors bg-white dark:bg-[#191919]"
       >
-        <Loading03Icon className="w-6 h-6 text-gray-400 animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <Loading03Icon className="w-6 h-6 text-gray-400 dark:text-gray-500 animate-spin" />
+          <span className="text-[13px] font-normal text-gray-400 dark:text-gray-500 tracking-tight"></span>
+        </div>
       </div>
     );
   }
@@ -1869,18 +1897,18 @@ const NoteEditor = () => {
           <div className="relative" ref={actionMenuRef}>
             <button
               onClick={() => setShowActionMenu(!showActionMenu)}
-              className={`w-7 h-7 flex items-center justify-center rounded-[6px] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#a19e99] dark:hover:text-[#f0efed] transition-colors cursor-pointer ${showActionMenu ? "bg-black/[0.031] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]" : "hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"}`}
+              className={`w-7 h-7 flex items-center justify-center rounded-[6px] text-[#7d7a75] hover:text-[#2c2c2b] dark:text-[#e8e6e3] dark:hover:text-[#ffffff] transition-colors cursor-pointer ${showActionMenu ? "bg-black/[0.06] dark:bg-white/[0.12] text-[#2c2c2b] dark:text-[#ffffff]" : "hover:bg-black/[0.031] dark:hover:bg-white/[0.055]"}`}
               title="More Actions"
               aria-label="More actions"
               aria-haspopup="true"
               aria-expanded={showActionMenu}
             >
-              <span className="material-symbols-outlined text-[18px] leading-none select-none" aria-hidden="true">more_horiz</span>
+              <span className="material-symbols-rounded text-[20px] leading-none select-none" aria-hidden="true">more_horiz</span>
             </button>
 
             {/* Action Dropdown Card — measured 265px ActionListbox */}
             {showActionMenu && (
-              <div className="absolute right-0 top-[34px] z-[9999]">
+              <div className="absolute right-2 top-[34px] z-[9999]">
                 <ActionListbox
                   isOpen={showActionMenu}
                   onClose={() => setShowActionMenu(false)}
@@ -1912,6 +1940,87 @@ const NoteEditor = () => {
                           shortcut: "Del",
                           isDanger: true,
                           onClick: () => setShowDeleteModal(true)
+                        }
+                      ]
+                    },
+                    {
+                      title: "AI Actions",
+                      items: [
+                        {
+                          id: "summarize_page",
+                          label: "Summarize Page",
+                          icon: "summarize",
+                          disabled: !hasContent,
+                          onClick: () => handlePageAIAction("summarize")
+                        },
+                        {
+                          id: "improve_page",
+                          label: "Improve Writing",
+                          icon: "auto_fix_high",
+                          disabled: !hasContent,
+                          onClick: () => handlePageAIAction("improve_writing")
+                        },
+                        {
+                          id: "proofread_page",
+                          label: "Proofread Page",
+                          icon: "spellcheck",
+                          disabled: !hasContent,
+                          onClick: () => handlePageAIAction("grammar")
+                        },
+                        {
+                          id: "explain_page",
+                          label: "Explain Page",
+                          icon: "psychology",
+                          disabled: !hasContent,
+                          onClick: () => handlePageAIAction("explain")
+                        }
+                      ]
+                    },
+                    {
+                      title: "Insert & Format",
+                      items: [
+                        {
+                          id: "ask_ai",
+                          label: "Ask AI to Write…",
+                          icon: "edit_document",
+                          shortcut: "⌘/",
+                          onClick: handleBottomAskAI
+                        },
+                        {
+                          id: "insert_table",
+                          label: "Insert Table",
+                          icon: "table",
+                          onClick: handleInsertTable
+                        },
+                        {
+                          id: "format_h1",
+                          label: "Heading 1",
+                          icon: "format_h1",
+                          onClick: () => editor?.chain().focus().toggleHeading({ level: 1 }).run()
+                        },
+                        {
+                          id: "format_h2",
+                          label: "Heading 2",
+                          icon: "format_h2",
+                          onClick: () => editor?.chain().focus().toggleHeading({ level: 2 }).run()
+                        },
+                        {
+                          id: "format_h3",
+                          label: "Heading 3",
+                          icon: "format_h3",
+                          onClick: () => editor?.chain().focus().toggleHeading({ level: 3 }).run()
+                        },
+                        {
+                          id: "bullet_list",
+                          label: "Bullet List",
+                          icon: "format_list_bulleted",
+                          onClick: () => editor?.chain().focus().toggleBulletList().run()
+                        },
+                        {
+                          id: "blockquote",
+                          label: "Quote Block",
+                          icon: "format_quote",
+                          onClick: () => editor?.chain().focus().toggleBlockquote().run()
                         }
                       ]
                     }

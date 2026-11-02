@@ -129,8 +129,8 @@ const ActionListbox = ({
         </div>
       </div>
 
-      {/* Listbox Scroller (max 70vh) */}
-      <div className="max-h-[70vh] overflow-y-auto pt-2 pb-1.5 px-1 [scrollbar-width:thin]">
+      {/* Listbox Scroller (max 55vh) */}
+      <div className="max-h-[55vh] overflow-y-auto pt-2 pb-1.5 px-1 [scrollbar-width:thin]">
         {filteredSections.length === 0 ? (
           <div className="py-4 text-center text-[12px] leading-[16px] text-[#a19e99] dark:text-[#7d7a75]">
             No matching actions

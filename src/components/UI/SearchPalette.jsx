@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useContext, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useContext, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -61,10 +61,35 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedCircle, setSelectedCircle] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [openingId, setOpeningId] = useState(null);
   const { workspaceTree, loadWorkspaceData } = useContext(EditorContext);
   const { loadSession } = useContext(ChatContext) || {};
   const [chatSessions, setChatSessions] = useState([]);
   const navigate = useNavigate();
+
+  const resolveItemPath = useCallback((item) => {
+    if (!item) return null;
+    if (item.path) return item.path;
+    if (item.type === 'page' || item.type === 'document') return `/dashboard/page/${item.id || item._id}`;
+    if (item.type === 'workspace') return `/dashboard/workspace/${item.id || item._id}`;
+    if (item.type === 'folder') return `/dashboard/workspace/${item.workspaceId || item.id || item._id}`;
+    if (item.type === 'chat') return '/dashboard/chat';
+    return `/dashboard/page/${item.id || item._id}`;
+  }, []);
+
+  const handleSelectItem = useCallback((item) => {
+    const targetPath = resolveItemPath(item);
+    if (!targetPath) return;
+    const targetId = item.id || item._id || targetPath;
+    setOpeningId(targetId);
+    if (item.type === 'chat' && item.sessionId && loadSession) {
+      loadSession(item.sessionId);
+    }
+    setTimeout(() => {
+      onClose();
+      navigate(targetPath);
+    }, 120);
+  }, [resolveItemPath, loadSession, onClose, navigate]);
 
   const hasQuery = searchQuery && searchQuery.trim().length > 0;
 
@@ -190,6 +215,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
       setTimeout(() => inputRef.current?.focus(), 100);
       setIsExpanded(false); // Reset on open
       setSelectedCircle(null);
+      setOpeningId(null);
 
       // Quiet background fetch for workspace if not loaded
       if (!workspaceTree || workspaceTree.length === 0) {
@@ -201,6 +227,8 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
         const sessions = res.data?.sessions || [];
         setChatSessions(sessions);
       }).catch(() => {});
+    } else {
+      setOpeningId(null);
     }
   }, [isOpen, workspaceTree, loadWorkspaceData]);
 
@@ -240,12 +268,8 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
         } else if (e.key === 'Enter') {
           e.preventDefault();
           const result = flatSelectable[selectedIndex];
-          if (result && result.path) {
-            if (result.type === 'chat' && result.sessionId && loadSession) {
-              loadSession(result.sessionId);
-            }
-            onClose();
-            navigate(result.path);
+          if (result) {
+            handleSelectItem(result);
           }
         }
       }
@@ -253,7 +277,7 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isExpanded, hasQuery, flatSelectable, selectedIndex, onClose, navigate]);
+  }, [isOpen, isExpanded, hasQuery, flatSelectable, selectedIndex, onClose, handleSelectItem]);
 
   if (!isOpen) return null;
 
@@ -449,25 +473,28 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                         {group.isWorkspaceMatch ? (
                           <motion.div 
                             onMouseEnter={() => setSelectedIndex(wsIndex)}
-                            onClick={() => {
-                              if (ws.path) { onClose(); navigate(ws.path); }
-                            }}
+                            onClick={() => handleSelectItem(ws)}
                             variants={{
                               hidden: { opacity: 0, y: -5 },
                               show: { opacity: 1, y: 0, transition: springConfig },
                               exit: { opacity: 0 }
                             }}
-                            className={`relative z-10 flex items-center px-4 py-3 rounded-[12px] cursor-pointer transition-colors text-gray-800 dark:text-gray-200 ${
+                            className={`relative z-10 flex items-center justify-between px-4 py-3 rounded-[12px] cursor-pointer transition-colors text-gray-800 dark:text-gray-200 ${
                               isWsSelected ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-900 dark:text-blue-100' : 'hover:bg-gray-100 dark:hover:bg-white/10'
                             }`}
                           >
-                            <div className={`mr-3 w-[20px] h-[20px] flex items-center justify-center shrink-0 ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                              <HugeiconsIcon icon={Blockchain04Icon} size={18} className="select-none leading-none" />
+                            <div className="flex items-center min-w-0 flex-1">
+                              <div className={`mr-3 w-[20px] h-[20px] flex items-center justify-center shrink-0 ${isWsSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <HugeiconsIcon icon={Blockchain04Icon} size={18} className="select-none leading-none" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className={`truncate text-[15px] font-medium ${isWsSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{ws.name}</span>
+                                <span className={`text-[12px] capitalize ${isWsSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>Workspace</span>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className={`truncate text-[15px] font-medium ${isWsSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{ws.name}</span>
-                              <span className={`text-[12px] capitalize ${isWsSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>Workspace</span>
-                            </div>
+                            {openingId === (ws.id || ws._id || ws.path) && (
+                              <div className="ml-3 w-4 h-4 border-2 border-blue-400 border-t-blue-600 rounded-full animate-spin shrink-0" />
+                            )}
                           </motion.div>
                         ) : (
                           <motion.div 
@@ -500,35 +527,36 @@ const SearchPalette = ({ isOpen, onClose, recentPages = [] }) => {
                             {group.items.map((item) => {
                               const itemIdx = flatSelectable.findIndex(n => n.id === item.id);
                               const isSelected = itemIdx === selectedIndex;
+                              const isOpening = openingId === (item.id || item._id || item.path);
                               return (
                                 <motion.div 
                                   key={item.id}
                                   onMouseEnter={() => setSelectedIndex(itemIdx)}
-                                  onClick={() => {
-                                    if (item.type === 'chat' && item.sessionId && loadSession) {
-                                      loadSession(item.sessionId);
-                                    }
-                                    if (item.path) { onClose(); navigate(item.path); }
-                                  }}
+                                  onClick={() => handleSelectItem(item)}
                                   variants={{
                                     hidden: { opacity: 0, y: -20, scale: 0.96 },
                                     show: { opacity: 1, y: 0, scale: 1, transition: springConfig },
                                     exit: { opacity: 0, y: -10, scale: 0.96, transition: { duration: 0.1 } }
                                   }}
-                                  className={`flex items-center px-4 py-2.5 rounded-[12px] cursor-pointer transition-colors text-gray-800 dark:text-gray-200 ${
+                                  className={`flex items-center justify-between px-4 py-2.5 rounded-[12px] cursor-pointer transition-colors text-gray-800 dark:text-gray-200 ${
                                     isSelected ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-900 dark:text-blue-100' : 'hover:bg-gray-100 dark:hover:bg-white/10'
                                   }`}
                                 >
-                                  <div className={`mr-3 w-[18px] h-[18px] flex items-center justify-center shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                    {item.type === 'workspace' && <HugeiconsIcon icon={Blockchain04Icon} size={15} className="select-none leading-none" />}
-                                    {item.type === 'folder' && <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>}
-                                    {(item.type === 'page' || item.type === 'document') && <span className="material-symbols-outlined text-[15px] leading-none select-none">assignment</span>}
-                                    {item.type === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={16.5} className="leading-none select-none" />}
+                                  <div className="flex items-center min-w-0 flex-1">
+                                    <div className={`mr-3 w-[18px] h-[18px] flex items-center justify-center shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                      {item.type === 'workspace' && <HugeiconsIcon icon={Blockchain04Icon} size={15} className="select-none leading-none" />}
+                                      {item.type === 'folder' && <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>}
+                                      {(item.type === 'page' || item.type === 'document') && <span className="material-symbols-outlined text-[15px] leading-none select-none">assignment</span>}
+                                      {item.type === 'chat' && <HugeiconsIcon icon={MessageCircleIcon} size={16.5} className="leading-none select-none" />}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>
+                                      <span className={`text-[11.5px] capitalize ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>{item.type}</span>
+                                    </div>
                                   </div>
-                                  <div className="flex flex-col">
-                                    <span className={`truncate text-[14px] font-medium ${isSelected ? 'text-blue-900 dark:text-blue-50' : 'text-black dark:text-white'}`}>{item.name}</span>
-                                    <span className={`text-[11.5px] capitalize ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>{item.type}</span>
-                                  </div>
+                                  {isOpening && (
+                                    <div className="ml-3 w-4 h-4 border-2 border-blue-400 border-t-blue-600 rounded-full animate-spin shrink-0" />
+                                  )}
                                 </motion.div>
                               );
                             })}

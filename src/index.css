@@ -484,50 +484,50 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
   animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-/* --- Frosted Blur Streaming Effect --- */
+/* --- Smooth Per-Token Stream Landing Animation --- */
+.stream-token-landing,
 .frosted-stream-token {
   display: inline;
-  animation: frostedTokenReveal 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: filter, opacity, transform;
+  animation: streamTokenLand 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform, filter;
 }
 
-@keyframes frostedTokenReveal {
+@keyframes streamTokenLand {
   0% {
-    filter: blur(5.5px);
     opacity: 0.2;
-    transform: translateY(0.5px);
-  }
-  35% {
-    filter: blur(2.5px);
-    opacity: 0.75;
+    transform: translateY(1.5px);
+    filter: blur(0.75px);
   }
   100% {
-    filter: blur(0px);
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0px);
   }
 }
 
+.stream-caret,
 .frosted-stream-cursor {
   display: inline-block;
-  width: 6.5px;
-  height: 14px;
-  margin-left: 3px;
-  vertical-align: -1.5px;
-  border-radius: 2px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(168, 85, 247, 0.9));
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.55), 0 0 4px rgba(99, 102, 241, 0.35);
-  animation: frostedCursorPulse 0.85s ease-in-out infinite alternate;
+  width: 2px;
+  height: 1.15em;
+  margin-left: 2.5px;
+  margin-right: 1px;
+  vertical-align: -0.15em;
+  border-radius: 1px;
+  background-color: currentColor;
+  opacity: 0.85;
+  animation: streamCaretPulse 0.8s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
-@keyframes frostedCursorPulse {
+@keyframes streamCaretPulse {
   0% {
-    opacity: 0.35;
-    transform: scale(0.9);
+    opacity: 0.2;
+    transform: scaleY(0.92);
   }
   100% {
     opacity: 0.95;
-    transform: scale(1.06);
+    transform: scaleY(1);
   }
 }
 

@@ -73,10 +73,38 @@ const Dashboard = () => {
     document.body.style.userSelect = 'auto';
   };
 
+  // Global navigation feedback indicator
+  const [isNavigating, setIsNavigating] = useState(false);
+  const prevPathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    if (prevPathnameRef.current !== location.pathname) {
+      prevPathnameRef.current = location.pathname;
+      setIsNavigating(true);
+      const timer = setTimeout(() => {
+        setIsNavigating(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
+
   return (
     <div 
-      className="flex h-screen w-screen overflow-hidden text-[var(--c-text-primary)] font-sans bg-[var(--c-surface)]"
+      className="flex h-screen w-screen overflow-hidden text-[var(--c-text-primary)] font-sans bg-[var(--c-surface)] relative"
     >
+      {/* Top Global Navigation Progress Bar */}
+      <AnimatePresence>
+        {isNavigating && (
+          <motion.div
+            initial={{ scaleX: 0, opacity: 1, transformOrigin: '0% 50%' }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-500 via-indigo-500 to-sky-400 z-[9999999] pointer-events-none shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+          />
+        )}
+      </AnimatePresence>
+
       <Sidebar />
       <main className="flex-1 h-full overflow-hidden flex flex-row">
         <div className="flex-1 h-full overflow-hidden flex flex-col">

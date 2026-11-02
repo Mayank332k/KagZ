@@ -203,19 +203,30 @@ export const ChatProvider = ({ children }) => {
 
       isPacerRunning = true;
 
-      // Dynamic pacing:
-      // When queue is small (< 12 chars): take 1-2 chars for human-pace, organic token-by-token flow
-      // When large bursts arrive from backend SSE: smoothly divide over frames so it never drops all at once
+      // Dynamic token-aware pacing:
+      // Stream tokens smoothly by syllables / words rather than 1-char stuttering
       let take = 1;
       const qLen = streamQueue.length;
-      if (qLen > 100) {
-        take = Math.min(qLen, Math.ceil(qLen / 10));
+      if (qLen > 120) {
+        take = Math.min(qLen, Math.ceil(qLen / 6));
       } else if (qLen > 40) {
-        take = Math.min(qLen, Math.ceil(qLen / 14));
-      } else if (qLen > 12) {
-        take = 2;
+        take = Math.min(qLen, Math.ceil(qLen / 8));
+      } else if (qLen > 10) {
+        // Find next word/punctuation boundary within 3-8 chars
+        const spaceIdx = streamQueue.slice(2).search(/\s|[.,!?;:\n]/);
+        if (spaceIdx >= 0) {
+          take = Math.min(spaceIdx + 3, qLen);
+        } else {
+          take = Math.min(4, qLen);
+        }
       } else {
-        take = 1;
+        // Small queue: take up to next space or 2-3 chars
+        const spaceIdx = streamQueue.search(/\s/);
+        if (spaceIdx >= 0 && spaceIdx <= 3) {
+          take = spaceIdx + 1;
+        } else {
+          take = Math.min(2, qLen);
+        }
       }
 
       const chunk = streamQueue.slice(0, take);
@@ -232,7 +243,7 @@ export const ChatProvider = ({ children }) => {
         ];
       });
 
-      const delay = qLen > 60 ? 14 : 20;
+      const delay = qLen > 60 ? 14 : 18;
       tickTimeoutId = setTimeout(pumpNextTokens, delay);
     };
 

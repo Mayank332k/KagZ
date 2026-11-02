@@ -57,6 +57,7 @@ export const EditorProvider = ({ children }) => {
                   id: folder._id,
                   type: "folder",
                   name: folder.name,
+                  path: `/dashboard/workspace/${ws._id}`,
                   isFavorite: folder.isFavorite,
                   workspaceId: ws._id,
                   children: folderPages.map((p) => ({
