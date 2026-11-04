@@ -145,7 +145,7 @@ const InteractiveChoiceCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.995 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[20px] border border-[#E6E5E3] bg-white font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:border-[#333333] dark:bg-[#1E1E1E] dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+      className="w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[18px] border border-[#E6E5E3] bg-white font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:border-[#333333] dark:bg-[#1E1E1E] dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
     >
       {/* HEADER */}
       <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5 sm:px-5">
@@ -184,22 +184,22 @@ const InteractiveChoiceCard = ({
                 handleChoose(opt);
               }}
               onMouseEnter={() => setSelectedIndex(idx)}
-              className={`group relative flex min-h-[54px] cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors duration-150 sm:px-5 ${
+              className={`group relative flex min-h-[58px] cursor-pointer items-center gap-3 px-4.5 py-3 transition-colors duration-150 sm:px-5 ${
                 isSelected
                   ? 'bg-black/[0.025] dark:bg-white/[0.035]'
                   : 'bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
               }`}
             >
-              <div className="flex h-[26px] w-[28px] shrink-0 items-center justify-center rounded-[7px] bg-[#F0EFED] text-[12.5px] font-medium leading-none text-[#8E8B86] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:text-[#B3B3B3] dark:group-hover:bg-[#333333]">
+              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#F0EFED] text-[13px] font-medium leading-none text-[#8E8B86] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:text-[#B3B3B3] dark:group-hover:bg-[#333333]">
                 {idx + 1}
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13.5px] font-normal leading-tight tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14px]">
+                <div className="truncate text-[14px] font-normal leading-tight tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14.5px]">
                   <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.title) }} />
                 </div>
                 {opt.description && (
-                  <p className="mt-0.5 truncate text-[12px] font-normal leading-tight text-[#8E8B86] dark:text-[#8A8A8A] sm:text-[12.5px]">
+                  <p className="mt-0.5 truncate text-[12.5px] font-normal leading-tight text-[#8E8B86] dark:text-[#8A8A8A] sm:text-[13px]">
                     <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.description) }} />
                   </p>
                 )}
@@ -238,12 +238,12 @@ const InteractiveChoiceCard = ({
               }}
               className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3"
             >
-              <div className="flex h-[26px] w-[28px] shrink-0 items-center justify-center rounded-[7px] bg-[#F0EFED] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:group-hover:bg-[#333333]">
+              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#F0EFED] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:group-hover:bg-[#333333]">
                 <span className="material-symbols-outlined text-[15px] leading-none text-[#8E8B86] select-none dark:text-[#B3B3B3]">
                   edit
                 </span>
               </div>
-              <span className="truncate text-[13.5px] font-normal text-[#8E8B86] transition-colors duration-150 group-hover:text-[#2C2C2B] dark:text-[#8A8A8A] dark:group-hover:text-[#E0E0E0] sm:text-[14px]">
+              <span className="truncate text-[14px] font-normal text-[#8E8B86] transition-colors duration-150 group-hover:text-[#2C2C2B] dark:text-[#8A8A8A] dark:group-hover:text-[#E0E0E0] sm:text-[14.5px]">
                 Something else
               </span>
             </div>
@@ -290,7 +290,7 @@ const InteractiveChoiceCard = ({
           <button
             type="button"
             onClick={onSkip}
-            className="shrink-0 rounded-[8px] bg-[#ECEBE9] px-3.5 py-1.5 text-[12.5px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-[#E2E1DE] dark:bg-[#474747] dark:text-[#F0F0F0] dark:hover:bg-[#545454]"
+            className="shrink-0 rounded-[10px] bg-[#ECEBE9] px-4 py-2 text-[13px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-[#E2E1DE] dark:bg-[#474747] dark:text-[#F0F0F0] dark:hover:bg-[#545454]"
           >
             Skip
           </button>

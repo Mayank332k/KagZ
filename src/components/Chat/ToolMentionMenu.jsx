@@ -101,10 +101,10 @@ const ToolMentionMenu = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.16, ease: "easeOut" }}
-      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[6px] p-1 select-none"
+      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[18px] p-2 select-none"
     >
       {/* Section Header */}
-      <div className="px-2 py-1 text-[12px] leading-[16px] font-medium text-[#7d7a75] dark:text-[#ada9a3]">
+      <div className="px-3 pt-1.5 pb-1 text-[12px] leading-[16px] font-medium text-[#7d7a75] dark:text-[#ada9a3]">
         Plugins & Tools
       </div>
 
@@ -123,7 +123,7 @@ const ToolMentionMenu = ({
                 e.preventDefault();
                 onSelect(tool);
               }}
-              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] text-left transition-colors cursor-pointer w-full group ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-[12px] text-left transition-colors cursor-pointer w-full group ${
                 isSelected
                   ? 'bg-black/[0.055] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'
                   : 'hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'

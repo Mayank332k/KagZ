@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
 import { PanelLeft, SquarePen, Sparkles } from "lucide-react";
-import { SlidersHorizontalIcon } from "hugeicons-react";
+import { SlidersHorizontalIcon, Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Delete02Icon,
@@ -190,6 +190,9 @@ const Sidebar = () => {
   const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newWorkspacePos, setNewWorkspacePos] = useState({ top: 0, left: 0 });
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const isCreatingWorkspaceRef = useRef(false);
+  const isModalSubmittingRef = useRef(false);
 
   const [showSettingsCard, setShowSettingsCard] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
@@ -396,7 +399,7 @@ const Sidebar = () => {
       label: "Home",
       path: "/dashboard/page/new",
       icon: () => (
-        <HugeiconsIcon icon={Home01Icon} size={18} className="leading-none select-none" />
+        <HugeiconsIcon icon={Home01Icon} size={17} strokeWidth={1.8} className="leading-none select-none" />
       ),
     },
     {
@@ -404,7 +407,7 @@ const Sidebar = () => {
       label: "Chat",
       path: "/dashboard/chat",
       icon: () => (
-        <HugeiconsIcon icon={MessageCircleIcon} size={18} className="leading-none select-none" />
+        <HugeiconsIcon icon={MessageCircleIcon} size={17} strokeWidth={1.8} className="leading-none select-none" />
       ),
     },
     {
@@ -412,7 +415,7 @@ const Sidebar = () => {
       label: "Tasks",
       path: "/dashboard/tasks",
       icon: () => (
-        <HugeiconsIcon icon={ListTodoIcon} size={18} className="leading-none select-none" />
+        <HugeiconsIcon icon={ListTodoIcon} size={17} strokeWidth={1.8} className="leading-none select-none" />
       ),
     },
   ];
@@ -687,11 +690,21 @@ const Sidebar = () => {
     }
   };
 
-  const handleCreateWorkspace = async () => {
-    if (!newWorkspaceName.trim()) return;
+  const handleCreateWorkspace = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (isCreatingWorkspaceRef.current || isCreatingWorkspace) return;
+    const trimmed = newWorkspaceName.trim();
+    if (!trimmed) return;
+
+    isCreatingWorkspaceRef.current = true;
+    setIsCreatingWorkspace(true);
+
     try {
-      const res = await workspacesAPI.create(newWorkspaceName.trim());
-      if (res.data.success) {
+      const res = await workspacesAPI.create(trimmed);
+      if (res.data?.success) {
         const ws = res.data.workspace;
         const newNode = {
           id: ws._id,
@@ -709,19 +722,31 @@ const Sidebar = () => {
           [ws._id]: true,
           "workspaces-section": true,
         }));
+        showToast(`Workspace "${ws.name}" created`, "success");
+        setNewWorkspaceName("");
+        setShowNewWorkspaceModal(false);
+      } else {
+        showToast("Failed to create workspace", "error");
       }
     } catch (err) {
       console.error("Create workspace failed:", err);
+      showToast(err?.response?.data?.message || "Failed to create workspace", "error");
+    } finally {
+      isCreatingWorkspaceRef.current = false;
+      setIsCreatingWorkspace(false);
     }
-    setNewWorkspaceName("");
-    setShowNewWorkspaceModal(false);
   };
 
   const handleModalConfirm = async (inputValue, selectedPageType) => {
+    if (isModalSubmittingRef.current) return false;
+    isModalSubmittingRef.current = true;
     const { action, nodeId } = modalState;
     const targetNodeId =
       nodeId || (action === "ADD_PAGE" ? createPageLocation?.id : null);
-    if (!targetNodeId) return false;
+    if (!targetNodeId) {
+      isModalSubmittingRef.current = false;
+      return false;
+    }
 
     try {
       if (action === "DELETE") {
@@ -739,6 +764,7 @@ const Sidebar = () => {
             );
             if (sessionId === targetNodeId) clearChat();
           }
+          showToast("Chat cleared", "success");
           return true;
         }
 
@@ -756,6 +782,7 @@ const Sidebar = () => {
         });
         setMockRecent((prev) => prev.filter((n) => n.id !== targetNodeId));
         setMockFavorites((prev) => prev.filter((n) => n.id !== targetNodeId));
+        showToast("Deleted successfully", "success");
         return true;
       } else if (action === "RENAME") {
         if (!inputValue) return false;
@@ -789,6 +816,7 @@ const Sidebar = () => {
             n.id === targetNodeId ? { ...n, name: inputValue } : n,
           ),
         );
+        showToast("Renamed successfully", "success");
         return true;
       } else if (action === "ADD_FOLDER" || action === "ADD_PAGE") {
         if (!inputValue) return false;
@@ -827,6 +855,7 @@ const Sidebar = () => {
             setWorkspaceTree(next);
             return next;
           });
+          showToast(`Folder "${folder.name}" created`, "success");
         } else {
           const folderId = parentNode?.type === "folder" ? targetNodeId : null;
           const res = await pagesAPI.create({
@@ -866,6 +895,7 @@ const Sidebar = () => {
               )
               .slice(0, 6),
           );
+          showToast(`Page "${page.title}" created`, "success");
           navigate(newNode.path);
         }
         setExpandedFolders((prev) => ({
@@ -880,8 +910,10 @@ const Sidebar = () => {
       }
     } catch (err) {
       console.error("Modal action failed:", err);
-      showToast("The sidebar action failed. Please try again.", "error");
+      showToast(err?.response?.data?.message || "The sidebar action failed. Please try again.", "error");
       return false;
+    } finally {
+      isModalSubmittingRef.current = false;
     }
     return false;
   };
@@ -1182,7 +1214,6 @@ const Sidebar = () => {
                   placeholder="Search settings"
                   className="bg-transparent text-[13px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] outline-none w-full"
                 />
-                <span className="text-[10px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-wider px-1.5 py-0.5 rounded-[3px] bg-[var(--ca-hover)] select-none shrink-0">Beta</span>
               </div>
             </div>
 
@@ -2124,26 +2155,39 @@ const Sidebar = () => {
           type="text"
           placeholder="Workspace Name"
           value={newWorkspaceName}
+          disabled={isCreatingWorkspace}
           onChange={(e) => setNewWorkspaceName(e.target.value)}
-          className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#2A2A2A] transition-colors mb-4 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#2A2A2A] transition-colors mb-4 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
           autoFocus
           onKeyDown={(e) => {
-            if (e.key === "Enter") handleCreateWorkspace();
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCreateWorkspace(e);
+            }
           }}
         />
         <div className="flex justify-end gap-2">
           <button
             onClick={() => setShowNewWorkspaceModal(false)}
-            className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 rounded-md transition-colors"
+            disabled={isCreatingWorkspace}
+            className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleCreateWorkspace}
-            disabled={!newWorkspaceName.trim()}
-            className="px-3 py-1.5 text-sm bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
+            disabled={!newWorkspaceName.trim() || isCreatingWorkspace}
+            className="px-3 py-1.5 text-sm bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-w-[75px] cursor-pointer"
           >
-            Create
+            {isCreatingWorkspace ? (
+              <>
+                <Loading03Icon className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <span>Creating...</span>
+              </>
+            ) : (
+              "Create"
+            )}
           </button>
         </div>
       </div>
@@ -2442,19 +2486,19 @@ const Sidebar = () => {
                   className="block cursor-pointer outline-none"
                 >
                   <div
-                    className={`flex items-center h-8 rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
+                    className={`flex items-center h-[29px] rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
                       isChatActive
-                        ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#181817] dark:text-[#f7f6f4] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                        : "bg-black/[0.03] dark:bg-white/[0.04] text-[#55534e] hover:text-[#181817] dark:text-[#b8b5b0] dark:hover:text-[#f7f6f4] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+                        ? "bg-black/[0.07] dark:bg-white/[0.12] text-[#181817] dark:text-[#f7f6f4] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                        : "bg-black/[0.03] dark:bg-white/[0.04] text-[#605d57] hover:text-[#181817] dark:text-[#a09d96] dark:hover:text-[#f7f6f4] hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
                     }`}
                   >
-                    <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                    <div className="w-[29px] h-[29px] shrink-0 flex items-center justify-center">
                       <item.icon />
                     </div>
                     <span
-                      className={`text-[14.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
+                      className={`text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
                         isChatActive
-                          ? "max-w-[80px] opacity-100 pr-3 pl-1"
+                          ? "max-w-[74px] opacity-100 pr-2.5 pl-0.5"
                           : "max-w-0 opacity-0 pr-0 pl-0 pointer-events-none"
                       }`}
                     >
@@ -2473,19 +2517,19 @@ const Sidebar = () => {
                   const active = isActive && !isSearchActive;
                   return (
                     <div
-                      className={`flex items-center h-8 rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
+                      className={`flex items-center h-[29px] rounded-full overflow-hidden transition-[background-color,color,box-shadow] duration-200 ease-out ${
                         active
-                          ? "bg-black/[0.08] dark:bg-white/[0.14] text-[#181817] dark:text-[#f7f6f4] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                          : "bg-black/[0.03] dark:bg-white/[0.04] text-[#55534e] hover:text-[#181817] dark:text-[#b8b5b0] dark:hover:text-[#f7f6f4] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+                          ? "bg-black/[0.07] dark:bg-white/[0.12] text-[#181817] dark:text-[#f7f6f4] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                          : "bg-black/[0.03] dark:bg-white/[0.04] text-[#605d57] hover:text-[#181817] dark:text-[#a09d96] dark:hover:text-[#f7f6f4] hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
                       }`}
                     >
-                      <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                      <div className="w-[29px] h-[29px] shrink-0 flex items-center justify-center">
                         <item.icon />
                       </div>
                       <span
-                        className={`text-[14.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
+                        className={`text-[13.5px] font-medium whitespace-nowrap overflow-hidden leading-none select-none transition-all duration-200 ease-out ${
                           active
-                            ? "max-w-[80px] opacity-100 pr-3 pl-1"
+                            ? "max-w-[74px] opacity-100 pr-2.5 pl-0.5"
                             : "max-w-0 opacity-0 pr-0 pl-0 pointer-events-none"
                         }`}
                       >
@@ -2509,7 +2553,7 @@ const Sidebar = () => {
               onClick={() => toggleFolder("recent-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-semibold select-none">Recents</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">Recents</span>
               <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
             </div>
           </div>
@@ -2587,7 +2631,7 @@ const Sidebar = () => {
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
-              <span className="text-[12px] leading-[16px] font-semibold select-none">Workspaces</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">Workspaces</span>
               <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
             </div>
             <button
@@ -2640,7 +2684,7 @@ const Sidebar = () => {
               onClick={() => toggleFolder("favorites-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-semibold select-none">Favorites</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">Favorites</span>
               <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
             </div>
           </div>
@@ -2686,7 +2730,7 @@ const Sidebar = () => {
               onClick={() => toggleFolder("chat-history-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-semibold select-none">Chat History</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">Chat History</span>
               <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
             </div>
             <button

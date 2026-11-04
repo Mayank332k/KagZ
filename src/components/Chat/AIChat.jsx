@@ -276,14 +276,14 @@ const SourcesPill = ({ sources }) => {
           e.stopPropagation();
           openSources(formattedSources);
         }}
-        className="sources-peanut-btn group inline-flex items-center gap-2 h-[30px] px-3.5 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none cursor-pointer"
+        className="sources-peanut-btn group inline-flex items-center gap-2 h-[34px] px-4 rounded-full bg-[var(--sources-pill-bg)] hover:bg-[var(--sources-pill-hover)] transition-colors focus:outline-none cursor-pointer"
         title="View sources"
       >
-        <span className="text-[13px] font-medium text-[var(--sources-pill-text)] group-hover:text-black dark:group-hover:text-white transition-colors truncate max-w-[180px]">
+        <span className="text-[14px] font-medium text-[var(--sources-pill-text)] group-hover:text-black dark:group-hover:text-white transition-colors truncate max-w-[200px]">
           {primaryLabel}
         </span>
         {extraCount > 0 && (
-          <span className="text-[12px] font-semibold text-[var(--sources-pill-count)] group-hover:text-black dark:group-hover:text-white transition-colors">
+          <span className="text-[12.5px] font-semibold text-[var(--sources-pill-count)] group-hover:text-black dark:group-hover:text-white transition-colors">
             +{extraCount}
           </span>
         )}
@@ -298,6 +298,8 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [isCreatingPage, setIsCreatingPage] = useState(false);
+  const isCreatingPageRef = useRef(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -328,6 +330,9 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
   };
 
   const handleCreateNewPage = async () => {
+    if (isCreatingPageRef.current || isCreatingPage) return;
+    isCreatingPageRef.current = true;
+    setIsCreatingPage(true);
     try {
       let workspaceId = workspaceTree?.[0]?.id;
       
@@ -358,6 +363,9 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
     } catch (err) {
       console.error('Failed to create page:', err);
       showToast('Failed to create page', 'error');
+    } finally {
+      isCreatingPageRef.current = false;
+      setIsCreatingPage(false);
     }
   };
 
@@ -1443,23 +1451,23 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.06] dark:border-white/[0.08] focus-within:border-black/[0.1] dark:focus-within:border-white/[0.12] rounded-[16px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-3.5 pt-2.5 pb-2 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border-0 rounded-[18px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-4 pt-3 pb-2.5 mx-auto">
         {/* Top Context Pills (Page Context) */}
         {attachedPage && (
-          <div className="flex items-center gap-1.5 mb-1.5 pt-0.5 flex-wrap">
-            <div className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-[8px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[12px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
-              <HugeiconsIcon icon={File02Icon} size={13.5} className="shrink-0 text-gray-400 dark:text-neutral-400" />
-              <span className="max-w-[240px] truncate leading-tight">
+          <div className="flex items-center gap-1.5 mb-2 pt-0.5 flex-wrap">
+            <div className="inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[13px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
+              <HugeiconsIcon icon={File02Icon} size={15} className="shrink-0 text-gray-400 dark:text-neutral-400" />
+              <span className="max-w-[260px] truncate leading-tight">
                 {attachedPage.title || "Untitled"}
               </span>
               <button
                 type="button"
                 onClick={() => setAttachedPage(null)}
-                className="w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
                 title="Remove page context"
                 aria-label="Remove page context"
               >
-                <HugeiconsIcon icon={Cancel01Icon} size={9} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
               </button>
             </div>
           </div>
@@ -1470,12 +1478,12 @@ const ChatComposer = ({
           onClick={() => textareaRef?.current?.focus()}
         >
           {activeTool && (
-            <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[15.5px] leading-[1.5]">
+            <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[16px] leading-[1.5]">
               <span className="text-gray-400 dark:text-neutral-500 font-normal select-none">-</span>
               {activeTool.icon && (
                 <HugeiconsIcon 
                   icon={activeTool.icon} 
-                  size={16} 
+                  size={17} 
                   strokeWidth={2} 
                   className="shrink-0 text-[#007AFF] dark:text-[#2f88ff]" 
                 />
@@ -1547,19 +1555,19 @@ const ChatComposer = ({
           }
           rows={1}
           autoFocus
-          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[14px] leading-[20px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[26px]"
+          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[28px]"
           style={{ maxHeight: '250px' }}
         />
           </div>
         </div>
         
-        <div className="flex items-center justify-between mt-1 pt-0.5 relative">
+        <div className="flex items-center justify-between mt-1.5 pt-0.5 relative">
           {/* Left Controls */}
-          <div className="flex items-center gap-0.5 -ml-1">
+          <div className="flex items-center gap-1 -ml-1">
             <button
               type="button"
               onClick={handleToggleAttachPage}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
                 attachedPage 
                   ? 'text-[#007AFF] dark:text-[#2f88ff] bg-[#007AFF]/10 dark:bg-[#007AFF]/15 hover:bg-[#007AFF]/20' 
                   : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
@@ -1575,7 +1583,7 @@ const ChatComposer = ({
             >
               <HugeiconsIcon 
                 icon={Add01Icon} 
-                size={17} 
+                size={18.5} 
                 strokeWidth={1.8} 
                 className="shrink-0" 
               />
@@ -1584,7 +1592,7 @@ const ChatComposer = ({
             <button 
               type="button"
               onClick={() => setIsThinking(!isThinking)}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
                 isThinking 
                   ? 'text-red-500 dark:text-red-400 hover:bg-red-500/10' 
                   : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
@@ -1594,7 +1602,7 @@ const ChatComposer = ({
             >
               <HugeiconsIcon 
                 icon={isThinking ? LimitationIcon : Brain03Icon} 
-                size={17} 
+                size={18.5} 
                 strokeWidth={1.8} 
                 className="shrink-0" 
               />
@@ -1607,14 +1615,14 @@ const ChatComposer = ({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center gap-1 px-2.5 h-7 rounded-[6px] text-[13px] font-normal transition-colors duration-160 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-[13.5px] font-medium transition-colors duration-160 cursor-pointer ${
                   isDropdownOpen
                     ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]'
-                    : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                    : 'bg-black/[0.03] dark:bg-white/[0.05] text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
                 }`}
               >
                 <span>{activeModel.label}</span>
-                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
+                <span className={`material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
               </button>
 
               <AnimatePresence>
@@ -1625,7 +1633,7 @@ const ChatComposer = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.98 }}
                     transition={{ duration: 0.16, ease: "easeOut" }}
-                    className="absolute bottom-full right-0 mb-1.5 w-[265px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-hidden rounded-[6px] p-1 select-none"
+                    className="absolute bottom-full right-0 mb-1.5 w-[275px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-hidden rounded-[8px] p-1.5 select-none"
                   >
                     <div className="flex flex-col gap-0.5">
                       {models.map((model) => {
@@ -1641,7 +1649,7 @@ const ChatComposer = ({
                               setSelectedModel(model.value);
                               setIsDropdownOpen(false);
                             }}
-                            className={`flex items-start w-full px-2 py-1.5 rounded-[4px] text-left transition-colors duration-160 cursor-pointer ${
+                            className={`flex items-start w-full px-2.5 py-2 rounded-[6px] text-left transition-colors duration-160 cursor-pointer ${
                               isActive 
                                 ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
                                 : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
@@ -1654,16 +1662,16 @@ const ChatComposer = ({
                             </div>
                             <div className="flex flex-col ml-1.5 min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
-                                <span className={`text-[14px] leading-snug ${isActive ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
+                                <span className={`text-[14.5px] leading-snug ${isActive ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
                                   {model.label}
                                 </span>
                                 {model.badge && (
-                                  <span className="px-1.5 py-0.5 rounded-[3px] bg-[var(--ca-hover)] text-[10px] font-medium text-[var(--c-text-tertiary)]">
+                                  <span className="px-1.5 py-0.5 rounded-[4px] bg-[var(--ca-hover)] text-[10.5px] font-medium text-[var(--c-text-tertiary)]">
                                     {model.badge}
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[12px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
+                              <span className="text-[12.5px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
                                 {model.subtitle}
                               </span>
                             </div>
@@ -1678,7 +1686,7 @@ const ChatComposer = ({
                         role="option"
                         aria-selected={isThinking}
                         onClick={() => setIsThinking(!isThinking)}
-                        className={`flex items-start w-full px-2 py-1.5 rounded-[4px] text-left transition-colors duration-160 cursor-pointer ${
+                        className={`flex items-start w-full px-2.5 py-2 rounded-[6px] text-left transition-colors duration-160 cursor-pointer ${
                           isThinking 
                             ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
                             : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
@@ -1690,10 +1698,10 @@ const ChatComposer = ({
                           )}
                         </div>
                         <div className="flex flex-col ml-1.5 min-w-0 flex-1">
-                          <span className={`text-[14px] leading-snug ${isThinking ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
+                          <span className={`text-[14.5px] leading-snug ${isThinking ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
                             Extended thinking
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
+                          <span className="text-[12.5px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
                             Complex problem solving
                           </span>
                         </div>
@@ -1708,18 +1716,18 @@ const ChatComposer = ({
               <button
                 type="button"
                 onClick={stopGeneration}
-                className="w-[36px] h-[36px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1"
+                className="w-[38px] h-[38px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1 cursor-pointer"
                 title="Stop generation"
               >
-                <div className="w-3 h-3 bg-white rounded-[2px]" />
+                <div className="w-3.5 h-3.5 bg-white rounded-[2px]" />
               </button>
             ) : (
               <button
                 type="submit"
                 disabled={!query.trim()}
-                className="w-[36px] h-[36px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1"
+                className="w-[38px] h-[38px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[17px] leading-none select-none">arrow_upward</span>
+                <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_upward</span>
               </button>
             )}
           </div>
@@ -1895,22 +1903,22 @@ const AIChat = ({ isRightPanel = false }) => {
         <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
           {/* Right Panel Header */}
           <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
-            <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
               <button
                 onClick={() => clearChat()}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="New Chat"
                 aria-label="New Chat"
               >
-                <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={ChatAdd01Icon} size={20} className="shrink-0 select-none" />
               </button>
               <button
                 onClick={() => navigate('/dashboard/chat')}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="Expand Chat"
                 aria-label="Expand Chat"
               >
-                <HugeiconsIcon icon={ExpandIcon} size={19} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={ExpandIcon} size={20} className="shrink-0 select-none" />
               </button>
             </div>
           </div>
@@ -2021,23 +2029,23 @@ const AIChat = ({ isRightPanel = false }) => {
               <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
             </button>
             
-            <div className="inline-flex items-center p-[3px] gap-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
+            <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
               <button 
                 onClick={() => clearChat()}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="New Chat"
                 aria-label="New Chat"
               >
-                <HugeiconsIcon icon={ChatAdd01Icon} size={19} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={ChatAdd01Icon} size={20} className="shrink-0 select-none" />
               </button>
 
               <button 
                 onClick={handleDockToSidebar}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="Open in Sidebar"
                 aria-label="Open in Sidebar"
               >
-                <HugeiconsIcon icon={SidebarRightIcon} size={19} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={SidebarRightIcon} size={20} className="shrink-0 select-none" />
               </button>
             </div>
           </div>

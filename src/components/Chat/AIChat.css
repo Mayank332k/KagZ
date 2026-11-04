@@ -236,7 +236,7 @@
 .input-wrapper {
   width: 100%;
   background-color: var(--composer-bg);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: none;
   border-radius: 20px;
   padding: 4px 8px 4px 20px;
   display: flex;
@@ -246,15 +246,15 @@
 }
 
 .dark .input-wrapper {
-  border-color: rgba(255, 255, 255, 0.08);
+  border: none;
 }
 
 .input-wrapper:focus-within {
-  border-color: rgba(0, 0, 0, 0.1);
+  border: none;
 }
 
 .dark .input-wrapper:focus-within {
-  border-color: rgba(255, 255, 255, 0.12);
+  border: none;
 }
 
 .composer-textarea {

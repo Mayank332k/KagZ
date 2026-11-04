@@ -21,22 +21,16 @@ const ActionModal = ({
 }) => {
   const [inputValue, setInputValue] = useState(initialValue);
   const [selectedPageType, setSelectedPageType] = useState('document');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const inputRef = useRef(null);
-
-  const { execute: runConfirm, isLoading, retryCount } = useAsyncAction(
-    async () => {
-      const result = await onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
-      if (result !== false) {
-        onClose();
-      }
-    },
-    { maxRetries: 3 }
-  );
 
   useEffect(() => {
     if (isOpen) {
       setInputValue(initialValue);
       setSelectedPageType('document'); // reset on open
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
       setTimeout(() => {
         inputRef.current?.focus();
         if (type === 'input') {
@@ -46,14 +40,50 @@ const ActionModal = ({
     }
   }, [isOpen, initialValue, type]);
 
-  const handleConfirm = () => {
-    if ((type === 'input' && !inputValue.trim()) || confirmDisabled || isLoading) return;
-    runConfirm();
+  const handleConfirm = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Prevent duplicate triggers if already submitting
+    if (isSubmitting || isSubmittingRef.current) return;
+    if ((type === 'input' && !inputValue.trim()) || confirmDisabled) return;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const result = await onConfirm(type === 'input' ? inputValue.trim() : null, selectedPageType);
+      if (result !== false) {
+        onClose();
+      }
+    } catch (err) {
+      console.error('Modal action failed:', err);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleConfirm();
-    if (e.key === 'Escape' && !isLoading) onClose();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleConfirm(e);
+    }
+    if (e.key === 'Escape' && !isSubmitting) {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
+  const getLoadingText = () => {
+    const lower = (confirmText || '').toLowerCase();
+    if (lower.includes('create') || lower.includes('add')) return 'Creating...';
+    if (lower.includes('delete') || lower.includes('remove')) return 'Deleting...';
+    if (lower.includes('rename')) return 'Renaming...';
+    if (lower.includes('save')) return 'Saving...';
+    return `${confirmText}...`;
   };
 
   return (
@@ -67,7 +97,7 @@ const ActionModal = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
             className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-[2px]"
-            onClick={isLoading ? undefined : onClose}
+            onClick={isSubmitting ? undefined : onClose}
           />
           
           {/* Modal Container (§3: 16px radius, --shadow-pop-md, 160ms ease-out) */}
@@ -94,19 +124,21 @@ const ActionModal = ({
                   <input
                     ref={inputRef}
                     type="text"
+                    disabled={isSubmitting}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="w-full h-8 px-2.5 rounded-[6px] text-[14px] leading-[16.8px] bg-[#f4f3f3] dark:bg-[#262626] border border-[#e6e5e3] dark:border-[#383836] text-[#2c2c2b] dark:text-[#f0efed] placeholder-[#a19e99] dark:placeholder-[#7d7a75] outline-none focus:border-[#2383e2] dark:focus:border-[#4fa7ff] focus:ring-2 focus:ring-[#2383e2]/25 transition-all"
+                    className="w-full h-8 px-2.5 rounded-[6px] text-[14px] leading-[16.8px] bg-[#f4f3f3] dark:bg-[#262626] border border-[#e6e5e3] dark:border-[#383836] text-[#2c2c2b] dark:text-[#f0efed] placeholder-[#a19e99] dark:placeholder-[#7d7a75] outline-none focus:border-[#2383e2] dark:focus:border-[#4fa7ff] focus:ring-2 focus:ring-[#2383e2]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   />
 
                   {showPageTypeSelector && (
                     <div className="flex items-center bg-[#f4f3f3] dark:bg-[#262626] border border-[#e6e5e3] dark:border-[#383836] rounded-[6px] p-0.5">
                       <button 
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => setSelectedPageType('document')}
-                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer ${
+                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                           selectedPageType === 'document' 
                             ? 'bg-white dark:bg-[#202020] shadow-sm text-[#2c2c2b] dark:text-[#f0efed]' 
                             : 'text-[#7d7a75] dark:text-[#ada9a3] hover:text-[#2c2c2b] dark:hover:text-[#f0efed]'
@@ -117,8 +149,9 @@ const ActionModal = ({
                       </button>
                       <button 
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => setSelectedPageType('code')}
-                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer ${
+                        className={`flex-1 h-7 flex items-center justify-center gap-1.5 rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                           selectedPageType === 'code' 
                             ? 'bg-white dark:bg-[#202020] shadow-sm text-[#2c2c2b] dark:text-[#f0efed]' 
                             : 'text-[#7d7a75] dark:text-[#ada9a3] hover:text-[#2c2c2b] dark:hover:text-[#f0efed]'
@@ -140,7 +173,7 @@ const ActionModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="h-8 px-3.5 rounded-[6px] text-[14px] leading-[16.8px] font-normal text-[#2c2c2b] dark:text-[#f0efed] border border-[#e6e5e3] dark:border-[#383836] bg-transparent hover:bg-black/[0.031] dark:hover:bg-white/[0.055] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {cancelText}
@@ -149,17 +182,17 @@ const ActionModal = ({
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={(type === 'input' && !inputValue.trim()) || confirmDisabled || isLoading}
+                disabled={(type === 'input' && !inputValue.trim()) || confirmDisabled || isSubmitting}
                 className={`h-8 px-3.5 rounded-[6px] text-[14px] leading-[16.8px] font-medium text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed ${
                   isDanger 
                     ? 'bg-[#eb5757] hover:bg-[#d83933] active:scale-[0.98]' 
                     : 'bg-[#2383e2] hover:bg-[#105fad] active:scale-[0.98]'
                 }`}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <Loading03Icon className="w-4 h-4 animate-spin shrink-0" />
-                    <span>{retryCount > 0 ? `Retrying (${retryCount}/3)...` : confirmText}</span>
+                    <span>{getLoadingText()}</span>
                   </>
                 ) : (
                   confirmText
