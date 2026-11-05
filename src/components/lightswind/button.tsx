@@ -31,7 +31,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 // Define the buttonVariants function (exported)
-export function buttonVariants(options: {
+function buttonVariants(options: {
   variant?: keyof typeof buttonStyles.variant;
   size?: keyof typeof buttonStyles.size;
   className?: string;

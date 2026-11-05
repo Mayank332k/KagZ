@@ -46,7 +46,6 @@ const CascadingMenu = ({
   onClose,
   selectedLocation,
   selectableTypes,
-  variant,
 }) => {
   const containerRef = useRef(null);
   const navigate = useNavigate();
@@ -571,7 +570,6 @@ const LocationDropdown = ({
             onClose={handleClose}
             selectedLocation={selectedLocation}
             selectableTypes={selectableTypes}
-            variant={variant}
           />
         )}
       </>
@@ -609,7 +607,6 @@ const LocationDropdown = ({
           onClose={handleClose}
           selectedLocation={selectedLocation}
           selectableTypes={selectableTypes}
-          variant={variant}
         />
       )}
     </>

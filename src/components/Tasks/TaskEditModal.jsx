@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Loading03Icon } from 'hugeicons-react';
 import useAsyncAction from '../../hooks/useAsyncAction';

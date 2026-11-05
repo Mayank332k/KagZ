@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,14 +60,18 @@ const Tasks = () => {
     setBoards(newBoards);
     try {
       localStorage.setItem(CACHE_KEY_BOARDS, JSON.stringify(newBoards));
-    } catch {}
+    } catch {
+      // Ignore localStorage error
+    }
   };
 
   const handleSelectBoard = (boardId) => {
     setActiveBoardId(boardId);
     try {
       localStorage.setItem(CACHE_KEY_ACTIVE_BOARD, boardId);
-    } catch {}
+    } catch {
+      // Ignore localStorage error
+    }
   };
 
   const updateTasks = (updater) => {
@@ -75,7 +79,9 @@ const Tasks = () => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       try {
         localStorage.setItem(CACHE_KEY_TASKS, JSON.stringify(next));
-      } catch {}
+      } catch {
+        // Ignore localStorage error
+      }
       return next;
     });
   };
@@ -108,7 +114,9 @@ const Tasks = () => {
             const targetId = exists ? prevActive : loadedBoards[0]._id;
             try {
               localStorage.setItem(CACHE_KEY_ACTIVE_BOARD, targetId);
-            } catch {}
+            } catch {
+              // Ignore localStorage error
+            }
             return targetId;
           });
         }

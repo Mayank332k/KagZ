@@ -4,7 +4,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { BookOpen01Icon, BookOpen02Icon } from '@hugeicons/core-free-icons';
 
 // Open book with a clean, visible checkmark on the right page
-export const BookOpenCheckIcon = [
+const BookOpenCheckIcon = [
   ...BookOpen02Icon,
   [
     'path',

@@ -11,13 +11,6 @@ import { Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Delete02Icon,
-  TextIcon,
-  AiMagicIcon,
-  AiBrain03Icon,
-  Heading01Icon,
-  Table01Icon,
-  FloppyDiskIcon,
-  CheckmarkCircle02Icon,
   ArrowDown01Icon,
   ArrowUp01Icon,
 } from "@hugeicons/core-free-icons";
@@ -1040,7 +1033,7 @@ const NoteEditor = () => {
     setBottomMenuOpen(null);
     if (!editor || editor.isDestroyed) return;
     const { from, to } = editor.state.selection;
-    let targetText = "";
+    let targetText;
     let fromPos = from;
     let toPos = to;
 
@@ -1528,129 +1521,6 @@ const NoteEditor = () => {
     >
       <style dangerouslySetInnerHTML={{ __html: `
         .ProseMirror { outline: none; min-height: 100%; }
-        .apple-ai-processing {
-          color: transparent !important;
-          background-clip: text;
-          -webkit-background-clip: text;
-          will-change: background-position;
-          background-image: linear-gradient(
-            to bottom,
-            #9ca3af 0%,
-            #9ca3af calc(50% - 80px),
-            #a3a8b0 calc(50% - 55px),
-            #b8bcc3 calc(50% - 35px),
-            #d4d7dc calc(50% - 18px),
-            #111827 50%,
-            #d4d7dc calc(50% + 18px),
-            #b8bcc3 calc(50% + 35px),
-            #a3a8b0 calc(50% + 55px),
-            #9ca3af calc(50% + 80px),
-            #9ca3af 100%
-          );
-          background-attachment: fixed;
-          background-size: 100vw 300vh;
-          animation: viewport-shimmer 5s infinite cubic-bezier(0.4, 0, 0.6, 1);
-        }
-
-        .dark .apple-ai-processing, .dark * .apple-ai-processing {
-          background-image: linear-gradient(
-            to bottom,
-            #4b5563 0%,
-            #4b5563 calc(50% - 80px),
-            #555b65 calc(50% - 55px),
-            #6b7280 calc(50% - 35px),
-            #b0b5be calc(50% - 18px),
-            #f9fafb 50%,
-            #b0b5be calc(50% + 18px),
-            #6b7280 calc(50% + 35px),
-            #555b65 calc(50% + 55px),
-            #4b5563 calc(50% + 80px),
-            #4b5563 100%
-          );
-        }
-
-        @keyframes viewport-shimmer {
-          0% { background-position: 0 300vh; }
-          100% { background-position: 0 -300vh; }
-        }
-
-        .apple-ai-landing {
-          color: transparent !important;
-          background-clip: text;
-          -webkit-background-clip: text;
-          will-change: background-position;
-          background-image: linear-gradient(
-            to bottom,
-            #111827 0%,
-            #111827 calc(50% - 10px),
-            #9ca3af calc(50% + 20px),
-            #9ca3af 100%
-          );
-          background-attachment: fixed;
-          background-size: 100vw 300vh;
-          animation: viewport-land 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .dark .apple-ai-landing {
-          background-image: linear-gradient(
-            to bottom,
-            #f9fafb 0%,
-            #f9fafb calc(50% - 10px),
-            #4b5563 calc(50% + 20px),
-            #4b5563 100%
-          );
-        }
-
-        @keyframes viewport-land {
-          0% { background-position: 0 -300vh; }
-          100% { background-position: 0 300vh; }
-        }
-
-        @keyframes shimmer-sentence {
-          0% {
-            background-position: 220% 0;
-          }
-          100% {
-            background-position: -220% 0;
-          }
-        }
-
-        .shimmer-sentence {
-          background: linear-gradient(
-            90deg,
-            #4b5563 0%,
-            #4b5563 35%,
-            #111827 50%,
-            #4b5563 65%,
-            #4b5563 100%
-          );
-          background-size: 250% 100%;
-          color: transparent !important;
-          -webkit-background-clip: text;
-          background-clip: text;
-          display: inline-block;
-          white-space: nowrap;
-          animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        .dark .shimmer-sentence, :where(.dark, .dark *) .shimmer-sentence {
-          background: linear-gradient(
-            90deg,
-            #9ca3af 0%,
-            #9ca3af 35%,
-            #ffffff 50%,
-            #9ca3af 65%,
-            #9ca3af 100%
-          );
-          background-size: 250% 100%;
-          color: transparent !important;
-          -webkit-background-clip: text;
-          background-clip: text;
-          display: inline-block;
-          white-space: nowrap;
-          animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
         .ProseMirror-selectednode {
           outline: none !important;
           box-shadow: none !important;

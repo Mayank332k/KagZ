@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, useRef } from 'react';
+import { createContext, useState, useCallback, useRef } from 'react';
 import { workspacesAPI, foldersAPI, pagesAPI } from '../services/api';
 
 export const EditorContext = createContext();

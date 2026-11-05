@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loading03Icon } from 'hugeicons-react';
-import useAsyncAction from '../../hooks/useAsyncAction';
 
 const ActionModal = ({
   isOpen,

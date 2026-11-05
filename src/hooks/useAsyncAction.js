@@ -10,11 +10,10 @@ import { useToast } from '../context/ToastContext';
  * - Automatically retries up to 3 times on failure
  * - Displays error toast on complete failure
  */
-export const useAsyncAction = (actionFn, options = {}) => {
+const useAsyncAction = (actionFn, options = {}) => {
   const { maxRetries = 3, retryDelay = 500, onSuccess, onError, successMessage, errorMessage } = options;
   const [status, setStatus] = useState('idle'); // 'idle' | 'loading' | 'retry' | 'success' | 'failed'
   const [retryCount, setRetryCount] = useState(0);
-  const [error, setError] = useState(null);
   const isExecutingRef = useRef(false);
   const { showToast } = useToast();
 
@@ -24,7 +23,6 @@ export const useAsyncAction = (actionFn, options = {}) => {
     isExecutingRef.current = true;
     setStatus('loading');
     setRetryCount(0);
-    setError(null);
 
     let attempt = 0;
     while (attempt <= maxRetries) {
@@ -43,7 +41,6 @@ export const useAsyncAction = (actionFn, options = {}) => {
           await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
         } else {
           setStatus('failed');
-          setError(err);
           isExecutingRef.current = false;
           const msg = errorMessage || err?.response?.data?.message || err?.message || 'Operation failed. Please try again.';
           showToast(msg, 'error');
@@ -54,22 +51,10 @@ export const useAsyncAction = (actionFn, options = {}) => {
     }
   }, [actionFn, maxRetries, retryDelay, onSuccess, onError, successMessage, errorMessage, showToast]);
 
-  const reset = useCallback(() => {
-    isExecutingRef.current = false;
-    setStatus('idle');
-    setRetryCount(0);
-    setError(null);
-  }, []);
-
   return {
     execute,
-    reset,
-    status,
-    retryCount,
     isLoading: status === 'loading' || status === 'retry',
-    isFailed: status === 'failed',
-    isSuccess: status === 'success',
-    error,
+    retryCount,
   };
 };
 

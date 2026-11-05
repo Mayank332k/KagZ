@@ -1,4 +1,3 @@
-import React from "react";
 import { Cat, Monitor } from "lucide-react";
 
 const MobileOverlay = () => {

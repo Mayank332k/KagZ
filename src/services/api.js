@@ -172,7 +172,7 @@ export const invalidateCache = (...prefixes) => {
 };
 
 /** Flush the entire cache */
-export const invalidateAll = () => {
+const invalidateAll = () => {
   cache.clear();
   inFlight.clear();
 };
@@ -206,7 +206,6 @@ export const authAPI = {
     }
     return cachedGet('auth:me', () => api.get('/auth/me'));
   },
-  refreshToken: () => api.post('/auth/refresh'),
   updatePreferences: (preferences) =>
     api.put('/auth/preferences', preferences).then((res) => {
       invalidateCache('auth:me');
@@ -264,8 +263,6 @@ export const foldersAPI = {
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
 export const pagesAPI = {
-  getAll: () =>
-    cachedGet(`pages:all`, () => api.get('/pages')),
   getByWorkspace: (workspaceId, folderId = null) =>
     cachedGet(`pages:ws:${workspaceId}:${folderId}`, () =>
       api.get(`/pages/workspace/${workspaceId}`, {
@@ -273,12 +270,6 @@ export const pagesAPI = {
         // Axios omits JavaScript null query parameters, so send it explicitly.
         params: { folderId: folderId ?? 'null' },
       })
-    ),
-  getById: (id) =>
-    cachedGet(`pages:id:${id}`, () => api.get(`/pages/${id}`)),
-  search: (q, workspaceId) =>
-    cachedGet(`pages:search:${q}:${workspaceId}`, () =>
-      api.get('/pages/search', { params: { q, workspaceId } })
     ),
   create: (data) =>
     api.post('/pages', {
@@ -450,12 +441,12 @@ export const chatAPI = {
    *     if (event.type === 'done')    ...
    *   }
    */
-  ask: async function* (query, chatHistory, model, sessionId, isThinking, signal) {
+  ask: async function* (query, chatHistory, model, sessionId, thinking, signal) {
     const response = await fetchWithRefresh(`${BASE_URL}/chat/ask`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, chatHistory, model, sessionId, isThinking }),
+      body: JSON.stringify({ query, chatHistory, model, sessionId, thinking }),
       signal, // <-- Add AbortSignal support
     });
 

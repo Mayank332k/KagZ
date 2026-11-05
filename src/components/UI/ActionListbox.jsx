@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 /**
  * ActionListbox — Measured Unified 265px Action Menu / Listbox component (§7.1, §7.2, §7.3)

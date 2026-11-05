@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
-import { Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, ChatAdd01Icon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,23 +15,6 @@ import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
 import MemoryUpdateIcon from './MemoryUpdateIcon';
 import { CHAT_MODELS } from '../../constants/chatModels';
 import './AIChat.css';
-
-// Time ago utility
-const timeAgo = (date) => {
-  if (!date) return '';
-  const now = new Date();
-  const d = new Date(date);
-  const diffMs = now - d;
-  const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 10) return 'Just now';
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} min ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d ago`;
-};
 
 // MarkdownRenderer imported from UI
 
@@ -1076,24 +1058,6 @@ const PROMPT_SUGGESTIONS = [
     tabValue: "What should I focus on today?",
   },
 ];
-
-const ModelBurstIcon = ({ color = '#f97316', size = 15, className = '' }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`shrink-0 ${className}`}
-  >
-    <path
-      d="M12 2.5V21.5M2.5 12H21.5M5.28 5.28L18.72 18.72M5.28 18.72L18.72 5.28"
-      stroke={color}
-      strokeWidth="2.75"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 const ModelPreviewCard = ({ model, side = 'right' }) => {
   if (!model) return null;

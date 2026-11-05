@@ -3,10 +3,9 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContextDefinition";
 import { EditorContext } from "../../context/EditorContext";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
-import { PanelLeft, SquarePen, Sparkles } from "lucide-react";
+import { PanelLeft, SquarePen } from "lucide-react";
 import { SlidersHorizontalIcon, Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -34,6 +33,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import useSectionLoader from "../../hooks/useSectionLoader";
 import SectionErrorState from "../UI/SectionErrorState";
+import usePWAInstall from "../../hooks/usePWAInstall";
 
 const AI_PERSONA_OPTIONS = [
   {
@@ -91,7 +91,7 @@ const Sidebar = () => {
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const {
     isRightChatOpen,
     setIsRightChatOpen,
@@ -100,22 +100,15 @@ const Sidebar = () => {
     clearChat,
     chatStartupMode,
     setChatStartupMode,
-    selectedModel,
-    setSelectedModel,
     isThinking,
     setIsThinking,
   } = useContext(ChatContext);
   const {
-    isPageOpen,
     workspaceTree,
     setWorkspaceTree,
     recentPages,
     favoriteItems,
     loadWorkspaceData,
-    selectedLocation,
-    setSelectedLocation,
-    selectedPath,
-    setSelectedPath,
     refreshSidebarTrigger,
     triggerSidebarRefresh,
   } = useContext(EditorContext);
@@ -131,8 +124,9 @@ const Sidebar = () => {
   const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
 
-  const { sectionStates, loadSection, invalidateSection, updateSectionData } =
+  const { sectionStates, loadSection, updateSectionData } =
     useSectionLoader();
+  const { isInstallable, installApp } = usePWAInstall();
 
   const searchInputRef = useRef(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -183,8 +177,7 @@ const Sidebar = () => {
       document.removeEventListener("keydown", handleGlobalKeyDown, true);
     };
   }, []);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const debouncedSearchQuery = "";
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const savedWidth = Number(localStorage.getItem("noema-sidebar-width"));
@@ -438,13 +431,6 @@ const Sidebar = () => {
     }
   }, [isSearchActive]);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
   const topNavItems = [
     {
       id: "home",
@@ -488,11 +474,7 @@ const Sidebar = () => {
   ];
 
   const isHomeActive = () => {
-    return (
-      location.pathname === "/dashboard/page/new" ||
-      location.pathname === "/dashboard/home" ||
-      location.pathname === "/dashboard/home/"
-    );
+    return location.pathname === "/dashboard/page/new";
   };
 
   // Real API-backed tree state
@@ -500,8 +482,6 @@ const Sidebar = () => {
   const [mockRecent, setMockRecent] = useState([]);
   const [mockFavorites, setMockFavorites] = useState([]);
   const [chatSessions, setChatSessions] = useState([]);
-  const [treeLoading, setTreeLoading] = useState(true);
-  const [chatLoading, setChatLoading] = useState(true);
 
   // Sync background-loaded workspace, recent, and favorites from EditorContext
   useEffect(() => {
@@ -3394,6 +3374,18 @@ const Sidebar = () => {
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {isInstallable && (
+            <button
+              onClick={installApp}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors shrink-0"
+              title="Install KagZ App"
+              aria-label="Install KagZ App"
+            >
+              <span className="material-symbols-outlined text-[17px] leading-none select-none">
+                download
+              </span>
+            </button>
+          )}
           <button
             onClick={() => setIsCollapsed(true)}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:text-[#7d7a75] dark:hover:text-gray-200 transition-colors shrink-0"

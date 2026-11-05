@@ -14,7 +14,7 @@ const inFlightRequests = new Map();
  * - Avoids duplicate in-flight requests on rapid clicks
  * - Allows explicit invalidation or cache updates
  */
-export const useSectionLoader = () => {
+const useSectionLoader = () => {
   const [sectionStates, setSectionStates] = useState({});
   const sectionStatesRef = useRef(sectionStates);
   sectionStatesRef.current = sectionStates;
@@ -107,25 +107,6 @@ export const useSectionLoader = () => {
   }, []);
 
   /**
-   * Explicitly invalidate a section so next open refetches.
-   */
-  const invalidateSection = useCallback((sectionKey) => {
-    globalSectionCache.delete(sectionKey);
-    inFlightRequests.delete(sectionKey);
-    setSectionStates((prev) => ({
-      ...prev,
-      [sectionKey]: {
-        status: 'idle',
-        data: null,
-        error: null,
-        isLoading: false,
-        isSuccess: false,
-        isError: false,
-      },
-    }));
-  }, []);
-
-  /**
    * Optimistically update cached data for a section without a full refetch.
    */
   const updateSectionData = useCallback((sectionKey, updater) => {
@@ -145,40 +126,10 @@ export const useSectionLoader = () => {
     }));
   }, []);
 
-  /**
-   * Helper to inspect the current state of any section.
-   */
-  const getSectionState = useCallback((sectionKey) => {
-    if (sectionStatesRef.current[sectionKey]) {
-      return sectionStatesRef.current[sectionKey];
-    }
-    if (globalSectionCache.has(sectionKey)) {
-      return {
-        status: 'success',
-        data: globalSectionCache.get(sectionKey),
-        error: null,
-        isLoading: false,
-        isSuccess: true,
-        isError: false,
-      };
-    }
-    return {
-      status: 'idle',
-      data: null,
-      error: null,
-      isLoading: false,
-      isSuccess: false,
-      isError: false,
-    };
-  }, []);
-
   return {
     sectionStates,
     loadSection,
-    invalidateSection,
     updateSectionData,
-    getSectionState,
-    isCached: (key) => globalSectionCache.has(key),
   };
 };
 

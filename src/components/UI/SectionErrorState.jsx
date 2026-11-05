@@ -1,6 +1,3 @@
-import React from 'react';
-
-
 /**
  * SectionErrorState
  * Compact, modern error state component rendered inside a section when its API call fails.

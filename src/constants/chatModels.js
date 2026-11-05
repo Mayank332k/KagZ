@@ -33,7 +33,7 @@ export const CHAT_MODELS = [
   },
 ];
 
-export const DEFAULT_CHAT_MODEL = CHAT_MODELS[0].value;
+const DEFAULT_CHAT_MODEL = CHAT_MODELS[0].value;
 
 // Older clients may still have one of these IDs cached in localStorage.
 const LEGACY_MODEL_ALIASES = {

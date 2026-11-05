@@ -43,7 +43,6 @@ export const ChatProvider = ({ children }) => {
   
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [currentSources, setCurrentSources] = useState([]);
   
   const [isRightChatOpen, setIsRightChatOpenState] = useState(() => {
     const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
@@ -78,7 +77,9 @@ export const ChatProvider = ({ children }) => {
         localStorage.setItem('noema-last-chat-session', sessionId);
         try {
           localStorage.setItem('noema-last-chat-messages', JSON.stringify(messages));
-        } catch (e) {}
+        } catch {
+          // Ignore localStorage quota / serialization errors
+        }
       }
       if (isRightChatOpen) {
         localStorage.setItem('noema-right-chat-open', 'true');
@@ -95,8 +96,6 @@ export const ChatProvider = ({ children }) => {
   );
   const [chatError, setChatError] = useState(null); // { message: string, query: string }
   
-  const hasAutoOpened = useRef(false);
-  const userClosedSidebar = useRef(false);
   const abortControllerRef = useRef(null);
 
   const updateSelectedModel = (model) => {
@@ -130,7 +129,6 @@ export const ChatProvider = ({ children }) => {
 
     setChatError(null);
     setQuery('');
-    setCurrentSources([]);
 
     // Capture history before appending new user message
     const history = historyOverride || messages;
@@ -309,7 +307,6 @@ export const ChatProvider = ({ children }) => {
                 if (lastMsg.role !== 'assistant') return prev;
                 return [...prev.slice(0, lastIndex), { ...lastMsg, sources: Array.isArray(event.data) ? event.data : [] }];
               });
-              setCurrentSources(Array.isArray(event.data) ? event.data : []);
             } else if (event.type === 'state') {
               const isMemory = event.stateType === 'remembering' || event.stateType === 'memory' || (typeof event.data === 'string' && /remember|yaad/i.test(event.data));
               if (isMemory) {
@@ -339,7 +336,9 @@ export const ChatProvider = ({ children }) => {
               invalidateCache('tasks');
               try {
                 localStorage.removeItem('noema_kanban_tasks');
-              } catch {}
+              } catch {
+                // Ignore localStorage error
+              }
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tasks:refresh'));
               }
@@ -523,7 +522,6 @@ export const ChatProvider = ({ children }) => {
         setNextCursor(res.data.nextCursor || null);
         setHasMore(!!res.data.nextCursor);
         setQuery('');
-        setCurrentSources([]);
         setChatError(null);
 
         const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
@@ -531,7 +529,9 @@ export const ChatProvider = ({ children }) => {
           localStorage.setItem('noema-last-chat-session', id);
           try {
             localStorage.setItem('noema-last-chat-messages', JSON.stringify(msgs));
-          } catch (e) {}
+          } catch {
+            // Ignore quota or serialize errors
+          }
         }
       }
     } catch (err) {
@@ -564,7 +564,9 @@ export const ChatProvider = ({ children }) => {
           setHasMore(!!res.data.nextCursor);
           try {
             localStorage.setItem('noema-last-chat-messages', JSON.stringify(res.data.messages));
-          } catch (e) {}
+          } catch {
+            // Ignore quota or serialize errors
+          }
         }
       }).catch((err) => {
         console.debug('Background sync of last chat session:', err);
@@ -593,7 +595,6 @@ export const ChatProvider = ({ children }) => {
     stopGeneration();
     setMessages([]);
     setQuery('');
-    setCurrentSources([]);
     setSessionId(uuidv4());
     setNextCursor(null);
     setHasMore(false);
@@ -604,12 +605,9 @@ export const ChatProvider = ({ children }) => {
 
   const contextValue = useMemo(() => ({
     messages,
-    setMessages,
     query,
     setQuery,
     isStreaming,
-    currentSources,
-    setCurrentSources,
     isRightChatOpen,
     setIsRightChatOpen,
     selectedModel,
@@ -621,13 +619,9 @@ export const ChatProvider = ({ children }) => {
     clearChat,
     loadSession,
     fetchMoreMessages,
-    nextCursor,
     isLoadingMore,
     hasMore,
     sessionId,
-    setSessionId,
-    hasAutoOpened,
-    userClosedSidebar,
     chatError,
     clearChatError,
     retryLastMessage,
@@ -637,7 +631,6 @@ export const ChatProvider = ({ children }) => {
     messages,
     query,
     isStreaming,
-    currentSources,
     isRightChatOpen,
     selectedModel,
     isThinking,
@@ -645,12 +638,9 @@ export const ChatProvider = ({ children }) => {
     stopGeneration,
     loadSession,
     fetchMoreMessages,
-    nextCursor,
     isLoadingMore,
     hasMore,
     sessionId,
-    hasAutoOpened,
-    userClosedSidebar,
     chatError,
     retryLastMessage,
     chatStartupMode

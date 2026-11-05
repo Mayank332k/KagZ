@@ -1315,9 +1315,5 @@ const ThinkingOrb = React.memo(({ size = 24, stateType = 'thinking', className =
   );
 });
 
-export const MemoryOrb = React.memo(({ size = 24, className = '' }) => (
-  <ThinkingOrb size={size} stateType="memory" className={className} />
-));
-
 export default ThinkingOrb;
 

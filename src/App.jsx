@@ -56,10 +56,6 @@ const router = createBrowserRouter([
         element: <DashboardIndex />,
       },
       {
-        path: "home",
-        element: <Navigate to="/dashboard/page/new" replace />,
-      },
-      {
         path: "chat",
         element: (
           <Suspense fallback={<RouteLoader />}>
@@ -69,14 +65,6 @@ const router = createBrowserRouter([
       },
       {
         path: "page/:pageId",
-        element: (
-          <Suspense fallback={<RouteLoader />}>
-            <NoteEditor />
-          </Suspense>
-        ),
-      },
-      {
-        path: "editor/:pageId",
         element: (
           <Suspense fallback={<RouteLoader />}>
             <NoteEditor />
