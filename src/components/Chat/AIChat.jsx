@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
 import InteractiveChoiceCard from './InteractiveChoiceCard';
@@ -1076,6 +1077,80 @@ const PROMPT_SUGGESTIONS = [
   },
 ];
 
+const ModelBurstIcon = ({ color = '#f97316', size = 15, className = '' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`shrink-0 ${className}`}
+  >
+    <path
+      d="M12 2.5V21.5M2.5 12H21.5M5.28 5.28L18.72 18.72M5.28 18.72L18.72 5.28"
+      stroke={color}
+      strokeWidth="2.75"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const ModelPreviewCard = ({ model, side = 'right' }) => {
+  if (!model) return null;
+
+  const renderMeter = (value = 4, total = 5) => (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`w-[20px] h-[3.5px] rounded-full transition-colors ${
+            i < value
+              ? 'bg-[#181817] dark:bg-[#ededed]'
+              : 'bg-black/10 dark:bg-white/20'
+          }`}
+        />
+      ))}
+    </div>
+  );
+
+  const isLeft = side === 'left';
+
+  return (
+    <motion.div
+      role="tooltip"
+      initial={{ opacity: 0, x: isLeft ? 6 : -6, scale: 0.98 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: isLeft ? 6 : -6, scale: 0.98 }}
+      transition={{ duration: 0.14, ease: 'easeOut' }}
+      className={`absolute ${
+        isLeft ? 'right-[calc(100%+10px)]' : 'left-[calc(100%+10px)]'
+      } top-0 w-[252px] p-3.5 rounded-[14px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 select-none pointer-events-none`}
+    >
+      <div className="flex items-center gap-2.5 mb-2">
+        <img src="/kagz.png" alt="kagZ" className="w-[28px] h-[28px] object-contain shrink-0 select-none" />
+        <span className="font-semibold text-[15px] text-[var(--c-text-primary)] leading-tight">
+          {model.label}
+        </span>
+      </div>
+
+      <p className="text-[12.5px] text-[var(--c-text-tertiary)] leading-snug mb-3.5">
+        {model.description || model.subtitle}
+      </p>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between text-[13px] text-[var(--c-text-secondary)] font-normal">
+          <span>Speed</span>
+          {renderMeter(model.speed ?? 4)}
+        </div>
+        <div className="flex items-center justify-between text-[13px] text-[var(--c-text-secondary)] font-normal">
+          <span>Intelligence</span>
+          {renderMeter(model.intelligence ?? 4)}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const ChatComposer = ({
   textareaRef,
   query,
@@ -1102,6 +1177,9 @@ const ChatComposer = ({
   const { showToast } = useToast();
   const [attachedPage, setAttachedPage] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [hoveredModel, setHoveredModel] = useState(null);
+  const [openDirection, setOpenDirection] = useState('down');
+  const [previewSide, setPreviewSide] = useState('right');
   const dropdownRef = useRef(null);
 
   // Advanced Tools (@ Mention) State
@@ -1193,11 +1271,57 @@ const ChatComposer = ({
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
+        setHoveredModel(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!dropdownRef.current) return;
+
+    const updatePlacement = () => {
+      if (!dropdownRef.current) return;
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const menuHeight = 175;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      if (!isRightPanel) {
+        if (spaceBelow >= menuHeight + 14) {
+          setOpenDirection('down');
+        } else if (spaceAbove >= menuHeight + 14 || spaceAbove > spaceBelow) {
+          setOpenDirection('up');
+        } else {
+          setOpenDirection('down');
+        }
+      } else {
+        if (spaceBelow >= menuHeight + 14) {
+          setOpenDirection('down');
+        } else {
+          setOpenDirection('up');
+        }
+      }
+
+      const previewWidth = 262;
+      if (rect.right + 10 + previewWidth > window.innerWidth - 12) {
+        setPreviewSide('left');
+      } else {
+        setPreviewSide('right');
+      }
+    };
+
+    if (isDropdownOpen) {
+      updatePlacement();
+      window.addEventListener('resize', updatePlacement);
+      window.addEventListener('scroll', updatePlacement, true);
+      return () => {
+        window.removeEventListener('resize', updatePlacement);
+        window.removeEventListener('scroll', updatePlacement, true);
+      };
+    }
+  }, [isDropdownOpen, isRightPanel]);
 
   // Auto-add the open page into textarea context ONLY if not in sidebar panel
   useEffect(() => {
@@ -1451,7 +1575,7 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border-0 rounded-[18px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-4 pt-3 pb-2.5 mx-auto">
+      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.08] dark:border-transparent focus-within:border-black/[0.16] dark:focus-within:border-transparent rounded-[18px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-4 pt-3 pb-2.5 mx-auto">
         {/* Top Context Pills (Page Context) */}
         {attachedPage && (
           <div className="flex items-center gap-1.5 mb-2 pt-0.5 flex-wrap">
@@ -1614,27 +1738,40 @@ const ChatComposer = ({
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-[13.5px] font-medium transition-colors duration-160 cursor-pointer ${
+                onClick={() => {
+                  setIsDropdownOpen((prev) => !prev);
+                  setHoveredModel(null);
+                }}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-[6px] text-[13px] font-normal transition-colors duration-160 cursor-pointer ${
                   isDropdownOpen
-                    ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]'
-                    : 'bg-black/[0.03] dark:bg-white/[0.05] text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                    ? 'text-[var(--c-text-primary)] bg-black/5 dark:bg-white/10'
+                    : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
+                <img src="/kagz.png" alt="kagZ" className="w-[18px] h-[18px] object-contain shrink-0 select-none" />
                 <span>{activeModel.label}</span>
-                <span className={`material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_less</span>
+                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>
+                  {openDirection === 'down' ? 'expand_more' : 'expand_less'}
+                </span>
               </button>
 
               <AnimatePresence>
                 {isDropdownOpen && (
                   <motion.div
                     role="listbox"
-                    initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                    initial={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                    exit={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
                     transition={{ duration: 0.16, ease: "easeOut" }}
-                    className="absolute bottom-full right-0 mb-1.5 w-[275px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-hidden rounded-[8px] p-1.5 select-none"
+                    onMouseLeave={() => setHoveredModel(null)}
+                    className={`absolute right-0 ${
+                      openDirection === 'down' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                    } w-[315px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-visible rounded-[14px] p-1.5 select-none`}
                   >
+                    {!isRightPanel && hoveredModel && (
+                      <ModelPreviewCard model={hoveredModel} side={previewSide} />
+                    )}
+
                     <div className="flex flex-col gap-0.5">
                       {models.map((model) => {
                         const isActive = selectedModel === model.value;
@@ -1645,20 +1782,22 @@ const ChatComposer = ({
                             type="button"
                             role="option"
                             aria-selected={isActive}
+                            onMouseEnter={() => {
+                              if (!isRightPanel) setHoveredModel(model);
+                            }}
                             onClick={() => {
                               setSelectedModel(model.value);
                               setIsDropdownOpen(false);
+                              setHoveredModel(null);
                             }}
-                            className={`flex items-start w-full px-2.5 py-2 rounded-[6px] text-left transition-colors duration-160 cursor-pointer ${
+                            className={`flex items-start w-full px-2.5 py-2 rounded-[8px] text-left transition-colors duration-160 cursor-pointer ${
                               isActive 
                                 ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
                                 : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
                             }`}
                           >
-                            <div className="w-5 h-5 shrink-0 flex items-center justify-center mt-0.5 text-[var(--c-icon-primary)]">
-                              {isActive && (
-                                <span className="material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-brand)]">check</span>
-                              )}
+                            <div className="w-7 h-7 shrink-0 flex items-center justify-center mt-0.5">
+                              <img src="/kagz.png" alt="kagZ" className="w-[24px] h-[24px] object-contain select-none" />
                             </div>
                             <div className="flex flex-col ml-1.5 min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
@@ -1678,34 +1817,6 @@ const ChatComposer = ({
                           </button>
                         );
                       })}
-
-                      <div className="h-px bg-[var(--c-border-hairline)] my-1" role="separator" />
-
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={isThinking}
-                        onClick={() => setIsThinking(!isThinking)}
-                        className={`flex items-start w-full px-2.5 py-2 rounded-[6px] text-left transition-colors duration-160 cursor-pointer ${
-                          isThinking 
-                            ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
-                            : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
-                        }`}
-                      >
-                        <div className="w-5 h-5 shrink-0 flex items-center justify-center mt-0.5 text-[var(--c-icon-primary)]">
-                          {isThinking && (
-                            <span className="material-symbols-outlined text-[16px] leading-none select-none text-[var(--c-brand)]">check</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col ml-1.5 min-w-0 flex-1">
-                          <span className={`text-[14.5px] leading-snug ${isThinking ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
-                            Extended thinking
-                          </span>
-                          <span className="text-[12.5px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
-                            Complex problem solving
-                          </span>
-                        </div>
-                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -1768,18 +1879,34 @@ const AIChat = ({ isRightPanel = false }) => {
     hasMore,
     fetchMoreMessages
   } = useContext(ChatContext);
+  const { user } = useAuth();
   
   const textareaRef = useRef(null);
   const chatScrollRef = useRef(null);
   const navigate = useNavigate();
 
-  const greetings = [
+  const timeGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    const period =
+      hour >= 5 && hour < 12
+        ? 'Good morning'
+        : hour >= 12 && hour < 17
+          ? 'Good afternoon'
+          : 'Good evening';
+
+    const name = user?.username || (user?.name ? user.name.trim().split(' ')[0] : '');
+    return name ? `${period}, ${name}` : period;
+  }, [user]);
+
+  const greetings = useMemo(() => [
+    timeGreeting,
+    "How can I help you today?",
     "How is your day going?",
     "Search anything across your workspace",
     "Write an email or draft a page",
     "Brainstorm ideas for your project",
     "Summarize your recent notes"
-  ];
+  ], [timeGreeting]);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
@@ -2054,7 +2181,7 @@ const AIChat = ({ isRightPanel = false }) => {
             <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-4 mt-[-10vh] z-10 relative">
               {/* Logo Doodle */}
               <div className="flex items-center justify-center mb-8 relative group cursor-default">
-                <img src="/kag-z.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105" />
+                <img src="/kagz.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105 select-none" />
               </div>
 
               <div className="h-[40px] mb-8 w-full relative flex items-center justify-center">

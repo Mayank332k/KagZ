@@ -8,6 +8,7 @@ import { ToastProvider } from './context/ToastContext';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import MobileOverlay from './components/UI/MobileOverlay';
+import ConnectingScreen from './components/UI/ConnectingScreen';
 
 import { ThemeProvider } from 'next-themes';
 
@@ -18,11 +19,7 @@ const Tasks = lazy(() => import('./pages/Tasks/Tasks'));
 const NoteEditor = lazy(() => import('./components/Editor/NoteEditor'));
 const AIChat = lazy(() => import('./components/Chat/AIChat'));
 
-const RouteLoader = () => (
-  <div className="flex items-center justify-center h-full w-full min-h-[40vh]">
-    <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-800 dark:border-t-white rounded-full animate-spin" />
-  </div>
-);
+const RouteLoader = () => <ConnectingScreen />;
 
 const DashboardIndex = () => {
   const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';

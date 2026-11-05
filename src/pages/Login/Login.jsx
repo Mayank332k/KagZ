@@ -178,9 +178,9 @@ const Login = () => {
                 {/* Brand / Logo */}
                 <motion.div 
                     custom={0} initial="hidden" animate="visible" variants={fadeUp}
-                    className="-ml-6 -mt-4 flex items-center"
+                    className="flex items-center"
                 >
-                    <img src="/kag-z.png" alt="KagZ Logo" className="h-[50px] object-contain -ml-16" />
+                    <img src="/kagz.png" alt="KagZ Logo" className="h-[58px] w-[58px] object-contain select-none" />
                 </motion.div>
 
                 {/* Hero Text */}

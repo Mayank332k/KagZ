@@ -81,7 +81,13 @@ const SidebarSkeletonItem = () => (
 );
 
 const Sidebar = () => {
-  const { user, logout, updatePreferences, memory: memoryStatus, refreshMemory } = useAuth();
+  const {
+    user,
+    logout,
+    updatePreferences,
+    memory: memoryStatus,
+    refreshMemory,
+  } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -125,12 +131,8 @@ const Sidebar = () => {
   const [expandedFavoriteFolders, setExpandedFavoriteFolders] = useState({});
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
 
-  const {
-    sectionStates,
-    loadSection,
-    invalidateSection,
-    updateSectionData,
-  } = useSectionLoader();
+  const { sectionStates, loadSection, invalidateSection, updateSectionData } =
+    useSectionLoader();
 
   const searchInputRef = useRef(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -157,7 +159,13 @@ const Sidebar = () => {
         }
         return;
       }
-      if (e.altKey && (e.code === "KeyS" || e.key === "s" || e.key === "S" || e.keyCode === 83)) {
+      if (
+        e.altKey &&
+        (e.code === "KeyS" ||
+          e.key === "s" ||
+          e.key === "S" ||
+          e.keyCode === 83)
+      ) {
         e.preventDefault();
         e.stopPropagation();
         const now = Date.now();
@@ -180,7 +188,9 @@ const Sidebar = () => {
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const savedWidth = Number(localStorage.getItem("noema-sidebar-width"));
-    return Number.isFinite(savedWidth) ? Math.min(600, Math.max(200, savedWidth)) : 270;
+    return Number.isFinite(savedWidth)
+      ? Math.min(600, Math.max(200, savedWidth))
+      : 270;
   });
   const isResizing = useRef(false);
   const resizeCleanupRef = useRef(null);
@@ -205,28 +215,47 @@ const Sidebar = () => {
     }
   }, [showSettingsCard, settingsTab, refreshMemory]);
   const [settingsSearchQuery, setSettingsSearchQuery] = useState("");
-  const [extraContrast, setExtraContrast] = useState(() => localStorage.getItem("noema-high-contrast") === "true");
-  const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem("noema-font-size") || "16", 10));
+  const [extraContrast, setExtraContrast] = useState(
+    () => localStorage.getItem("noema-high-contrast") === "true",
+  );
+  const [fontSize, setFontSize] = useState(() =>
+    parseInt(localStorage.getItem("noema-font-size") || "16", 10),
+  );
   const [cookiePrefs, setCookiePrefs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("noema-cookie-prefs") || '{"essential":true,"analytics":false,"marketing":false}'); }
-    catch { return { essential: true, analytics: false, marketing: false }; }
+    try {
+      return JSON.parse(
+        localStorage.getItem("noema-cookie-prefs") ||
+          '{"essential":true,"analytics":false,"marketing":false}',
+      );
+    } catch {
+      return { essential: true, analytics: false, marketing: false };
+    }
   });
   const [showCookiePanel, setShowCookiePanel] = useState(false);
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [showStartupDropdown, setShowStartupDropdown] = useState(false);
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
-  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem("noema-font-family") || "sans");
-  const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem("noema-spellcheck") === "true");
+  const [fontFamily, setFontFamily] = useState(
+    () => localStorage.getItem("noema-font-family") || "sans",
+  );
+  const [spellCheck, setSpellCheck] = useState(
+    () => localStorage.getItem("noema-spellcheck") === "true",
+  );
   const [storageUsage, setStorageUsage] = useState("0 B");
-  const [aiPersona, setAiPersona] = useState(() => user?.preferences?.aiPersona || "professional");
-  const [aiCustomInstructions, setAiCustomInstructions] = useState(() => user?.preferences?.customInstructions || "");
+  const [aiPersona, setAiPersona] = useState(
+    () => user?.preferences?.aiPersona || "professional",
+  );
+  const [aiCustomInstructions, setAiCustomInstructions] = useState(
+    () => user?.preferences?.customInstructions || "",
+  );
   const [isSavingAiPrefs, setIsSavingAiPrefs] = useState(false);
 
   useEffect(() => {
     if (user?.preferences) {
       if (user.preferences.aiPersona) setAiPersona(user.preferences.aiPersona);
-      if (user.preferences.customInstructions !== undefined) setAiCustomInstructions(user.preferences.customInstructions);
+      if (user.preferences.customInstructions !== undefined)
+        setAiCustomInstructions(user.preferences.customInstructions);
     }
   }, [user?.preferences]);
 
@@ -237,10 +266,17 @@ const Sidebar = () => {
 
   const savedAiPersona = user?.preferences?.aiPersona || "professional";
   const savedAiInstructions = user?.preferences?.customInstructions || "";
-  const hasAiPrefsChanged = (aiPersona !== savedAiPersona) || (aiCustomInstructions !== savedAiInstructions);
+  const hasAiPrefsChanged =
+    aiPersona !== savedAiPersona ||
+    aiCustomInstructions !== savedAiInstructions;
 
   const handleSaveAiPrefs = async () => {
-    if (isSavingAiPrefs || !hasAiPrefsChanged || countWords(aiCustomInstructions) > 100) return;
+    if (
+      isSavingAiPrefs ||
+      !hasAiPrefsChanged ||
+      countWords(aiCustomInstructions) > 100
+    )
+      return;
     setIsSavingAiPrefs(true);
     try {
       await updatePreferences({
@@ -249,7 +285,10 @@ const Sidebar = () => {
       });
       showToast("AI preferences saved successfully!", "success");
     } catch (err) {
-      showToast(err.response?.data?.message || "Failed to save AI preferences", "error");
+      showToast(
+        err.response?.data?.message || "Failed to save AI preferences",
+        "error",
+      );
     } finally {
       setIsSavingAiPrefs(false);
     }
@@ -269,7 +308,10 @@ const Sidebar = () => {
 
   // Apply font size to document
   useEffect(() => {
-    document.documentElement.style.setProperty("--noema-font-size", `${fontSize}px`);
+    document.documentElement.style.setProperty(
+      "--noema-font-size",
+      `${fontSize}px`,
+    );
     const currentStored = Number(localStorage.getItem("noema-font-size"));
     if (currentStored !== fontSize) {
       localStorage.setItem("noema-font-size", String(fontSize));
@@ -284,14 +326,26 @@ const Sidebar = () => {
   // Apply font family to document
   useEffect(() => {
     localStorage.setItem("noema-font-family", fontFamily);
-    if (fontFamily === 'serif') {
-      document.documentElement.style.setProperty('--font-sans', 'ui-serif, Georgia, serif');
-    } else if (fontFamily === 'mono') {
-      document.documentElement.style.setProperty('--font-sans', 'ui-monospace, SFMono-Regular, monospace');
-    } else if (fontFamily === 'system') {
-      document.documentElement.style.setProperty('--font-sans', 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif');
+    if (fontFamily === "serif") {
+      document.documentElement.style.setProperty(
+        "--font-sans",
+        "ui-serif, Georgia, serif",
+      );
+    } else if (fontFamily === "mono") {
+      document.documentElement.style.setProperty(
+        "--font-sans",
+        "ui-monospace, SFMono-Regular, monospace",
+      );
+    } else if (fontFamily === "system") {
+      document.documentElement.style.setProperty(
+        "--font-sans",
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      );
     } else {
-      document.documentElement.style.setProperty('--font-sans', 'system-ui, "Inter", "Segoe UI", Roboto, sans-serif');
+      document.documentElement.style.setProperty(
+        "--font-sans",
+        'system-ui, "Inter", "Segoe UI", Roboto, sans-serif',
+      );
     }
   }, [fontFamily]);
 
@@ -365,8 +419,6 @@ const Sidebar = () => {
   const [activeAddMenu, setActiveAddMenu] = useState(null);
   const [addMenuPos, setAddMenuPos] = useState({ top: 0, left: 0 });
 
-
-
   useEffect(() => {
     const handleClickOutside = () => {
       setActiveMenu(null);
@@ -399,7 +451,12 @@ const Sidebar = () => {
       label: "Home",
       path: "/dashboard/page/new",
       icon: () => (
-        <HugeiconsIcon icon={Home01Icon} size={17} strokeWidth={1.8} className="leading-none select-none" />
+        <HugeiconsIcon
+          icon={Home01Icon}
+          size={17}
+          strokeWidth={1.8}
+          className="leading-none select-none"
+        />
       ),
     },
     {
@@ -407,7 +464,12 @@ const Sidebar = () => {
       label: "Chat",
       path: "/dashboard/chat",
       icon: () => (
-        <HugeiconsIcon icon={MessageCircleIcon} size={17} strokeWidth={1.8} className="leading-none select-none" />
+        <HugeiconsIcon
+          icon={MessageCircleIcon}
+          size={17}
+          strokeWidth={1.8}
+          className="leading-none select-none"
+        />
       ),
     },
     {
@@ -415,7 +477,12 @@ const Sidebar = () => {
       label: "Tasks",
       path: "/dashboard/tasks",
       icon: () => (
-        <HugeiconsIcon icon={ListTodoIcon} size={17} strokeWidth={1.8} className="leading-none select-none" />
+        <HugeiconsIcon
+          icon={ListTodoIcon}
+          size={17}
+          strokeWidth={1.8}
+          className="leading-none select-none"
+        />
       ),
     },
   ];
@@ -467,43 +534,71 @@ const Sidebar = () => {
   }, [favoriteItems, updateSectionData]);
 
   // Modular event-based section loaders reusing background workspace response
-  const loadWorkspacesSection = useCallback(async (force = false) => {
-    return loadSection("workspaces-section", async () => {
-      const data = await loadWorkspaceData(force);
-      return data.workspaceTree;
-    }, { force });
-  }, [loadSection, loadWorkspaceData]);
+  const loadWorkspacesSection = useCallback(
+    async (force = false) => {
+      return loadSection(
+        "workspaces-section",
+        async () => {
+          const data = await loadWorkspaceData(force);
+          return data.workspaceTree;
+        },
+        { force },
+      );
+    },
+    [loadSection, loadWorkspaceData],
+  );
 
-  const loadRecentSection = useCallback(async (force = false) => {
-    return loadSection("recent-section", async () => {
-      if (!force && recentPages && recentPages.length > 0) {
-        setMockRecent(recentPages);
-        return recentPages;
-      }
-      const data = await loadWorkspaceData(force);
-      return data.recentPages;
-    }, { force });
-  }, [loadSection, recentPages, loadWorkspaceData]);
+  const loadRecentSection = useCallback(
+    async (force = false) => {
+      return loadSection(
+        "recent-section",
+        async () => {
+          if (!force && recentPages && recentPages.length > 0) {
+            setMockRecent(recentPages);
+            return recentPages;
+          }
+          const data = await loadWorkspaceData(force);
+          return data.recentPages;
+        },
+        { force },
+      );
+    },
+    [loadSection, recentPages, loadWorkspaceData],
+  );
 
-  const loadFavoritesSection = useCallback(async (force = false) => {
-    return loadSection("favorites-section", async () => {
-      if (!force && favoriteItems && favoriteItems.length > 0) {
-        setMockFavorites(favoriteItems);
-        return favoriteItems;
-      }
-      const data = await loadWorkspaceData(force);
-      return data.favoriteItems;
-    }, { force });
-  }, [loadSection, favoriteItems, loadWorkspaceData]);
+  const loadFavoritesSection = useCallback(
+    async (force = false) => {
+      return loadSection(
+        "favorites-section",
+        async () => {
+          if (!force && favoriteItems && favoriteItems.length > 0) {
+            setMockFavorites(favoriteItems);
+            return favoriteItems;
+          }
+          const data = await loadWorkspaceData(force);
+          return data.favoriteItems;
+        },
+        { force },
+      );
+    },
+    [loadSection, favoriteItems, loadWorkspaceData],
+  );
 
-  const loadChatHistorySection = useCallback(async (force = false) => {
-    return loadSection("chat-history-section", async () => {
-      const res = await chatAPI.getSessions();
-      const sessions = res.data.sessions || [];
-      setChatSessions(sessions);
-      return sessions;
-    }, { force });
-  }, [loadSection]);
+  const loadChatHistorySection = useCallback(
+    async (force = false) => {
+      return loadSection(
+        "chat-history-section",
+        async () => {
+          const res = await chatAPI.getSessions();
+          const sessions = res.data.sessions || [];
+          setChatSessions(sessions);
+          return sessions;
+        },
+        { force },
+      );
+    },
+    [loadSection],
+  );
 
   // Refetch only active/open sections when refreshSidebarTrigger occurs
   useEffect(() => {
@@ -730,7 +825,10 @@ const Sidebar = () => {
       }
     } catch (err) {
       console.error("Create workspace failed:", err);
-      showToast(err?.response?.data?.message || "Failed to create workspace", "error");
+      showToast(
+        err?.response?.data?.message || "Failed to create workspace",
+        "error",
+      );
     } finally {
       isCreatingWorkspaceRef.current = false;
       setIsCreatingWorkspace(false);
@@ -910,7 +1008,11 @@ const Sidebar = () => {
       }
     } catch (err) {
       console.error("Modal action failed:", err);
-      showToast(err?.response?.data?.message || "The sidebar action failed. Please try again.", "error");
+      showToast(
+        err?.response?.data?.message ||
+          "The sidebar action failed. Please try again.",
+        "error",
+      );
       return false;
     } finally {
       isModalSubmittingRef.current = false;
@@ -921,9 +1023,7 @@ const Sidebar = () => {
   if (isCollapsed) {
     return (
       <>
-        <div 
-          className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]"
-        >
+        <div className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]">
           <button
             onClick={() => setIsCollapsed(false)}
             className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
@@ -933,7 +1033,7 @@ const Sidebar = () => {
             <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </div>
-        <SearchPalette 
+        <SearchPalette
           isOpen={isSearchActive}
           onClose={() => setIsSearchActive(false)}
           recentPages={mockRecent}
@@ -970,7 +1070,11 @@ const Sidebar = () => {
             }}
           >
             <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
-              <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none" />
+              <HugeiconsIcon
+                icon={Delete02Icon}
+                size={16}
+                className="select-none"
+              />
             </div>
             <span>Delete Chat</span>
           </button>
@@ -1009,12 +1113,21 @@ const Sidebar = () => {
           }}
         >
           <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
-            <HugeiconsIcon icon={StarIcon} size={16} className={`select-none ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-[#7d7a75] dark:text-[#a19e99]"}`} />
+            <HugeiconsIcon
+              icon={StarIcon}
+              size={16}
+              className={`select-none ${node.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-[#7d7a75] dark:text-[#a19e99]"}`}
+            />
           </div>
-          <span className="truncate">{node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}</span>
+          <span className="truncate">
+            {node.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+          </span>
         </button>
 
-        <div className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
+        <div
+          className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1"
+          role="separator"
+        />
 
         {(node.type === "workspace" || node.type === "folder") && (
           <>
@@ -1033,7 +1146,9 @@ const Sidebar = () => {
               }}
             >
               <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
-                <span className="material-symbols-outlined text-[16px] leading-none select-none">note_add</span>
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                  note_add
+                </span>
               </div>
               <span>New Page</span>
             </button>
@@ -1052,11 +1167,16 @@ const Sidebar = () => {
               }}
             >
               <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
-                <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                  folder
+                </span>
               </div>
               <span>New Folder</span>
             </button>
-            <div className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1" role="separator" />
+            <div
+              className="h-px bg-[#f0efed] dark:bg-[#2c2c2b] my-1"
+              role="separator"
+            />
           </>
         )}
 
@@ -1075,7 +1195,11 @@ const Sidebar = () => {
           }}
         >
           <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
-            <HugeiconsIcon icon={Edit03Icon} size={16} className="select-none" />
+            <HugeiconsIcon
+              icon={Edit03Icon}
+              size={16}
+              className="select-none"
+            />
           </div>
           <span>Rename</span>
         </button>
@@ -1095,7 +1219,11 @@ const Sidebar = () => {
           }}
         >
           <div className="w-5 h-5 flex items-center justify-center mr-2 text-current shrink-0">
-            <HugeiconsIcon icon={Delete02Icon} size={16} className="select-none" />
+            <HugeiconsIcon
+              icon={Delete02Icon}
+              size={16}
+              className="select-none"
+            />
           </div>
           <span>Delete</span>
         </button>
@@ -1128,7 +1256,9 @@ const Sidebar = () => {
           }}
         >
           <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
-            <span className="material-symbols-outlined text-[16px] leading-none select-none">note_add</span>
+            <span className="material-symbols-outlined text-[16px] leading-none select-none">
+              note_add
+            </span>
           </div>
           <span>New Page</span>
         </button>
@@ -1147,7 +1277,9 @@ const Sidebar = () => {
           }}
         >
           <div className="w-5 h-5 flex items-center justify-center mr-2 text-[#7d7a75] dark:text-[#a19e99] shrink-0">
-            <span className="material-symbols-outlined text-[16px] leading-none select-none">folder</span>
+            <span className="material-symbols-outlined text-[16px] leading-none select-none">
+              folder
+            </span>
           </div>
           <span>New Folder</span>
         </button>
@@ -1170,7 +1302,9 @@ const Sidebar = () => {
     const query = settingsSearchQuery.toLowerCase().trim();
     const matchesQuery = (text, desc = "") => {
       if (!query) return true;
-      return text.toLowerCase().includes(query) || desc.toLowerCase().includes(query);
+      return (
+        text.toLowerCase().includes(query) || desc.toLowerCase().includes(query)
+      );
     };
 
     return createPortal(
@@ -1182,7 +1316,10 @@ const Sidebar = () => {
       >
         <div
           className="bg-[var(--c-surface)] text-[var(--c-text-primary)] rounded-[16px] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] border border-[var(--c-border)] flex w-[92vw] max-w-[1040px] h-[86vh] max-h-[760px] overflow-hidden text-sm relative"
-          style={{ fontFamily: 'var(--ui-font, ui-sans-serif, -apple-system, system-ui, sans-serif)' }}
+          style={{
+            fontFamily:
+              "var(--ui-font, ui-sans-serif, -apple-system, system-ui, sans-serif)",
+          }}
           onClick={(e) => {
             e.stopPropagation();
             setShowThemeDropdown(false);
@@ -1192,13 +1329,15 @@ const Sidebar = () => {
           }}
         >
           {/* Close button */}
-          <button 
+          <button
             type="button"
-            onClick={() => setShowSettingsCard(false)} 
+            onClick={() => setShowSettingsCard(false)}
             className="absolute top-3.5 right-3.5 w-7 h-7 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[6px] transition-colors duration-100 text-[var(--c-icon-secondary)] hover:text-[var(--c-text-primary)] z-20 cursor-pointer"
             aria-label="Close settings"
           >
-            <span className="material-symbols-outlined text-[18px] leading-none select-none">close</span>
+            <span className="material-symbols-outlined text-[18px] leading-none select-none">
+              close
+            </span>
           </button>
 
           {/* Left Sidebar Nav */}
@@ -1206,7 +1345,9 @@ const Sidebar = () => {
             {/* Search settings */}
             <div className="mb-2 px-0.5">
               <div className="flex items-center gap-2 h-8 px-2.5 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-[8px] text-[var(--c-icon-secondary)] focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
-                <span className="material-symbols-outlined text-[16px] select-none text-[var(--c-icon-secondary)] shrink-0">search</span>
+                <span className="material-symbols-outlined text-[16px] select-none text-[var(--c-icon-secondary)] shrink-0">
+                  search
+                </span>
                 <input
                   type="text"
                   value={settingsSearchQuery}
@@ -1222,19 +1363,27 @@ const Sidebar = () => {
               {/* Account & Preferences Group */}
               <div className="flex flex-col gap-0.5">
                 <div className="px-2 pt-1.5 pb-0.5">
-                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">General</span>
+                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">
+                    General
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettingsTab("preferences")}
-                  aria-current={settingsTab === "preferences" ? "page" : undefined}
+                  aria-current={
+                    settingsTab === "preferences" ? "page" : undefined
+                  }
                   className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "preferences"
                       ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
                       : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <SlidersHorizontalIcon size={15} strokeWidth={1.8} className="shrink-0" />
+                  <SlidersHorizontalIcon
+                    size={15}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
                   <span className="truncate">Account & Preferences</span>
                 </button>
               </div>
@@ -1242,19 +1391,27 @@ const Sidebar = () => {
               {/* Workspace Group */}
               <div className="flex flex-col gap-0.5">
                 <div className="px-2 pt-1.5 pb-0.5">
-                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">Workspace</span>
+                  <span className="text-[11.5px] font-medium leading-none text-[var(--c-text-tertiary)]">
+                    Workspace
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettingsTab("typography")}
-                  aria-current={settingsTab === "typography" ? "page" : undefined}
+                  aria-current={
+                    settingsTab === "typography" ? "page" : undefined
+                  }
                   className={`flex items-center gap-2.5 w-full px-2 h-8 rounded-[6px] text-[13.5px] transition-colors duration-100 text-left cursor-pointer ${
                     settingsTab === "typography"
                       ? "bg-[var(--ca-selected)] text-[var(--c-text-primary)] font-medium"
                       : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <HugeiconsIcon icon={TextIcon} size={15} className="shrink-0" />
+                  <HugeiconsIcon
+                    icon={TextIcon}
+                    size={15}
+                    className="shrink-0"
+                  />
                   <span className="truncate">Typography & Editor</span>
                 </button>
                 <button
@@ -1267,7 +1424,11 @@ const Sidebar = () => {
                       : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <HugeiconsIcon icon={BubbleChatSecureIcon} size={15} className="shrink-0" />
+                  <HugeiconsIcon
+                    icon={BubbleChatSecureIcon}
+                    size={15}
+                    className="shrink-0"
+                  />
                   <span className="truncate">Privacy & Data</span>
                 </button>
                 <button
@@ -1280,7 +1441,11 @@ const Sidebar = () => {
                       : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]"
                   }`}
                 >
-                  <img src="/kag-z.png" alt="KagZ AI" className="w-4 h-4 object-contain shrink-0 rounded-[3px] select-none" />
+                  <img
+                    src="/kagz.png"
+                    alt="KagZ AI"
+                    className="w-5 h-5 object-contain shrink-0 rounded-[4px] select-none"
+                  />
                   <span className="truncate">KagZ AI</span>
                 </button>
               </div>
@@ -1293,7 +1458,10 @@ const Sidebar = () => {
                 onClick={() => setShowLogoutConfirm(true)}
                 className="w-full flex items-center gap-2 px-2 h-8 text-[13px] font-medium rounded-[6px] transition-colors duration-100 text-[var(--c-text-secondary)] hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px] leading-none select-none">logout</span> Log out
+                <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                  logout
+                </span>{" "}
+                Log out
               </button>
             </div>
           </div>
@@ -1303,7 +1471,9 @@ const Sidebar = () => {
             {/* Account & Preferences Tab */}
             {settingsTab === "preferences" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[19px] font-semibold text-[var(--c-text-primary)] tracking-tight">Account & Preferences</h2>
+                <h2 className="text-[19px] font-semibold text-[var(--c-text-primary)] tracking-tight">
+                  Account & Preferences
+                </h2>
                 <p className="text-[13px] text-[var(--c-text-secondary)] mt-0.5 mb-7">
                   Manage your personal profile, credentials, and app preferences
                 </p>
@@ -1311,35 +1481,59 @@ const Sidebar = () => {
                 <div className="flex flex-col gap-7">
                   {/* Account Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">Account</h3>
-                    
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                      Account
+                    </h3>
+
                     <div className="rounded-[10px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] divide-y divide-[var(--c-border-hairline)] overflow-hidden">
                       {/* Identity Row */}
                       <div className="flex items-center gap-3.5 p-3.5">
                         {avatar ? (
-                          <img src={avatar} alt="Avatar" className="w-11 h-11 rounded-full object-cover shrink-0 border border-[var(--c-border-hairline)]" />
+                          <img
+                            src={avatar}
+                            alt="Avatar"
+                            className="w-11 h-11 rounded-full object-cover shrink-0 border border-[var(--c-border-hairline)]"
+                          />
                         ) : (
                           <div className="w-11 h-11 rounded-full bg-[var(--c-brand-subtle)] text-[var(--c-brand)] border border-[var(--c-brand)]/20 flex items-center justify-center font-medium text-base shrink-0 select-none">
                             {displayName.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex flex-col min-w-0">
-                          <span className="font-medium text-[var(--c-text-primary)] text-[14px] leading-tight truncate">{displayName}</span>
-                          <span className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5 truncate">{user?.email || "No email"}</span>
+                          <span className="font-medium text-[var(--c-text-primary)] text-[14px] leading-tight truncate">
+                            {displayName}
+                          </span>
+                          <span className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5 truncate">
+                            {user?.email || "No email"}
+                          </span>
                         </div>
                       </div>
-                      
+
                       {/* Metadata Rows */}
                       <div className="px-3.5 py-2.5 flex items-center justify-between text-[12.5px]">
-                        <span className="text-[var(--c-text-secondary)]">Sign-in method</span>
+                        <span className="text-[var(--c-text-secondary)]">
+                          Sign-in method
+                        </span>
                         <span className="text-[var(--c-text-primary)] font-medium capitalize">
-                          {user?.authProvider === 'google' ? (
+                          {user?.authProvider === "google" ? (
                             <div className="flex items-center gap-1.5">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                <path
+                                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                                  fill="#4285F4"
+                                />
+                                <path
+                                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                                  fill="#34A853"
+                                />
+                                <path
+                                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                                  fill="#FBBC05"
+                                />
+                                <path
+                                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                                  fill="#EA4335"
+                                />
                               </svg>
                               Google
                             </div>
@@ -1349,26 +1543,34 @@ const Sidebar = () => {
                         </span>
                       </div>
                       <div className="px-3.5 py-2.5 flex items-center justify-between text-[12.5px]">
-                        <span className="text-[var(--c-text-secondary)]">Member since</span>
-                        <span className="text-[var(--c-text-primary)] font-medium">{joinedDate}</span>
+                        <span className="text-[var(--c-text-secondary)]">
+                          Member since
+                        </span>
+                        <span className="text-[var(--c-text-primary)] font-medium">
+                          {joinedDate}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Appearance Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">Appearance</h3>
-                    
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                      Appearance
+                    </h3>
+
                     <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] border-y border-[var(--c-border-hairline)]">
                       {/* Theme Dropdown */}
                       <div className="flex items-center justify-between py-3">
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">Theme</span>
+                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                            Theme
+                          </span>
                           <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
                             Choose your interface theme for this device
                           </span>
                         </div>
-                        
+
                         <div className="relative shrink-0">
                           <button
                             type="button"
@@ -1381,18 +1583,28 @@ const Sidebar = () => {
                             }}
                             className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)]"
                           >
-                            <span>{theme === 'system' ? 'System default' : theme === 'light' ? 'Light' : 'Dark'}</span>
-                            <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showThemeDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                            <span>
+                              {theme === "system"
+                                ? "System default"
+                                : theme === "light"
+                                  ? "Light"
+                                  : "Dark"}
+                            </span>
+                            <span
+                              className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showThemeDropdown ? "rotate-180" : ""}`}
+                            >
+                              expand_more
+                            </span>
                           </button>
                           {showThemeDropdown && (
-                            <div 
+                            <div
                               className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {[
-                                { id: 'system', label: 'System default' },
-                                { id: 'light', label: 'Light' },
-                                { id: 'dark', label: 'Dark' }
+                                { id: "system", label: "System default" },
+                                { id: "light", label: "Light" },
+                                { id: "dark", label: "Dark" },
                               ].map((opt) => (
                                 <button
                                   key={opt.id}
@@ -1405,7 +1617,9 @@ const Sidebar = () => {
                                 >
                                   <span>{opt.label}</span>
                                   {theme === opt.id && (
-                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>
+                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                      check
+                                    </span>
                                   )}
                                 </button>
                               ))}
@@ -1417,8 +1631,13 @@ const Sidebar = () => {
                       {/* High Contrast */}
                       <div className="flex items-center justify-between py-3">
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">High contrast</span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Increase interface contrast and borders for improved visibility</span>
+                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                            High contrast
+                          </span>
+                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                            Increase interface contrast and borders for improved
+                            visibility
+                          </span>
                         </div>
                         <button
                           type="button"
@@ -1426,10 +1645,14 @@ const Sidebar = () => {
                           aria-checked={extraContrast}
                           onClick={() => setExtraContrast(!extraContrast)}
                           className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
-                            extraContrast ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"
+                            extraContrast
+                              ? "bg-[var(--c-brand)]"
+                              : "bg-black/15 dark:bg-white/15"
                           }`}
                         >
-                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`} />
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`}
+                          />
                         </button>
                       </div>
                     </div>
@@ -1437,15 +1660,19 @@ const Sidebar = () => {
 
                   {/* Input options Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">Input & Interaction</h3>
-                    
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                      Input & Interaction
+                    </h3>
+
                     <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] border-y border-[var(--c-border-hairline)]">
                       {/* On Startup & Reload Dropdown */}
                       <div className="flex items-center justify-between py-3">
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">On startup & reload</span>
+                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                            On startup & reload
+                          </span>
                           <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 max-w-[420px]">
-                            {chatStartupMode === 'resume'
+                            {chatStartupMode === "resume"
                               ? "Resumes previous chat session on reload"
                               : "Opens fresh on a clean new chat"}
                           </span>
@@ -1462,17 +1689,25 @@ const Sidebar = () => {
                             }}
                             className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)]"
                           >
-                            <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
-                            <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showStartupDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                            <span>
+                              {chatStartupMode === "resume"
+                                ? "Resume last chat"
+                                : "Fresh new chat"}
+                            </span>
+                            <span
+                              className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showStartupDropdown ? "rotate-180" : ""}`}
+                            >
+                              expand_more
+                            </span>
                           </button>
                           {showStartupDropdown && (
-                            <div 
+                            <div
                               className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {[
-                                { id: 'resume', label: 'Resume last chat' },
-                                { id: 'fresh', label: 'Fresh new chat' }
+                                { id: "resume", label: "Resume last chat" },
+                                { id: "fresh", label: "Fresh new chat" },
                               ].map((opt) => (
                                 <button
                                   key={opt.id}
@@ -1485,7 +1720,9 @@ const Sidebar = () => {
                                 >
                                   <span>{opt.label}</span>
                                   {chatStartupMode === opt.id && (
-                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>
+                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                      check
+                                    </span>
                                   )}
                                 </button>
                               ))}
@@ -1497,8 +1734,13 @@ const Sidebar = () => {
                       {/* Reasoning Process Toggle */}
                       <div className="flex items-center justify-between py-3">
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">Reasoning process</span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Show step-by-step thinking orb animation when responding</span>
+                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                            Reasoning process
+                          </span>
+                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                            Show step-by-step thinking orb animation when
+                            responding
+                          </span>
                         </div>
                         <button
                           type="button"
@@ -1506,10 +1748,14 @@ const Sidebar = () => {
                           aria-checked={isThinking}
                           onClick={() => setIsThinking(!isThinking)}
                           className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
-                            isThinking ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"
+                            isThinking
+                              ? "bg-[var(--c-brand)]"
+                              : "bg-black/15 dark:bg-white/15"
                           }`}
                         >
-                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isThinking ? "translate-x-4" : "translate-x-0"}`} />
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isThinking ? "translate-x-4" : "translate-x-0"}`}
+                          />
                         </button>
                       </div>
                     </div>
@@ -1521,21 +1767,30 @@ const Sidebar = () => {
             {/* Dedicated Tab: Typography & Editor */}
             {settingsTab === "typography" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Typography & Editor</h2>
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                  Typography & Editor
+                </h2>
                 <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
-                  Customize your reading and writing experience across notes and documents
+                  Customize your reading and writing experience across notes and
+                  documents
                 </p>
 
                 <div className="flex flex-col gap-6">
                   {/* Editor typography */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Editor typography</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                      Editor typography
+                    </h3>
 
                     {/* Font Family */}
                     <div className="flex items-center justify-between py-2.5 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font family</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Choose the default typeface</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Font family
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Choose the default typeface
+                        </span>
                       </div>
                       <div className="relative shrink-0">
                         <button
@@ -1549,12 +1804,24 @@ const Sidebar = () => {
                           }}
                           className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal"
                         >
-                          <span className="capitalize">{fontFamily === 'sans' ? 'Sans-serif' : fontFamily === 'serif' ? 'Serif' : fontFamily === 'system' ? 'System Default' : 'Monospace'}</span>
-                          <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                          <span className="capitalize">
+                            {fontFamily === "sans"
+                              ? "Sans-serif"
+                              : fontFamily === "serif"
+                                ? "Serif"
+                                : fontFamily === "system"
+                                  ? "System Default"
+                                  : "Monospace"}
+                          </span>
+                          <span
+                            className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}
+                          >
+                            expand_more
+                          </span>
                         </button>
-                        
+
                         {showFontDropdown && (
-                          <div 
+                          <div
                             className="absolute right-0 top-full mt-1 w-44 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -1562,7 +1829,7 @@ const Sidebar = () => {
                               { id: "sans", label: "Sans-serif" },
                               { id: "serif", label: "Serif" },
                               { id: "mono", label: "Monospace" },
-                              { id: "system", label: "System Default" }
+                              { id: "system", label: "System Default" },
                             ].map((f) => (
                               <button
                                 key={f.id}
@@ -1574,7 +1841,11 @@ const Sidebar = () => {
                                 className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{f.label}</span>
-                                {fontFamily === f.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
+                                {fontFamily === f.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                    check
+                                  </span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -1585,23 +1856,33 @@ const Sidebar = () => {
                     {/* Font Size */}
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font size</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Adjust interface and editor text size ({fontSize}px)</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Font size
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Adjust interface and editor text size ({fontSize}px)
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0">
-                        <button 
+                        <button
                           type="button"
                           onClick={() => handleFontSizeChange(-1)}
                           disabled={fontSize <= 12}
                           className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
-                        >-</button>
-                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">{fontSize}</span>
-                        <button 
+                        >
+                          -
+                        </button>
+                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">
+                          {fontSize}
+                        </span>
+                        <button
                           type="button"
                           onClick={() => handleFontSizeChange(1)}
                           disabled={fontSize >= 24}
                           className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
-                        >+</button>
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1610,11 +1891,17 @@ const Sidebar = () => {
 
                   {/* Writing assistance */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Writing assistance</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                      Writing assistance
+                    </h3>
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Spell check</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Enable browser spell checker in notes</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Spell check
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Enable browser spell checker in notes
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -1623,7 +1910,9 @@ const Sidebar = () => {
                         onClick={() => setSpellCheck(!spellCheck)}
                         className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`} />
+                        <div
+                          className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`}
+                        />
                       </button>
                     </div>
                   </div>
@@ -1634,37 +1923,71 @@ const Sidebar = () => {
             {/* Dedicated Tab: Privacy & Data */}
             {settingsTab === "privacy" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Privacy & Data</h2>
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                  Privacy & Data
+                </h2>
                 <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Manage cookies, storage quotas, and local data persistence
                 </p>
 
                 <div className="flex flex-col gap-6">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">Cookies & Storage</h3>
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                      Cookies & Storage
+                    </h3>
                     <div className="py-2.5 border-b border-[var(--c-border-hairline)]">
-                      <div 
+                      <div
                         className="flex items-center justify-between cursor-pointer group"
                         onClick={() => setShowCookiePanel(!showCookiePanel)}
                       >
                         <div className="flex flex-col pr-4">
-                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Cookie preferences</span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Manage optional analytics and tracking cookies</span>
+                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                            Cookie preferences
+                          </span>
+                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                            Manage optional analytics and tracking cookies
+                          </span>
                         </div>
-                        <span className={`material-symbols-outlined text-[17px] select-none text-[var(--c-icon-secondary)] shrink-0 transition-transform duration-100 ${showCookiePanel ? "rotate-90" : ""}`}>chevron_right</span>
+                        <span
+                          className={`material-symbols-outlined text-[17px] select-none text-[var(--c-icon-secondary)] shrink-0 transition-transform duration-100 ${showCookiePanel ? "rotate-90" : ""}`}
+                        >
+                          chevron_right
+                        </span>
                       </div>
-                      
+
                       {showCookiePanel && (
                         <div className="mt-3 flex flex-col gap-2.5 bg-[var(--c-surface-input)] p-3.5 rounded-[6px] border border-[var(--c-border-hairline)]">
                           {[
-                            { key: "essential", label: "Essential Cookies", desc: "Required for the app to function. Cannot be disabled.", locked: true },
-                            { key: "analytics", label: "Analytics Cookies", desc: "Help us understand how you use KagZ.", locked: false },
-                            { key: "marketing", label: "Marketing Cookies", desc: "Used to personalize suggestions.", locked: false },
+                            {
+                              key: "essential",
+                              label: "Essential Cookies",
+                              desc: "Required for the app to function. Cannot be disabled.",
+                              locked: true,
+                            },
+                            {
+                              key: "analytics",
+                              label: "Analytics Cookies",
+                              desc: "Help us understand how you use KagZ.",
+                              locked: false,
+                            },
+                            {
+                              key: "marketing",
+                              label: "Marketing Cookies",
+                              desc: "Used to personalize suggestions.",
+                              locked: false,
+                            },
                           ].map((cookie) => (
-                            <div key={cookie.key} className="flex items-center justify-between py-1">
+                            <div
+                              key={cookie.key}
+                              className="flex items-center justify-between py-1"
+                            >
                               <div className="flex flex-col mr-4">
-                                <span className="text-[12.5px] font-medium text-[var(--c-text-primary)]">{cookie.label}</span>
-                                <span className="text-[11px] text-[var(--c-text-secondary)]">{cookie.desc}</span>
+                                <span className="text-[12.5px] font-medium text-[var(--c-text-primary)]">
+                                  {cookie.label}
+                                </span>
+                                <span className="text-[11px] text-[var(--c-text-secondary)]">
+                                  {cookie.desc}
+                                </span>
                               </div>
                               <button
                                 type="button"
@@ -1672,7 +1995,9 @@ const Sidebar = () => {
                                 disabled={cookie.locked}
                                 className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                               >
-                                <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`} />
+                                <div
+                                  className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`}
+                                />
                               </button>
                             </div>
                           ))}
@@ -1682,10 +2007,14 @@ const Sidebar = () => {
 
                     <div className="flex items-center justify-between py-2.5">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Local storage cache</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">{storageUsage} used of local device quota</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Local storage cache
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          {storageUsage} used of local device quota
+                        </span>
                       </div>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setShowClearDataModal(true)}
                         className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-100 shrink-0 cursor-pointer"
@@ -1703,10 +2032,18 @@ const Sidebar = () => {
               <div className="flex flex-col max-w-[680px] w-full mx-auto select-none">
                 {/* 1. KagZ AI Brand Header */}
                 <div className="flex items-center justify-between pb-5 border-b border-[var(--c-border-hairline)]">
-                  <div className="flex items-center gap-3.5">
-                    <img src="/kag-z.png" alt="KagZ AI" className="w-12 h-12 object-contain select-none shrink-0" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-[16px] bg-black/[0.03] dark:bg-white/[0.05] p-2 flex items-center justify-center shrink-0">
+                      <img
+                        src="/kagz.png"
+                        alt="KagZ AI"
+                        className="w-full h-full object-contain select-none"
+                      />
+                    </div>
                     <div>
-                      <h2 className="text-[20px] font-semibold text-[var(--c-text-primary)] tracking-tight">KagZ AI</h2>
+                      <h2 className="text-[20px] font-semibold text-[var(--c-text-primary)] tracking-tight">
+                        KagZ AI
+                      </h2>
                       <p className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                         Persona tuning, custom instructions, and memory limits
                       </p>
@@ -1717,17 +2054,25 @@ const Sidebar = () => {
                   <button
                     type="button"
                     onClick={handleSaveAiPrefs}
-                    disabled={isSavingAiPrefs || !hasAiPrefsChanged || countWords(aiCustomInstructions) > 100}
+                    disabled={
+                      isSavingAiPrefs ||
+                      !hasAiPrefsChanged ||
+                      countWords(aiCustomInstructions) > 100
+                    }
                     className="flex items-center justify-center gap-1.5 px-3.5 h-8 text-[12.5px] font-medium text-white bg-[var(--c-brand)] hover:bg-[var(--c-brand-hover)] disabled:opacity-35 disabled:cursor-not-allowed rounded-[6px] transition-colors duration-100 cursor-pointer shadow-sm shrink-0"
                   >
                     {isSavingAiPrefs ? (
                       <>
-                        <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                        <span className="material-symbols-outlined text-[14px] animate-spin">
+                          progress_activity
+                        </span>
                         <span>Saving...</span>
                       </>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-[14px]">check</span>
+                        <span className="material-symbols-outlined text-[14px]">
+                          check
+                        </span>
                         <span>Save preferences</span>
                       </>
                     )}
@@ -1737,9 +2082,13 @@ const Sidebar = () => {
                 {/* 2. Personality & Tone */}
                 <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Personality & Tone</h3>
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                      Personality & Tone
+                    </h3>
                     <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
-                      {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.desc || "Set how conversational or direct the AI responds"}
+                      {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)
+                        ?.desc ||
+                        "Set how conversational or direct the AI responds"}
                     </p>
                   </div>
 
@@ -1755,12 +2104,19 @@ const Sidebar = () => {
                       }}
                       className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-medium"
                     >
-                      <span className="truncate">{AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)?.label || "Professional"}</span>
-                      <span className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showPersonaDropdown ? "rotate-180" : ""}`}>expand_more</span>
+                      <span className="truncate">
+                        {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)
+                          ?.label || "Professional"}
+                      </span>
+                      <span
+                        className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showPersonaDropdown ? "rotate-180" : ""}`}
+                      >
+                        expand_more
+                      </span>
                     </button>
 
                     {showPersonaDropdown && (
-                      <div 
+                      <div
                         className="absolute right-0 top-full mt-1.5 w-64 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -1776,13 +2132,21 @@ const Sidebar = () => {
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-[var(--c-text-primary)]">{opt.label}</span>
-                                <span className="text-[10px] text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1 py-0.2 rounded-[3px]">{opt.badge}</span>
+                                <span className="font-medium text-[var(--c-text-primary)]">
+                                  {opt.label}
+                                </span>
+                                <span className="text-[10px] text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1 py-0.2 rounded-[3px]">
+                                  {opt.badge}
+                                </span>
                               </div>
-                              <span className="text-[11px] text-[var(--c-text-tertiary)] mt-0.5 leading-snug">{opt.desc}</span>
+                              <span className="text-[11px] text-[var(--c-text-tertiary)] mt-0.5 leading-snug">
+                                {opt.desc}
+                              </span>
                             </div>
                             {aiPersona === opt.id && (
-                              <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none shrink-0 ml-2">check</span>
+                              <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none shrink-0 ml-2">
+                                check
+                              </span>
                             )}
                           </button>
                         ))}
@@ -1794,19 +2158,24 @@ const Sidebar = () => {
                 {/* 3. Custom Instructions */}
                 <div className="py-4 border-b border-[var(--c-border-hairline)] flex flex-col">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Custom instructions</h3>
-                    <span className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-[3px] ${
-                      countWords(aiCustomInstructions) > 100
-                        ? "bg-red-500/10 text-red-500 font-semibold"
-                        : countWords(aiCustomInstructions) > 85
-                        ? "bg-amber-500/10 text-amber-500"
-                        : "bg-[var(--ca-hover)] text-[var(--c-text-tertiary)]"
-                    }`}>
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                      Custom instructions
+                    </h3>
+                    <span
+                      className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-[3px] ${
+                        countWords(aiCustomInstructions) > 100
+                          ? "bg-red-500/10 text-red-500 font-semibold"
+                          : countWords(aiCustomInstructions) > 85
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-[var(--ca-hover)] text-[var(--c-text-tertiary)]"
+                      }`}
+                    >
                       {countWords(aiCustomInstructions)} / 100 words
                     </span>
                   </div>
                   <p className="text-[12px] text-[var(--c-text-secondary)] mb-3">
-                    Tell KagZ AI how you want it to behave, format code, or structure answers.
+                    Tell KagZ AI how you want it to behave, format code, or
+                    structure answers.
                   </p>
 
                   <div className="rounded-[8px] bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
@@ -1819,8 +2188,11 @@ const Sidebar = () => {
                     />
                     {countWords(aiCustomInstructions) > 100 && (
                       <p className="text-[11.5px] text-red-500 flex items-center gap-1 mt-2 shrink-0">
-                        <span className="material-symbols-outlined text-[14px]">warning</span>
-                        Instructions exceed 100 words limit. Excess words will be trimmed.
+                        <span className="material-symbols-outlined text-[14px]">
+                          warning
+                        </span>
+                        Instructions exceed 100 words limit. Excess words will
+                        be trimmed.
                       </p>
                     )}
                   </div>
@@ -1829,31 +2201,35 @@ const Sidebar = () => {
                 {/* 4. Session Continuity (Resume last vs Fresh start) */}
                 <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
                   <div>
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Session Continuity</h3>
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                      Session Continuity
+                    </h3>
                     <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
-                      {chatStartupMode === 'resume' ? 'Resumes your previous conversation state on reload' : 'Starts with a clean empty chat on reload'}
+                      {chatStartupMode === "resume"
+                        ? "Resumes your previous conversation state on reload"
+                        : "Starts with a clean empty chat on reload"}
                     </p>
                   </div>
 
                   <div className="inline-flex p-0.5 rounded-[6px] bg-[var(--c-surface-input)] border border-[var(--c-border-hairline)] shrink-0">
                     <button
                       type="button"
-                      onClick={() => setChatStartupMode('resume')}
+                      onClick={() => setChatStartupMode("resume")}
                       className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
-                        chatStartupMode === 'resume'
-                          ? 'bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm'
-                          : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]'
+                        chatStartupMode === "resume"
+                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm"
+                          : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]"
                       }`}
                     >
                       Resume last
                     </button>
                     <button
                       type="button"
-                      onClick={() => setChatStartupMode('fresh')}
+                      onClick={() => setChatStartupMode("fresh")}
                       className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
-                        chatStartupMode === 'fresh'
-                          ? 'bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm'
-                          : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]'
+                        chatStartupMode === "fresh"
+                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm"
+                          : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]"
                       }`}
                     >
                       Start fresh
@@ -1864,29 +2240,39 @@ const Sidebar = () => {
                 {/* 5. AI Memory Status */}
                 <div className="py-4 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">AI Memory</h3>
-                    <span className={`text-[12.5px] font-mono font-medium ${
-                      (memoryStatus?.isFull || (memoryStatus?.usagePercent ?? 0) >= 85)
-                        ? "text-red-500/80 dark:text-red-400/80"
-                        : (memoryStatus?.usagePercent ?? 0) >= 60
-                        ? "text-amber-500/80 dark:text-amber-400/80"
-                        : "text-[var(--c-text-secondary)]"
-                    }`}>
-                      {memoryStatus ? `${memoryStatus.usagePercent ?? 0}%` : "0%"}
+                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                      AI Memory
+                    </h3>
+                    <span
+                      className={`text-[12.5px] font-mono font-medium ${
+                        memoryStatus?.isFull ||
+                        (memoryStatus?.usagePercent ?? 0) >= 85
+                          ? "text-red-500/80 dark:text-red-400/80"
+                          : (memoryStatus?.usagePercent ?? 0) >= 60
+                            ? "text-amber-500/80 dark:text-amber-400/80"
+                            : "text-[var(--c-text-secondary)]"
+                      }`}
+                    >
+                      {memoryStatus
+                        ? `${memoryStatus.usagePercent ?? 0}%`
+                        : "0%"}
                     </span>
                   </div>
 
                   {/* Frosted blur rounded progress bar (light 50% opacity) */}
                   <div className="w-full h-3.5 rounded-full backdrop-blur-md bg-black/[0.025] dark:bg-white/[0.04] overflow-hidden">
-                    <div 
+                    <div
                       className={`h-full rounded-full transition-all duration-300 opacity-50 ${
-                        (memoryStatus?.isFull || (memoryStatus?.usagePercent ?? 0) >= 85)
+                        memoryStatus?.isFull ||
+                        (memoryStatus?.usagePercent ?? 0) >= 85
                           ? "bg-[#eb5757]"
                           : (memoryStatus?.usagePercent ?? 0) >= 60
-                          ? "bg-amber-500"
-                          : "bg-[#2383e2] dark:bg-[#4fa7ff]"
+                            ? "bg-amber-500"
+                            : "bg-[#2383e2] dark:bg-[#4fa7ff]"
                       }`}
-                      style={{ width: `${Math.min(memoryStatus?.usagePercent ?? 0, 100)}%` }}
+                      style={{
+                        width: `${Math.min(memoryStatus?.usagePercent ?? 0, 100)}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -1896,7 +2282,9 @@ const Sidebar = () => {
             {/* Real-time Search Results View */}
             {settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">Search Results</h2>
+                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                  Search Results
+                </h2>
                 <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Settings matching &ldquo;{settingsSearchQuery}&rdquo;
                 </p>
@@ -1905,8 +2293,12 @@ const Sidebar = () => {
                   {matchesQuery("Theme", "theme") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Theme</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">System, Light, or Dark theme</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Theme
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          System, Light, or Dark theme
+                        </span>
                       </div>
                       <div className="relative shrink-0">
                         <button
@@ -1917,18 +2309,26 @@ const Sidebar = () => {
                           }}
                           className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
                         >
-                          <span>{theme === 'system' ? 'Use system setting' : theme === 'light' ? 'Light' : 'Dark'}</span>
-                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">expand_more</span>
+                          <span>
+                            {theme === "system"
+                              ? "Use system setting"
+                              : theme === "light"
+                                ? "Light"
+                                : "Dark"}
+                          </span>
+                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">
+                            expand_more
+                          </span>
                         </button>
                         {showThemeDropdown && (
-                          <div 
+                          <div
                             className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
-                              { id: 'system', label: 'Use system setting' },
-                              { id: 'light', label: 'Light' },
-                              { id: 'dark', label: 'Dark' }
+                              { id: "system", label: "Use system setting" },
+                              { id: "light", label: "Light" },
+                              { id: "dark", label: "Dark" },
                             ].map((opt) => (
                               <button
                                 key={opt.id}
@@ -1940,7 +2340,11 @@ const Sidebar = () => {
                                 className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
-                                {theme === opt.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
+                                {theme === opt.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                    check
+                                  </span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -1952,8 +2356,13 @@ const Sidebar = () => {
                   {matchesQuery("High contrast", "contrast") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">High contrast</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Increase interface contrast and borders for improved visibility</span>
+                        <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                          High contrast
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Increase interface contrast and borders for improved
+                          visibility
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -1961,10 +2370,14 @@ const Sidebar = () => {
                         aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
                         className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
-                          extraContrast ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"
+                          extraContrast
+                            ? "bg-[var(--c-brand)]"
+                            : "bg-black/15 dark:bg-white/15"
                         }`}
                       >
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`} />
+                        <div
+                          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`}
+                        />
                       </button>
                     </div>
                   )}
@@ -1972,8 +2385,12 @@ const Sidebar = () => {
                   {matchesQuery("Startup", "Resume last chat reload") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">On startup & reload</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Resume last chat or start fresh on reload</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          On startup & reload
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Resume last chat or start fresh on reload
+                        </span>
                       </div>
                       <div className="relative shrink-0">
                         <button
@@ -1984,17 +2401,23 @@ const Sidebar = () => {
                           }}
                           className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
                         >
-                          <span>{chatStartupMode === 'resume' ? 'Resume last chat' : 'Fresh new chat'}</span>
-                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">expand_more</span>
+                          <span>
+                            {chatStartupMode === "resume"
+                              ? "Resume last chat"
+                              : "Fresh new chat"}
+                          </span>
+                          <span className="material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none">
+                            expand_more
+                          </span>
                         </button>
                         {showStartupDropdown && (
-                          <div 
+                          <div
                             className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
-                              { id: 'resume', label: 'Resume last chat' },
-                              { id: 'fresh', label: 'Fresh new chat' }
+                              { id: "resume", label: "Resume last chat" },
+                              { id: "fresh", label: "Fresh new chat" },
                             ].map((opt) => (
                               <button
                                 key={opt.id}
@@ -2006,7 +2429,11 @@ const Sidebar = () => {
                                 className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
                               >
                                 <span>{opt.label}</span>
-                                {chatStartupMode === opt.id && <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">check</span>}
+                                {chatStartupMode === opt.id && (
+                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                    check
+                                  </span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -2018,8 +2445,12 @@ const Sidebar = () => {
                   {matchesQuery("Reasoning", "Thinking mode") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Reasoning process</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Thinking orb animation</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Reasoning process
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Thinking orb animation
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -2028,7 +2459,9 @@ const Sidebar = () => {
                         onClick={() => setIsThinking(!isThinking)}
                         className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${isThinking ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${isThinking ? "translate-x-3.5" : ""}`} />
+                        <div
+                          className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${isThinking ? "translate-x-3.5" : ""}`}
+                        />
                       </button>
                     </div>
                   )}
@@ -2036,23 +2469,33 @@ const Sidebar = () => {
                   {matchesQuery("Font", "Typography text size") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Font size</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Interface text size ({fontSize}px)</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Font size
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Interface text size ({fontSize}px)
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0">
-                        <button 
+                        <button
                           type="button"
                           onClick={() => handleFontSizeChange(-1)}
                           disabled={fontSize <= 12}
                           className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] cursor-pointer text-sm transition-colors duration-100"
-                        >-</button>
-                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">{fontSize}</span>
-                        <button 
+                        >
+                          -
+                        </button>
+                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">
+                          {fontSize}
+                        </span>
+                        <button
                           type="button"
                           onClick={() => handleFontSizeChange(1)}
                           disabled={fontSize >= 24}
                           className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] cursor-pointer text-sm transition-colors duration-100"
-                        >+</button>
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   )}
@@ -2060,8 +2503,12 @@ const Sidebar = () => {
                   {matchesQuery("Spell", "Spell check") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Spell check</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Browser spell checker</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Spell check
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Browser spell checker
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -2070,7 +2517,9 @@ const Sidebar = () => {
                         onClick={() => setSpellCheck(!spellCheck)}
                         className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
-                        <div className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`} />
+                        <div
+                          className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`}
+                        />
                       </button>
                     </div>
                   )}
@@ -2078,10 +2527,14 @@ const Sidebar = () => {
                   {matchesQuery("Storage", "Local data clear") && (
                     <div className="flex items-center justify-between py-3 border-b border-[var(--c-border-hairline)]">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">Local storage</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">{storageUsage} used</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          Local storage
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          {storageUsage} used
+                        </span>
                       </div>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setShowClearDataModal(true)}
                         className="text-[12px] text-red-500 hover:text-red-600 font-medium px-3 py-1 rounded-[6px] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-100 shrink-0 cursor-pointer"
@@ -2091,11 +2544,20 @@ const Sidebar = () => {
                     </div>
                   )}
 
-                  {matchesQuery("KagZ AI", "personality tone instructions friend prompt memory") && (
+                  {matchesQuery(
+                    "KagZ AI",
+                    "personality tone instructions friend prompt memory",
+                  ) && (
                     <div className="flex items-center justify-between py-3">
                       <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">KagZ AI Settings</span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">Customize AI personality ({aiPersona.replace('_', ' ')}), instructions, and memory limits</span>
+                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                          KagZ AI Settings
+                        </span>
+                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          Customize AI personality (
+                          {aiPersona.replace("_", " ")}), instructions, and
+                          memory limits
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -2129,7 +2591,7 @@ const Sidebar = () => {
           />
         </div>
       </div>,
-      document.body
+      document.body,
     );
   };
 
@@ -2223,7 +2685,12 @@ const Sidebar = () => {
       .filter(Boolean);
   };
 
-  const renderTree = (nodes, level = 0, expansionState = expandedFolders, onToggle = toggleFolder) => {
+  const renderTree = (
+    nodes,
+    level = 0,
+    expansionState = expandedFolders,
+    onToggle = toggleFolder,
+  ) => {
     return nodes.map((node) => {
       // Clear visual indentation hierarchy per level
       const paddingLeft = `${10 + level * 14}px`;
@@ -2260,7 +2727,9 @@ const Sidebar = () => {
               className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
               aria-label={`More options for ${node.name}`}
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
+              <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                more_horiz
+              </span>
             </button>
           </div>
         );
@@ -2281,7 +2750,11 @@ const Sidebar = () => {
                 <div className="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
                   <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-500 dark:text-[#9e9b95]">
                     {node.type === "workspace" ? (
-                      <HugeiconsIcon icon={Blockchain04Icon} size={15} className="shrink-0 text-current select-none" />
+                      <HugeiconsIcon
+                        icon={Blockchain04Icon}
+                        size={15}
+                        className="shrink-0 text-current select-none"
+                      />
                     ) : isExpanded ? (
                       <span className="material-symbols-outlined text-[15px] leading-none text-gray-600 dark:text-gray-300 select-none">
                         folder_open
@@ -2295,7 +2768,9 @@ const Sidebar = () => {
                   <span className="truncate select-none font-normal text-gray-900 dark:text-[#e4e2dd] leading-[18px]">
                     {node.name}
                   </span>
-                  <span className={`material-symbols-outlined text-[13px] leading-none select-none transition-transform duration-200 text-gray-500 opacity-0 group-hover:opacity-70 ${isExpanded ? "rotate-90 !opacity-70" : ""} shrink-0`}>
+                  <span
+                    className={`material-symbols-outlined text-[13px] leading-none select-none transition-transform duration-200 text-gray-500 opacity-0 group-hover:opacity-70 ${isExpanded ? "rotate-90 !opacity-70" : ""} shrink-0`}
+                  >
                     chevron_right
                   </span>
                 </div>
@@ -2317,14 +2792,18 @@ const Sidebar = () => {
                     className={`w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeAddMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="Add..."
                   >
-                    <span className="material-symbols-outlined text-[14px] leading-none select-none">add_2</span>
+                    <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                      add_2
+                    </span>
                   </button>
                   <button
                     onClick={(e) => handleMenuClick(e, node.id)}
                     className={`w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === node.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                     title="More Options"
                   >
-                    <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
+                    <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                      more_horiz
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2458,7 +2937,7 @@ const Sidebar = () => {
         <button
           onClick={() => setIsSearchActive(true)}
           className="w-full h-8 flex items-center justify-between rounded-[8px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] transition-[background,border] duration-20 ease-in text-left group cursor-pointer"
-          style={{ paddingLeft: '8px', paddingRight: '6px' }}
+          style={{ paddingLeft: "8px", paddingRight: "6px" }}
         >
           <span className="text-[15px] leading-[18px] text-[#555450] dark:text-[#aba8a2] group-hover:text-[#181817] dark:group-hover:text-[#f7f6f4] font-normal select-none">
             Search or ask
@@ -2510,7 +2989,11 @@ const Sidebar = () => {
             }
 
             return (
-              <NavLink key={item.id} to={item.path} className="block outline-none">
+              <NavLink
+                key={item.id}
+                to={item.path}
+                className="block outline-none"
+              >
                 {({ isActive: routerIsActive }) => {
                   const isActive =
                     item.id === "home" ? isHomeActive() : routerIsActive;
@@ -2553,8 +3036,14 @@ const Sidebar = () => {
               onClick={() => toggleFolder("recent-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-normal select-none">Recents</span>
-              <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">
+                Recents
+              </span>
+              <span
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90 !opacity-60" : ""}`}
+              >
+                chevron_right
+              </span>
             </div>
           </div>
           <div
@@ -2566,7 +3055,9 @@ const Sidebar = () => {
                 className="group flex items-center gap-2 w-full h-[30px] px-2 mb-[1px] text-[15px] leading-[18px] font-normal text-[#383734] dark:text-[#c7c5c0] hover:text-[#181817] dark:hover:text-[#f7f6f4] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-[15px] leading-none select-none">add_2</span>
+                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
+                    add_2
+                  </span>
                 </div>
                 <span>New Page</span>
               </button>
@@ -2604,7 +3095,9 @@ const Sidebar = () => {
                             assignment
                           </span>
                         </div>
-                        <span className="truncate leading-[18px]">{recent.name}</span>
+                        <span className="truncate leading-[18px]">
+                          {recent.name}
+                        </span>
                       </div>
                     </NavLink>
                     <button
@@ -2612,14 +3105,19 @@ const Sidebar = () => {
                       className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${activeMenu === recent.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                       aria-label={`More options for ${recent.name}`}
                     >
-                      <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
+                      <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                        more_horiz
+                      </span>
                     </button>
                   </div>
                 ))
               )}
-              {sectionStates["recent-section"]?.isSuccess && mockRecent.length === 0 && (
-                <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">No recent pages</div>
-              )}
+              {sectionStates["recent-section"]?.isSuccess &&
+                mockRecent.length === 0 && (
+                  <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">
+                    No recent pages
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -2631,8 +3129,14 @@ const Sidebar = () => {
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
               onClick={() => toggleFolder("workspaces-section")}
             >
-              <span className="text-[12px] leading-[16px] font-normal select-none">Workspaces</span>
-              <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">
+                Workspaces
+              </span>
+              <span
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90 !opacity-60" : ""}`}
+              >
+                chevron_right
+              </span>
             </div>
             <button
               className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100"
@@ -2644,7 +3148,9 @@ const Sidebar = () => {
                 setShowNewWorkspaceModal(true);
               }}
             >
-              <span className="material-symbols-outlined text-[14px] leading-none select-none">add_2</span>
+              <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                add_2
+              </span>
             </button>
           </div>
           <div
@@ -2670,9 +3176,12 @@ const Sidebar = () => {
               ) : (
                 renderTree(filterTree(mockTree, debouncedSearchQuery))
               )}
-              {sectionStates["workspaces-section"]?.isSuccess && mockTree.length === 0 && (
-                <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">No workspaces yet</div>
-              )}
+              {sectionStates["workspaces-section"]?.isSuccess &&
+                mockTree.length === 0 && (
+                  <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">
+                    No workspaces yet
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -2684,8 +3193,14 @@ const Sidebar = () => {
               onClick={() => toggleFolder("favorites-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-normal select-none">Favorites</span>
-              <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">
+                Favorites
+              </span>
+              <span
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90 !opacity-60" : ""}`}
+              >
+                chevron_right
+              </span>
             </div>
           </div>
           <div
@@ -2710,9 +3225,12 @@ const Sidebar = () => {
                   toggleFavoriteFolder,
                 )
               )}
-              {sectionStates["favorites-section"]?.isSuccess && mockFavorites.length === 0 && (
-                <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">No favorites yet</div>
-              )}
+              {sectionStates["favorites-section"]?.isSuccess &&
+                mockFavorites.length === 0 && (
+                  <div className="px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">
+                    No favorites yet
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -2730,8 +3248,14 @@ const Sidebar = () => {
               onClick={() => toggleFolder("chat-history-section")}
               className="flex items-center gap-1 select-none cursor-pointer px-1 py-0.5 rounded text-[#787672] dark:text-[#888580] hover:text-[#181817] dark:hover:text-[#f7f6f4] transition-colors"
             >
-              <span className="text-[12px] leading-[16px] font-normal select-none">Chat History</span>
-              <span className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90 !opacity-60" : ""}`}>chevron_right</span>
+              <span className="text-[12px] leading-[16px] font-normal select-none">
+                Chat History
+              </span>
+              <span
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90 !opacity-60" : ""}`}
+              >
+                chevron_right
+              </span>
             </div>
             <button
               className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100"
@@ -2741,7 +3265,11 @@ const Sidebar = () => {
                 handleStartNewChat();
               }}
             >
-              <HugeiconsIcon icon={ChatAdd01Icon} size={14} className="select-none leading-none" />
+              <HugeiconsIcon
+                icon={ChatAdd01Icon}
+                size={14}
+                className="select-none leading-none"
+              />
             </button>
           </div>
           <div
@@ -2757,7 +3285,11 @@ const Sidebar = () => {
                 className="group flex items-center gap-2 w-full h-[30px] px-2 mb-[1px] text-[15px] leading-[18px] font-normal text-[#383734] dark:text-[#c7c5c0] hover:text-[#181817] dark:hover:text-[#f7f6f4] hover:bg-black/[0.031] dark:hover:bg-white/[0.055] rounded-[6px] transition-all duration-150 bg-transparent border-none outline-none cursor-pointer shrink-0"
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
-                  <HugeiconsIcon icon={ChatAdd01Icon} size={15} className="select-none leading-none" />
+                  <HugeiconsIcon
+                    icon={ChatAdd01Icon}
+                    size={15}
+                    className="select-none leading-none"
+                  />
                 </div>
                 <span>New Chat</span>
               </button>
@@ -2813,7 +3345,9 @@ const Sidebar = () => {
                               className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 shrink-0 ${activeMenu === session.sessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
                               aria-label={`More options for ${session.title || "chat"}`}
                             >
-                              <span className="material-symbols-outlined text-[14px] leading-none select-none">more_horiz</span>
+                              <span className="material-symbols-outlined text-[14px] leading-none select-none">
+                                more_horiz
+                              </span>
                             </button>
                           </>
                         );
@@ -2866,7 +3400,9 @@ const Sidebar = () => {
             title="Collapse sidebar"
             aria-label="Collapse sidebar"
           >
-            <span className="material-symbols-outlined text-[18px] leading-none select-none">chevron_left</span>
+            <span className="material-symbols-outlined text-[18px] leading-none select-none">
+              chevron_left
+            </span>
           </button>
         </div>
       </div>
@@ -2956,7 +3492,7 @@ const Sidebar = () => {
         cancelText="Keep my data"
         isDanger
       />
-      <SearchPalette 
+      <SearchPalette
         isOpen={isSearchActive}
         onClose={() => {
           setIsSearchActive(false);
