@@ -271,6 +271,8 @@ export const pagesAPI = {
         params: { folderId: folderId ?? 'null' },
       })
     ),
+  getById: (id) =>
+    cachedGet(`pages:id:${id}`, () => api.get(`/pages/${id}`)),
   create: (data) =>
     api.post('/pages', {
       title: data.title,

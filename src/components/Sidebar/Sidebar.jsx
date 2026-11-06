@@ -33,7 +33,6 @@ import {
 import { useToast } from "../../context/ToastContext";
 import useSectionLoader from "../../hooks/useSectionLoader";
 import SectionErrorState from "../UI/SectionErrorState";
-import usePWAInstall from "../../hooks/usePWAInstall";
 
 const AI_PERSONA_OPTIONS = [
   {
@@ -126,7 +125,6 @@ const Sidebar = () => {
 
   const { sectionStates, loadSection, updateSectionData } =
     useSectionLoader();
-  const { isInstallable, installApp } = usePWAInstall();
 
   const searchInputRef = useRef(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -3374,18 +3372,6 @@ const Sidebar = () => {
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {isInstallable && (
-            <button
-              onClick={installApp}
-              className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors shrink-0"
-              title="Install KagZ App"
-              aria-label="Install KagZ App"
-            >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none">
-                download
-              </span>
-            </button>
-          )}
           <button
             onClick={() => setIsCollapsed(true)}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:text-[#7d7a75] dark:hover:text-gray-200 transition-colors shrink-0"

@@ -3,8 +3,6 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { motion, AnimatePresence } from 'framer-motion';
-import usePWAInstall from '../../hooks/usePWAInstall';
-import InstallPromptBanner from '../../components/UI/InstallPromptBanner';
 
 const AIChat = lazy(() => import('../../components/Chat/AIChat'));
 
@@ -13,11 +11,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { isRightChatOpen, setIsRightChatOpen, clearChat } = useContext(ChatContext);
   const isChatRoute = location.pathname === '/dashboard/chat';
-  const { showBanner, installApp, dismissPrompt, recordPageView } = usePWAInstall();
-
-  useEffect(() => {
-    recordPageView();
-  }, [location.pathname, recordPageView]);
 
   // Save current route for 'resume' mode
   useEffect(() => {
@@ -162,20 +155,6 @@ const Dashboard = () => {
             </span>
           </button>
         )}
-
-        {/* Smart PWA Install Prompt Banner */}
-        <AnimatePresence>
-          {showBanner && (
-            <InstallPromptBanner
-              onInstall={installApp}
-              onDismiss={dismissPrompt}
-              style={{
-                right: !isChatRoute && isRightChatOpen ? `${rightPanelWidth + 20}px` : undefined,
-                bottom: !isChatRoute && !isRightChatOpen ? '4.5rem' : '1.25rem',
-              }}
-            />
-          )}
-        </AnimatePresence>
       </main>
     </div>
   );
