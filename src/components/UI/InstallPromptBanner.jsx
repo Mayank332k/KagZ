@@ -1,7 +1,17 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, X } from 'lucide-react';
+import { Download, X, ArrowUpRight } from 'lucide-react';
 
 const InstallPromptBanner = ({ onInstall, onDismiss, style = {} }) => {
+  const [showHelper, setShowHelper] = useState(false);
+
+  const handleClickInstall = async () => {
+    const res = await onInstall();
+    if (res?.fallback) {
+      setShowHelper(true);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -33,23 +43,30 @@ const InstallPromptBanner = ({ onInstall, onDismiss, style = {} }) => {
             Install KagZ
           </h4>
           <p className="text-[12px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-            Offline access, faster loads aur seamless native desktop experience paayein.
+            Enjoy offline access, faster loading, and a seamless native desktop experience.
           </p>
+
+          {showHelper && (
+            <div className="mt-2.5 p-2 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg text-[11.5px] text-blue-700 dark:text-blue-300 flex items-start gap-1.5">
+              <ArrowUpRight size={14} className="shrink-0 mt-0.5" />
+              <span>Click the <strong>(⤓) Install</strong> icon in your browser's address bar to install.</span>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 mt-3.5">
             <button
-              onClick={onInstall}
+              onClick={handleClickInstall}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-950 dark:bg-white text-white dark:text-gray-950 rounded-lg text-[12.5px] font-medium shadow-sm hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
             >
               <Download size={13} strokeWidth={2.2} />
-              Install Karein
+              Install
             </button>
             <button
               onClick={onDismiss}
               className="px-2.5 py-1.5 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 text-[12px] rounded-lg transition-colors cursor-pointer"
             >
-              Baad mein
+              Not now
             </button>
           </div>
         </div>
@@ -59,4 +76,3 @@ const InstallPromptBanner = ({ onInstall, onDismiss, style = {} }) => {
 };
 
 export default InstallPromptBanner;
-

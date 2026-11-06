@@ -17,7 +17,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: null,
       includeAssets: ['kagz.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'KagZ',
@@ -34,6 +34,7 @@ export default defineConfig({
             src: '/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: '/pwa-512x512.png',
@@ -47,7 +48,18 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'maskable',
           },
+          {
+            src: '/kagz.png',
+            sizes: '1312x1199',
+            type: 'image/png',
+            purpose: 'any',
+          },
         ],
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+        suppressWarnings: true,
       },
       workbox: {
         mode: 'production',

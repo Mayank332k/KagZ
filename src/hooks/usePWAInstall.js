@@ -56,7 +56,7 @@ export const usePWAInstall = () => {
 
   // Increment session page views and evaluate engagement
   const recordPageView = useCallback(() => {
-    if (isInstalled || !deferredPrompt) return;
+    if (isInstalled) return;
 
     try {
       const dismissedUntil = localStorage.getItem(DISMISS_KEY);
@@ -65,18 +65,18 @@ export const usePWAInstall = () => {
       const currentViews = Number(sessionStorage.getItem(SESSION_VIEWS_KEY) || 0) + 1;
       sessionStorage.setItem(SESSION_VIEWS_KEY, String(currentViews));
 
-      // If user has engaged with 2 or more pages, trigger prompt
+      // Trigger prompt on 2+ page navigation
       if (currentViews >= 2) {
         setShowBanner(true);
       }
     } catch {
       // Ignore storage errors
     }
-  }, [isInstalled, deferredPrompt]);
+  }, [isInstalled]);
 
-  // Engagement timer (30s on site)
+  // Initial engagement timer (shows after 2.5s on site)
   useEffect(() => {
-    if (isInstalled || !deferredPrompt) {
+    if (isInstalled) {
       return;
     }
 
@@ -89,30 +89,34 @@ export const usePWAInstall = () => {
 
     const timer = setTimeout(() => {
       setShowBanner(true);
-    }, 30000);
+    }, 2500);
 
     return () => clearTimeout(timer);
-  }, [deferredPrompt, isInstalled]);
+  }, [isInstalled]);
 
   const installApp = useCallback(async () => {
-    if (!globalDeferredPrompt && !deferredPrompt) return false;
     const promptEvent = deferredPrompt || globalDeferredPrompt;
-    try {
-      promptEvent.prompt();
-      const choiceResult = await promptEvent.userChoice;
-      if (choiceResult?.outcome === 'accepted') {
-        globalDeferredPrompt = null;
-        setDeferredPrompt(null);
-        setIsInstalled(true);
-        setShowBanner(false);
-        notifyListeners();
-        return true;
+    if (promptEvent) {
+      try {
+        promptEvent.prompt();
+        const choiceResult = await promptEvent.userChoice;
+        if (choiceResult?.outcome === 'accepted') {
+          globalDeferredPrompt = null;
+          setDeferredPrompt(null);
+          setIsInstalled(true);
+          setShowBanner(false);
+          notifyListeners();
+          return { success: true };
+        }
+        return { success: false, reason: 'dismissed' };
+      } catch (err) {
+        console.warn('PWA installation prompt failed:', err);
+        return { success: false, error: err };
       }
-      return false;
-    } catch (err) {
-      console.warn('PWA installation prompt failed:', err);
-      return false;
     }
+
+    // Fallback if browser (e.g. Brave / Safari) doesn't expose programmatic prompt
+    return { success: false, fallback: true };
   }, [deferredPrompt]);
 
   const dismissPrompt = useCallback(() => {
@@ -125,7 +129,8 @@ export const usePWAInstall = () => {
   }, []);
 
   return {
-    isInstallable: !!deferredPrompt && !isInstalled,
+    isInstallable: !isInstalled,
+    hasNativePrompt: !!(deferredPrompt || globalDeferredPrompt),
     isInstalled,
     showBanner,
     installApp,
