@@ -187,18 +187,18 @@ const FaviconIcon = ({ domain }) => {
 
   if (!domain || hasError) {
     return (
-      <div className="shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]">
-        <Globe size={15.5} />
+      <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]">
+        <Globe size={16.5} />
       </div>
     );
   }
 
   return (
-    <div className="shrink-0 w-4 h-4 flex items-center justify-center">
+    <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center">
       <img
         src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
         alt=""
-        className="w-4 h-4 rounded-[2px] shrink-0 object-contain"
+        className="w-[18px] h-[18px] rounded-[2px] shrink-0 object-contain"
         onError={() => setHasError(true)}
         loading="lazy"
       />
@@ -229,8 +229,8 @@ const StepIcon = ({ step, isLive }) => {
     lower.includes('saving memory')
   ) {
     return (
-      <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <HugeiconsIcon icon={QuillWrite02Icon} size={15.5} strokeWidth={1.8} />
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+        <HugeiconsIcon icon={QuillWrite02Icon} size={16.5} strokeWidth={1.8} />
       </div>
     );
   }
@@ -244,8 +244,8 @@ const StepIcon = ({ step, isLive }) => {
     lower.includes('yaad')
   ) {
     return (
-      <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <HugeiconsIcon icon={BookOpen01Icon} size={15.5} strokeWidth={1.8} />
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+        <HugeiconsIcon icon={BookOpen01Icon} size={16.5} strokeWidth={1.8} />
       </div>
     );
   }
@@ -253,8 +253,8 @@ const StepIcon = ({ step, isLive }) => {
   // Completed workspace note
   if (isWorkspaceNote(step, text)) {
     return (
-      <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <FileText size={15.5} />
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+        <FileText size={16.5} />
       </div>
     );
   }
@@ -268,8 +268,8 @@ const StepIcon = ({ step, isLive }) => {
   // Completed task management
   if (stateType === 'task_management' || lower.includes('task') || lower.includes('kanban')) {
     return (
-      <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <CheckSquare size={15.5} />
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+        <CheckSquare size={16.5} />
       </div>
     );
   }
@@ -283,16 +283,16 @@ const StepIcon = ({ step, isLive }) => {
     lower.includes('synthesizing')
   ) {
     return (
-      <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <Search size={15.5} />
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+        <Search size={16.5} />
       </div>
     );
   }
 
   // Default web search query
   return (
-    <div className={`shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-      <Globe size={15.5} />
+    <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
+      <Globe size={16.5} />
     </div>
   );
 };
@@ -317,9 +317,8 @@ const WorkingProcessAccordion = ({
   duration = null,
   startedAt = null,
   hasVisibleContent = false,
-  thoughts = [],
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(isStreaming && !hasVisibleContent);
   const userInteractedRef = useRef(false);
   const prevStreamingRef = useRef(isStreaming);
 
@@ -391,41 +390,12 @@ const WorkingProcessAccordion = ({
   const isWriting = isStreaming && hasVisibleContent && !hasActiveRunningStep;
   const prevWritingRef = useRef(false);
 
-  // Current running thought/step displayed in single-line header when collapsed
-  const currentRunningThought = useMemo(() => {
-    // 1. If an active tool or execution step is currently running
-    const activeStep = visibleSteps.slice().reverse().find((s) => s?.isLive || s?.status === 'running');
-    if (activeStep) {
-      const t = typeof activeStep === 'string' ? activeStep : activeStep?.text;
-      if (t) return t;
+  // Keep accordion open while steps/tools are actively running
+  useEffect(() => {
+    if (isStreaming && hasActiveRunningStep && !userInteractedRef.current) {
+      setIsOpen(true);
     }
-
-    // 2. If status is given and not generic "thinking"
-    if (status && !/^thinking(\.{1,3})?$/i.test(status.trim()) && !/^reasoning(\.{1,3})?$/i.test(status.trim())) {
-      return status;
-    }
-
-    // 3. If there are streamed thoughts from <thought> tag
-    if (Array.isArray(thoughts) && thoughts.length > 0) {
-      const lastThought = thoughts[thoughts.length - 1];
-      if (typeof lastThought === 'string' && lastThought.trim()) {
-        const lines = lastThought.trim().split('\n').map((l) => l.trim()).filter(Boolean);
-        const lastLine = lines[lines.length - 1];
-        if (lastLine) {
-          return lastLine.length > 85 ? `${lastLine.slice(0, 82)}...` : lastLine;
-        }
-      }
-    }
-
-    // 4. If there's any visible step
-    const lastStep = visibleSteps[visibleSteps.length - 1];
-    if (lastStep) {
-      const t = typeof lastStep === 'string' ? lastStep : lastStep?.text;
-      if (t) return t;
-    }
-
-    return 'Thinking...';
-  }, [visibleSteps, status, thoughts]);
+  }, [isStreaming, hasActiveRunningStep]);
 
   // As soon as all tools finish and visible content streams, auto-collapse so user focuses on the answer
   useEffect(() => {
@@ -584,38 +554,30 @@ const WorkingProcessAccordion = ({
             }}
             className="w-5 h-5 shrink-0 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]"
           >
-            <HugeiconsIcon icon={QuillWrite01Icon} size={16.5} strokeWidth={1.8} />
+            <HugeiconsIcon icon={QuillWrite01Icon} size={17.5} strokeWidth={1.8} />
           </motion.div>
         ) : isStreaming ? (
           <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-            <ThinkingOrb size={19} stateType={activeStateType} />
+            <ThinkingOrb size={20} stateType={activeStateType} />
           </div>
         ) : null}
 
-        <span
-          className={
-            !isOpen && isStreaming && !isWriting
-              ? 'truncate max-w-[280px] sm:max-w-[460px] shimmer-sentence text-neutral-800 dark:text-neutral-200 font-medium'
-              : ''
-          }
-        >
+        <span>
           {isWriting
             ? 'Writing...'
             : isStreaming
-            ? isOpen
-              ? `Working for ${formatDuration(elapsed)}`
-              : currentRunningThought
+            ? `Working for ${formatDuration(elapsed)}`
             : `Worked for ${formatDuration(displaySeconds)}`}
         </span>
 
         {isOpen ? (
           <ChevronDown
-            size={15}
+            size={16}
             className="shrink-0 text-neutral-400 dark:text-[#8e8b86] group-hover/work:text-neutral-600 dark:group-hover/work:text-neutral-200 transition-colors"
           />
         ) : (
           <ChevronRight
-            size={15}
+            size={16}
             className="shrink-0 text-neutral-400 dark:text-[#8e8b86] group-hover/work:text-neutral-600 dark:group-hover/work:text-neutral-200 transition-colors"
           />
         )}
@@ -680,9 +642,9 @@ const WorkingProcessAccordion = ({
                                 y: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
                                 x: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
                               }}
-                              className="shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[4px]"
+                              className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[3px]"
                             >
-                              <HugeiconsIcon icon={QuillWrite01Icon} size={15.5} strokeWidth={1.8} />
+                              <HugeiconsIcon icon={QuillWrite01Icon} size={16.5} strokeWidth={1.8} />
                             </motion.div>
                           ) : (
                             <motion.div
@@ -691,9 +653,9 @@ const WorkingProcessAccordion = ({
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.85 }}
                               transition={{ duration: 0.22, ease: 'easeOut' }}
-                              className="shrink-0 w-4 h-4 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[4px]"
+                              className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[3px]"
                             >
-                              <HugeiconsIcon icon={ThoughtBubbleIcon} size={15.5} strokeWidth={1.8} />
+                              <HugeiconsIcon icon={ThoughtBubbleIcon} size={16.5} strokeWidth={1.8} />
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -709,9 +671,9 @@ const WorkingProcessAccordion = ({
 
                         {/* Subtle chevron (no numbers) */}
                         {hasTools && (
-                          <div className="shrink-0 flex items-center text-neutral-400 dark:text-[#787672] select-none pr-0.5 mt-[4px]">
+                          <div className="shrink-0 flex items-center text-neutral-400 dark:text-[#787672] select-none pr-0.5 mt-[3px]">
                             <ChevronRight
-                              size={13}
+                              size={14}
                               className={`transition-transform duration-200 text-neutral-400 dark:text-[#787672] ${
                                 isExpanded ? 'rotate-90' : ''
                               }`}
@@ -757,7 +719,7 @@ const WorkingProcessAccordion = ({
                                     }`}
                                     title={action?.tooltip}
                                   >
-                                    <div className="shrink-0 mt-[4px]">
+                                    <div className="shrink-0 mt-[3px]">
                                       <StepIcon step={step} isLive={isLive} />
                                     </div>
                                     <span
