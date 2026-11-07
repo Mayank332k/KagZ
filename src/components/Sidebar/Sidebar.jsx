@@ -17,8 +17,6 @@ import {
   StarIcon,
   TextIcon,
   Blockchain04Icon,
-  ChatAdd01Icon,
-  BubbleChatSecureIcon,
 } from "@hugeicons/core-free-icons";
 
 import ActionModal from "../UI/ActionModal";
@@ -110,8 +108,20 @@ const Sidebar = () => {
     loadWorkspaceData,
     refreshSidebarTrigger,
     triggerSidebarRefresh,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
   } = useContext(EditorContext);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isCollapsed = isSidebarCollapsed;
+  const setIsCollapsed = setIsSidebarCollapsed;
+
+  // Auto-close mobile drawer on route changes
+  useEffect(() => {
+    if (setIsMobileSidebarOpen) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [location.pathname, setIsMobileSidebarOpen]);
   const [activeMenu, setActiveMenu] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [expandedFolders, setExpandedFolders] = useState({
@@ -998,10 +1008,10 @@ const Sidebar = () => {
     return false;
   };
 
-  if (isCollapsed) {
+  if (isCollapsed && !isMobileSidebarOpen) {
     return (
       <>
-        <div className="h-screen w-12 flex flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]">
+        <div className="hidden md:flex h-screen w-12 flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]">
           <button
             onClick={() => setIsCollapsed(false)}
             className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
@@ -1403,8 +1413,9 @@ const Sidebar = () => {
                   }`}
                 >
                   <HugeiconsIcon
-                    icon={BubbleChatSecureIcon}
+                    icon={MessageCircleIcon}
                     size={15}
+                    strokeWidth={1.8}
                     className="shrink-0"
                   />
                   <span className="truncate">Privacy & Data</span>
@@ -2839,27 +2850,46 @@ const Sidebar = () => {
   };
 
   return (
-    <div
-      className="relative z-40 h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f9f8f7] dark:bg-[#202020]"
-      style={{ width: sidebarWidth }}
-    >
-      {/* Resizer Handle */}
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/45 backdrop-blur-[2px] z-[99] md:hidden transition-opacity duration-200"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       <div
-        onMouseDown={handleMouseDown}
-        className="absolute top-0 right-[-4px] w-[8px] h-full cursor-col-resize z-50 hover:bg-gray-300/50 transition-colors"
-      />
-      {/* Top Header, Search Bar & Quick Actions */}
-      <div className="px-3 pt-3 flex flex-col gap-2.5 shrink-0">
-        {/* Top Controls Row */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setIsCollapsed(true)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
-            title="Close sidebar"
-            aria-label="Close sidebar"
-          >
-            <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
-          </button>
+        className={`h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f9f8f7] dark:bg-[#202020] ${
+          isMobileSidebarOpen
+            ? "fixed inset-y-0 left-0 z-[100] w-[84vw] max-w-[310px] shadow-2xl md:relative md:inset-auto md:z-40 md:shadow-none"
+            : "hidden md:flex relative z-40"
+        }`}
+        style={{ width: isMobileSidebarOpen && (typeof window !== 'undefined' && window.innerWidth < 768) ? undefined : sidebarWidth }}
+      >
+        {/* Resizer Handle (Desktop only) */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute top-0 right-[-4px] w-[8px] h-full cursor-col-resize z-50 hover:bg-gray-300/50 transition-colors hidden md:block"
+        />
+        {/* Top Header, Search Bar & Quick Actions */}
+        <div className="px-3 pt-3 flex flex-col gap-2.5 shrink-0">
+          {/* Top Controls Row */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => {
+                if (isMobileSidebarOpen) {
+                  setIsMobileSidebarOpen(false);
+                } else {
+                  setIsCollapsed(true);
+                }
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+              title="Close sidebar"
+              aria-label="Close sidebar"
+            >
+              <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
+            </button>
           <div className="flex items-center gap-0.5 relative">
             <button
               onClick={(e) => {
@@ -2901,9 +2931,12 @@ const Sidebar = () => {
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-[14.5px] font-medium text-gray-950 dark:text-gray-100 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                 >
-                  <span className="material-symbols-outlined text-[17px] leading-none select-none text-gray-500 dark:text-gray-400 shrink-0">
-                    chat
-                  </span>
+                  <HugeiconsIcon
+                    icon={MessageCircleIcon}
+                    size={17}
+                    strokeWidth={1.8}
+                    className="text-gray-500 dark:text-gray-400 shrink-0 select-none"
+                  />
                   <span>Chat</span>
                 </button>
               </div>
@@ -3244,7 +3277,7 @@ const Sidebar = () => {
               }}
             >
               <HugeiconsIcon
-                icon={ChatAdd01Icon}
+                icon={MessageCircleIcon}
                 size={14}
                 className="select-none leading-none"
               />
@@ -3264,7 +3297,7 @@ const Sidebar = () => {
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                   <HugeiconsIcon
-                    icon={ChatAdd01Icon}
+                    icon={MessageCircleIcon}
                     size={15}
                     className="select-none leading-none"
                   />
@@ -3307,9 +3340,12 @@ const Sidebar = () => {
                             >
                               <div className="flex items-center gap-2 overflow-hidden w-full">
                                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-500 dark:text-[#9e9b95]">
-                                  <span className="material-symbols-outlined text-[15px] leading-none text-current select-none">
-                                    chat
-                                  </span>
+                                  <HugeiconsIcon
+                                    icon={MessageCircleIcon}
+                                    size={15}
+                                    strokeWidth={1.8}
+                                    className="leading-none text-current select-none"
+                                  />
                                 </div>
                                 <span className="truncate leading-[18px]">
                                   {session.title || "Untitled Chat"}
@@ -3477,7 +3513,8 @@ const Sidebar = () => {
         }}
         recentPages={mockRecent}
       />
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -156,7 +156,15 @@ export const ChatProvider = ({ children }) => {
         content: userQuery,
         pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null
       },
-      { role: 'assistant', content: '', sources: [], status: null, stateType: 'thinking' },
+      {
+        role: 'assistant',
+        content: '',
+        sources: [],
+        status: null,
+        stateType: 'thinking',
+        startedAt: Date.now(),
+        workingSteps: [],
+      },
     ]);
     setIsStreaming(true);
 
@@ -165,25 +173,36 @@ export const ChatProvider = ({ children }) => {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Smooth Token-by-Token Streaming Pacer
+    // Smooth Token-by-Token Streaming Pacer (rAF-capped ~30fps)
     let streamQueue = '';
     let isStreamNetworkDone = false;
-    let tickTimeoutId = null;
     let isPacerRunning = false;
     let streamError = false;
     let memoryStartedAt = 0;
+    let rafId = null;
+    let lastFlushTime = 0;
 
     const pumpNextTokens = () => {
       if (signal.aborted) {
         streamQueue = '';
         isPacerRunning = false;
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
         return;
       }
+
+      const now = performance.now();
 
       if (streamQueue.length === 0) {
         isPacerRunning = false;
         if (isStreamNetworkDone) {
           setIsStreaming(false);
+        }
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
         }
         return;
       }
@@ -193,42 +212,51 @@ export const ChatProvider = ({ children }) => {
         const MIN_MEMORY_DWELL_MS = 1800;
         if (elapsed < MIN_MEMORY_DWELL_MS) {
           isPacerRunning = true;
-          tickTimeoutId = setTimeout(pumpNextTokens, MIN_MEMORY_DWELL_MS - elapsed);
+          rafId = requestAnimationFrame(pumpNextTokens);
           return;
         }
         memoryStartedAt = 0;
+      }
+
+      // rAF-capped pacing: target ~30fps = ~33ms per frame
+      // Only flush if enough time has passed since last flush
+      const minFrameInterval = 33; // ~30fps cap
+      if (now - lastFlushTime < minFrameInterval) {
+        rafId = requestAnimationFrame(pumpNextTokens);
+        return;
       }
 
       isPacerRunning = true;
 
       // Dynamic token-aware pacing:
       // Stream tokens smoothly by syllables / words rather than 1-char stuttering
-      let take = 1;
       const qLen = streamQueue.length;
+      // eslint-disable-next-line no-useless-assignment -- used at line 257, 258
+      let chunkSize = 1;
       if (qLen > 120) {
-        take = Math.min(qLen, Math.ceil(qLen / 6));
+        chunkSize = Math.min(qLen, Math.ceil(qLen / 6));
       } else if (qLen > 40) {
-        take = Math.min(qLen, Math.ceil(qLen / 8));
+        chunkSize = Math.min(qLen, Math.ceil(qLen / 8));
       } else if (qLen > 10) {
         // Find next word/punctuation boundary within 3-8 chars
         const spaceIdx = streamQueue.slice(2).search(/\s|[.,!?;:\n]/);
         if (spaceIdx >= 0) {
-          take = Math.min(spaceIdx + 3, qLen);
+          chunkSize = Math.min(spaceIdx + 3, qLen);
         } else {
-          take = Math.min(4, qLen);
+          chunkSize = Math.min(4, qLen);
         }
       } else {
         // Small queue: take up to next space or 2-3 chars
         const spaceIdx = streamQueue.search(/\s/);
         if (spaceIdx >= 0 && spaceIdx <= 3) {
-          take = spaceIdx + 1;
+          chunkSize = spaceIdx + 1;
         } else {
-          take = Math.min(2, qLen);
+          chunkSize = Math.min(2, qLen);
         }
       }
 
-      const chunk = streamQueue.slice(0, take);
-      streamQueue = streamQueue.slice(take);
+      const chunk = streamQueue.slice(0, chunkSize);
+      streamQueue = streamQueue.slice(chunkSize);
 
       setMessages((prev) => {
         const lastIndex = prev.length - 1;
@@ -241,8 +269,8 @@ export const ChatProvider = ({ children }) => {
         ];
       });
 
-      const delay = qLen > 60 ? 14 : 18;
-      tickTimeoutId = setTimeout(pumpNextTokens, delay);
+      lastFlushTime = now;
+      rafId = requestAnimationFrame(pumpNextTokens);
     };
 
     const enqueueStreamContent = (text, immediate = false) => {
@@ -268,9 +296,9 @@ export const ChatProvider = ({ children }) => {
 
     const flushQueueImmediately = () => {
       memoryStartedAt = 0;
-      if (tickTimeoutId) {
-        clearTimeout(tickTimeoutId);
-        tickTimeoutId = null;
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
       }
       isPacerRunning = false;
       if (!streamQueue) return;
@@ -305,7 +333,129 @@ export const ChatProvider = ({ children }) => {
                 if (lastIndex < 0) return prev;
                 const lastMsg = prev[lastIndex];
                 if (lastMsg.role !== 'assistant') return prev;
-                return [...prev.slice(0, lastIndex), { ...lastMsg, sources: Array.isArray(event.data) ? event.data : [] }];
+                const incomingSources = Array.isArray(event.data) ? event.data : [];
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+                const sourceSteps = incomingSources.map((s) => ({
+                  text: s.domain ? `Read ${s.domain}${s.url ? '/' + s.url.replace(/^https?:\/\/[^/]+\/?/, '') : ''}` : `Read ${s.title || s.url}`,
+                  domain: s.domain || (s.url ? (() => { try { return new URL(s.url).hostname; } catch { return ''; } })() : ''),
+                  url: s.url,
+                  stateType: 'web_search',
+                  timestamp: Date.now(),
+                }));
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    sources: incomingSources,
+                    workingSteps: [...prevSteps, ...sourceSteps],
+                  }
+                ];
+              });
+            } else if (event.type === 'tool_start') {
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? [...lastMsg.workingSteps] : [];
+                const newSteps = [];
+
+                // 1. Humanly Thought (if event.event exists)
+                const thoughtText = typeof event.event === 'string' ? event.event.trim() : '';
+                if (thoughtText && !prevSteps.some((s) => s.text === thoughtText)) {
+                  newSteps.push({
+                    type: 'thought',
+                    text: thoughtText,
+                    tool: event.tool,
+                    timestamp: Date.now(),
+                  });
+                }
+
+                // 2. Concrete Execution Step
+                const execText =
+                  (typeof event.message === 'string' && event.message.trim()) ||
+                  (event.query ? `Searching web for "${event.query}"...` : (thoughtText ? '' : `Running ${event.tool}...`));
+
+                if (execText && !prevSteps.some((s) => s.text === execText)) {
+                  newSteps.push({
+                    type: 'execution',
+                    text: execText,
+                    tool: event.tool,
+                    query: event.query,
+                    action: event.action,
+                    stateType: event.tool || event.stateType || 'action',
+                    status: 'running',
+                    isLive: true,
+                    timestamp: Date.now(),
+                  });
+                }
+
+                // Order Guarantee: Ensure thought always comes before execution steps
+                let combinedSteps;
+                const thoughtStep = newSteps.find((s) => s.type === 'thought');
+                const otherNewSteps = newSteps.filter((s) => s.type !== 'thought');
+
+                if (thoughtStep && prevSteps.length > 0) {
+                  const lastPrev = prevSteps[prevSteps.length - 1];
+                  if (lastPrev.type === 'execution' && (lastPrev.tool === event.tool || !lastPrev.tool)) {
+                    combinedSteps = [
+                      ...prevSteps.slice(0, prevSteps.length - 1),
+                      thoughtStep,
+                      lastPrev,
+                      ...otherNewSteps,
+                    ];
+                  } else {
+                    combinedSteps = [...prevSteps, ...newSteps];
+                  }
+                } else {
+                  combinedSteps = [...prevSteps, ...newSteps];
+                }
+
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    status: thoughtText || execText || lastMsg.status,
+                    stateType: event.tool || lastMsg.stateType,
+                    workingSteps: combinedSteps,
+                  }
+                ];
+              });
+            } else if (event.type === 'tool_end') {
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? [...lastMsg.workingSteps] : [];
+                const updatedSteps = prevSteps.map((s) => {
+                  if (s.tool === event.tool && s.isLive) {
+                    return { ...s, isLive: false, status: event.status || 'success', error: event.error };
+                  }
+                  return s;
+                });
+
+                // Completion thought event
+                const completionThought = typeof event.event === 'string' ? event.event.trim() : '';
+                if (completionThought && !updatedSteps.some((s) => s.text === completionThought)) {
+                  updatedSteps.push({
+                    type: 'thought',
+                    text: completionThought,
+                    tool: event.tool,
+                    status: event.status || 'success',
+                    timestamp: Date.now(),
+                  });
+                }
+
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    workingSteps: updatedSteps,
+                  }
+                ];
               });
             } else if (event.type === 'state') {
               const isMemory = event.stateType === 'remembering' || event.stateType === 'memory' || (typeof event.data === 'string' && /remember|yaad/i.test(event.data));
@@ -317,7 +467,27 @@ export const ChatProvider = ({ children }) => {
                 if (lastIndex < 0) return prev;
                 const lastMsg = prev[lastIndex];
                 if (lastMsg.role !== 'assistant') return prev;
-                return [...prev.slice(0, lastIndex), { ...lastMsg, status: event.data, stateType: event.stateType || 'thinking' }];
+                const stepText = typeof event.data === 'string' ? event.data.trim() : '';
+
+                // Generic thinking stays with native ThinkingOrb, NOT in working steps
+                const isGenericThinking = (!event.stateType || event.stateType === 'thinking') &&
+                  (!stepText || /^thinking(\.{1,3})?$/i.test(stepText) || /^reasoning(\.{1,3})?$/i.test(stepText));
+
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+                const alreadyExists = prevSteps.some((s) => s.text === stepText);
+                const updatedSteps = (!isGenericThinking && stepText && !alreadyExists)
+                  ? [...prevSteps, { type: 'execution', text: stepText, stateType: event.stateType || 'action', timestamp: Date.now() }]
+                  : prevSteps;
+
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    status: event.data,
+                    stateType: event.stateType || 'thinking',
+                    workingSteps: updatedSteps,
+                  }
+                ];
               });
             } else if (event.type === 'research_update') {
               setMessages((prev) => {
@@ -325,7 +495,49 @@ export const ChatProvider = ({ children }) => {
                 if (lastIndex < 0) return prev;
                 const lastMsg = prev[lastIndex];
                 if (lastMsg.role !== 'assistant') return prev;
-                return [...prev.slice(0, lastIndex), { ...lastMsg, researchData: event.data }];
+
+                const researchData = event.data;
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+
+                const researchSteps = [];
+                if (researchData?.topic && !prevSteps.some((s) => s.type === 'thought' && s.text.includes(researchData.topic))) {
+                  researchSteps.push({
+                    type: 'thought',
+                    text: `Researching: ${researchData.topic}`,
+                    timestamp: Date.now(),
+                  });
+                }
+                if (Array.isArray(researchData?.steps) && researchData.steps.length > 0) {
+                  researchData.steps.forEach((st) => {
+                    researchSteps.push({
+                      type: 'execution',
+                      text: st.title,
+                      stateType: 'deep_research',
+                      isLive: st.status === 'in_progress',
+                      status: st.status === 'completed' ? 'success' : st.status,
+                      timestamp: Date.now(),
+                    });
+                  });
+                } else if (researchData?.currentAction) {
+                  researchSteps.push({
+                    type: 'execution',
+                    text: researchData.currentAction,
+                    stateType: 'deep_research',
+                    isLive: true,
+                    timestamp: Date.now(),
+                  });
+                }
+
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    researchData: event.data,
+                    stateType: 'deep_research',
+                    status: researchData?.currentAction || lastMsg.status,
+                    workingSteps: researchSteps.length > 0 ? researchSteps : prevSteps,
+                  }
+                ];
               });
             } else if (event.type === 'content') {
               enqueueStreamContent(event.data);
@@ -342,8 +554,26 @@ export const ChatProvider = ({ children }) => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tasks:refresh'));
               }
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex < 0) return prev;
+                const lastMsg = prev[lastIndex];
+                if (lastMsg.role !== 'assistant') return prev;
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...lastMsg,
+                    workingSteps: [
+                      ...prevSteps,
+                      { text: 'Updated tasks and kanban board', stateType: 'task_management', timestamp: Date.now() }
+                    ],
+                  }
+                ];
+              });
             } else if (event.type === 'memory_saved') {
               const savedFact = event.data?.fact || event.data;
+              const factText = typeof savedFact === 'string' ? savedFact : JSON.stringify(savedFact);
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('auth:memory-updated'));
               }
@@ -352,13 +582,18 @@ export const ChatProvider = ({ children }) => {
                 if (lastIndex < 0) return prev;
                 const lastMsg = prev[lastIndex];
                 if (lastMsg.role !== 'assistant') return prev;
+                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
                 return [
                   ...prev.slice(0, lastIndex),
                   {
                     ...lastMsg,
                     memorySaved: true,
-                    memoryFact: typeof savedFact === 'string' ? savedFact : JSON.stringify(savedFact),
+                    memoryFact: factText,
                     isNewMemory: true,
+                    workingSteps: [
+                      ...prevSteps,
+                      { text: `Updated memory: ${factText}`, stateType: 'memory', timestamp: Date.now() }
+                    ],
                   }
                 ];
               });
@@ -389,9 +624,9 @@ export const ChatProvider = ({ children }) => {
           if (attempt <= MAX_RECONNECT_ATTEMPTS && !signal.aborted) {
             console.warn(`[Chat] Connection error, reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`, err);
 
-            if (tickTimeoutId) {
-              clearTimeout(tickTimeoutId);
-              tickTimeoutId = null;
+            if (rafId) {
+              cancelAnimationFrame(rafId);
+              rafId = null;
             }
             streamQueue = '';
             isPacerRunning = false;
@@ -448,9 +683,9 @@ export const ChatProvider = ({ children }) => {
         }
       }
     } finally {
-      if (tickTimeoutId) {
-        clearTimeout(tickTimeoutId);
-        tickTimeoutId = null;
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
       }
       if (signal.aborted) {
         streamQueue = '';
@@ -466,19 +701,33 @@ export const ChatProvider = ({ children }) => {
         const lastIndex = msgs.length - 1;
         if (lastIndex >= 0) {
           const last = msgs[lastIndex];
-          if (last.role === 'assistant' && !last.content.trim()) {
-            if (completedSuccessfully) {
-              // If stream completed successfully without text tokens, use status or safe fallback
-              const fallbackContent = last.status || "Completed.";
-              return [...msgs.slice(0, lastIndex), { ...last, content: fallbackContent }];
+          if (last.role === 'assistant') {
+            const duration = last.workingDuration || (last.startedAt ? Math.max(1, Math.round((Date.now() - last.startedAt) / 1000)) : 0);
+            if (!last.content.trim()) {
+              if (signal.aborted) {
+                // User intentionally stopped / paused generation - never treat as failure
+                if (last.workingSteps && last.workingSteps.length > 0) {
+                  return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration }];
+                }
+                msgs.pop();
+                return msgs;
+              }
+
+              if (completedSuccessfully) {
+                // If stream completed successfully without text tokens, use status or safe fallback
+                const fallbackContent = last.status || "Completed.";
+                return [...msgs.slice(0, lastIndex), { ...last, content: fallbackContent, workingDuration: duration }];
+              }
+              msgs.pop(); // Remove the empty reply bubble only on genuine unhandled failure
+              if (!streamError && !signal.aborted) {
+                setChatError({ message: "LLM failed to generate a response.", query: userQuery });
+                setTimeout(() => {
+                  showToast("LLM failed to generate a response. Please try again.", "error");
+                }, 10);
+              }
+              return msgs;
             }
-            msgs.pop(); // Remove the empty reply bubble only on genuine unhandled failure
-            if (!streamError) {
-              setChatError({ message: "LLM failed to generate a response.", query: userQuery });
-              setTimeout(() => {
-                showToast("LLM failed to generate a response. Please try again.", "error");
-              }, 10);
-            }
+            return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration }];
           }
         }
         return msgs;

@@ -1,3 +1,5 @@
+@import '../UI/MarkdownRenderer.css';
+
 /* AIChat.css */
 /* Comprehensive Design System based on chat.md Blueprint */
 
@@ -293,164 +295,7 @@
   to { opacity: 1; }
 }
 
-/* --- Markdown Styling (React-Markdown) --- */
-.markdown-content {
-  color: var(--c-text-primary);
-  font-family: var(--ui-font);
-  font-size: 16px;
-  line-height: 24px;
-}
-
-.markdown-content h1 {
-  font-size: 30px;
-  line-height: 39px;
-  font-weight: 600;
-  margin-top: 28px;
-  margin-bottom: 4px;
-  color: var(--c-text-primary);
-  letter-spacing: normal;
-}
-
-.markdown-content h2 {
-  font-size: 24px;
-  line-height: 31.2px;
-  font-weight: 600;
-  margin-top: 20px;
-  margin-bottom: 4px;
-  color: var(--c-text-primary);
-  letter-spacing: normal;
-}
-
-.markdown-content h3 {
-  font-size: 20px;
-  line-height: 26px;
-  font-weight: 600;
-  margin-top: 16px;
-  margin-bottom: 4px;
-  color: var(--c-text-primary);
-  letter-spacing: normal;
-}
-
-.markdown-content h4 {
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 600;
-  margin-top: 12px;
-  margin-bottom: 4px;
-  color: var(--c-text-secondary);
-  letter-spacing: normal;
-}
-
-.markdown-content p {
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-  margin-top: 2px;
-  margin-bottom: 4px;
-  color: var(--c-text-primary);
-}
-
-.markdown-content ul, 
-.markdown-content ol {
-  padding-left: 20px;
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-
-.markdown-content li {
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-  margin-bottom: 3px;
-  color: var(--c-text-primary);
-}
-
-.markdown-content code:not(pre code) {
-  font: 400 .85em/1.4 var(--font-mono);
-  background: var(--c-surface-input);
-  border-radius: 3px;
-  padding: 1px 6px;
-  color: var(--c-brand);
-}
-
-.markdown-content pre {
-  border-radius: 6px;
-  margin: 16px 0;
-  width: 100%;
-  background-color: var(--c-surface-elevated);
-  border: 1px solid var(--c-border);
-  overflow: hidden;
-}
-
-.markdown-content pre code {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-
-.markdown-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  overflow: hidden;
-  background-color: transparent;
-}
-
-.markdown-content th, 
-.markdown-content td {
-  padding: 8px 12px;
-  font-size: 14px;
-  line-height: 20px;
-  border-bottom: 1px solid var(--c-border);
-  color: var(--c-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.markdown-content th {
-  font-weight: 600;
-  text-align: left;
-  background-color: var(--ca-hover);
-}
-
-.markdown-content tr:hover td {
-  background-color: var(--ca-hover);
-}
-
-.markdown-content blockquote {
-  border-left: 3px solid currentColor;
-  margin: 8px 0;
-  padding-left: 14px;
-  color: var(--c-text-tertiary);
-  font-size: 16px;
-  line-height: 24px;
-}
-
-.markdown-content cite {
-  opacity: 0.6;
-  margin-top: 0.5rem;
-  font-size: 0.9em;
-  display: block;
-}
-
-.markdown-content a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transition: color 100ms ease-in;
-}
-
-.markdown-content a:hover {
-  color: var(--c-brand-hover);
-}
-
-.markdown-content hr {
-  border: 0;
-  border-top: 1px solid var(--c-border-hairline);
-  margin: 8px 0;
-}
+/* --- Markdown Styling (Provided by MarkdownRenderer.css) --- */
 
 /* --- Responsive Adjustments --- */
 @media (min-width: 769px) {
@@ -462,12 +307,27 @@
 
 @media (max-width: 768px) {
   .chat-scroll-area {
-    padding: 24px;
-    padding-top: 80px;
-    padding-bottom: 140px;
+    padding: 12px 8px;
+    padding-top: 60px;
+    padding-bottom: 120px;
+  }
+
+  .message-list {
+    padding: 0 4px;
+    gap: 12px;
+  }
+
+  .chat-footer {
+    padding: 16px 8px 12px;
+  }
+
+  .message-bubble-user {
+    max-width: 88%;
+    padding: 8px 14px;
   }
   
   .message-bubble-assistant {
+    padding: 10px 12px;
     flex-direction: column;
     gap: 8px;
   }

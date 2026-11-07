@@ -1,0 +1,253 @@
+/* ================================================================
+   MarkdownRenderer.css - NOEMA High Performance Markdown Styling
+   Supports Light & Dark mode with zero font blur and native sizing
+   ================================================================ */
+
+.markdown-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--c-text-primary, #f5f5f5);
+  font-family: var(--ui-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 15px;
+  line-height: 1.68;
+}
+
+:root:not(.dark) .markdown-content,
+.light .markdown-content {
+  color: #1a1a1a;
+}
+
+/* Minimal Callout Accent Bar */
+.questionCard {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
+  box-shadow: none;
+  margin: 12px 0;
+  max-width: 100%;
+  width: 100%;
+  position: relative;
+}
+
+.questionCardInner {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+}
+
+.questionAccentBar {
+  width: 3.5px;
+  background-color: var(--c-brand, #2383e2);
+  border-radius: 9999px;
+  margin-right: 12px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 20px;
+}
+
+:root:not(.dark) .questionAccentBar,
+.light .questionAccentBar {
+  background-color: var(--c-brand, #2383e2);
+}
+
+.questionContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.questionText {
+  color: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.68;
+  margin-bottom: 0;
+  word-break: break-word;
+}
+
+/* Task Lists (Notion-grade Checklist) */
+.markdown-content ul.contains-task-list {
+  padding-left: 4px !important;
+  list-style: none !important;
+}
+
+.markdown-content li.task-list-item {
+  list-style-type: none !important;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.markdown-content li.task-list-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: default;
+  border-radius: 4px;
+  accent-color: var(--c-brand, #2383e2);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   Code Blocks (Crisp, High-Performance, Zero Blur)
+   ================================================================ */
+
+.codeBlockContainer {
+  margin: 14px 0;
+  background-color: #1e1e1e;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  position: relative;
+}
+
+/* Light Mode CodeBlock */
+:root:not(.dark) .codeBlockContainer,
+.light .codeBlockContainer,
+.codeBlockContainer.codeBlockLight {
+  background-color: #f4f4f5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.codeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px 2px;
+  background-color: transparent;
+  border-bottom: none;
+}
+
+.codeLang {
+  font-size: 12px;
+  color: #a1a1aa;
+  font-weight: 600;
+  text-transform: capitalize;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root:not(.dark) .codeLang,
+.light .codeLang,
+.codeBlockLight .codeLang {
+  color: #52525b;
+}
+
+.copyBtn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.copyBtn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+:root:not(.dark) .copyBtn,
+.light .copyBtn,
+.codeBlockLight .copyBtn {
+  color: #1a1a1a;
+}
+
+:root:not(.dark) .copyBtn:hover,
+.light .copyBtn:hover,
+.codeBlockLight .copyBtn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: #000000;
+}
+
+.codeContent {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  filter: none !important;
+  backdrop-filter: none !important;
+  transition: max-height 0.25s ease;
+}
+
+.codeContent::-webkit-scrollbar {
+  display: none;
+}
+
+.codeContentCollapsed {
+  mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
+.codeExpandBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+:root:not(.dark) .codeExpandBar,
+.light .codeExpandBar {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.codeExpandBtn {
+  background: transparent;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-brand, #2383e2);
+  cursor: pointer;
+  padding: 2px 10px;
+  border-radius: 6px;
+  transition: opacity 0.15s ease;
+}
+
+.codeExpandBtn:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+.codeContent pre,
+.codeContent code {
+  color: #e4e4e7;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  font-family: var(--font-mono, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root:not(.dark) .codeContent pre,
+:root:not(.dark) .codeContent code,
+.light .codeContent pre,
+.light .codeContent code,
+.codeBlockLight .codeContent pre,
+.codeBlockLight .codeContent code {
+  color: #24292e;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
+import { ChevronRight, PanelLeft } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, ChatAdd01Icon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon, Home01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
@@ -10,7 +11,8 @@ import { useAuth } from '../../hooks/useAuth';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
 import InteractiveChoiceCard from './InteractiveChoiceCard';
-import DeepResearchCard from './DeepResearchCard';
+import WorkingProcessAccordion from './WorkingProcessAccordion';
+import { parseThoughtAndContent } from '../../utils/thoughtParser';
 import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
 import MemoryUpdateIcon from './MemoryUpdateIcon';
 import { CHAT_MODELS } from '../../constants/chatModels';
@@ -510,7 +512,7 @@ const resolveStateType = (type, text) => {
   return 'thinking';
 };
 
-const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
+const ThinkingAnimation = ({ status, stateType = 'thinking', startedAt }) => {
   const incomingStatus = status || null;
   const currentType = resolveStateType(stateType, incomingStatus);
 
@@ -521,6 +523,21 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
   const queueRef = useRef([]);
   const timerRef = useRef(null);
   const isPacingRef = useRef(false);
+
+  // Live timer for thinking duration
+  const [elapsed, setElapsed] = useState(() => {
+    if (startedAt) return Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    return 1;
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const start = startedAt || now;
+      setElapsed(Math.max(1, Math.round((now - start) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [startedAt]);
 
   useEffect(() => {
     if (!incomingStatus) return;
@@ -594,33 +611,32 @@ const ThinkingAnimation = ({ status, stateType = 'thinking' }) => {
   const isMemoryState = activeStateType === 'remembering' || activeStateType === 'memory';
 
   return (
-    <div className="flex items-center text-[var(--text-secondary)] font-medium py-0.5 min-h-[30px]">
-      <motion.div
-        animate={{ x: hasStatus ? 0 : 4 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-        className="flex items-center shrink-0"
-      >
+    <div className="flex items-center text-neutral-500 dark:text-[#8e8b86] font-normal py-0.5 min-h-[30px] gap-2 select-none">
+      <div className="shrink-0 flex items-center justify-center">
         {isMemoryState ? (
           <div className="w-6 h-6 flex items-center justify-center">
             <MemoryUpdateIcon isUpdating={true} showText={false} size={20} />
           </div>
         ) : (
-          <ThinkingOrb size={26} stateType={activeStateType} />
+          <ThinkingOrb size={22} stateType={activeStateType} />
         )}
-      </motion.div>
-      <AnimatePresence>
-        {hasStatus && (
+      </div>
+      <AnimatePresence mode="wait">
+        {hasStatus ? (
           <motion.div
+            key={activeItem.status}
             initial={{ opacity: 0, x: 4, filter: 'blur(3px)' }}
             animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, x: -4, filter: 'blur(3px)' }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-visible flex items-center py-0.5 ml-1"
+            className="overflow-visible flex items-center text-[14.5px] tracking-[-0.01em]"
           >
-            <AnimatePresence mode="wait">
-              <StatusScrollReveal key={activeItem.status} text={activeItem.status} />
-            </AnimatePresence>
+            <StatusScrollReveal text={activeItem.status} />
           </motion.div>
+        ) : (
+          <span className="text-[14.5px] tracking-[-0.01em]">
+            Thinking for {elapsed}s
+          </span>
         )}
       </AnimatePresence>
     </div>
@@ -754,9 +770,80 @@ const MessageSkeletonLoader = ({ isRightPanel = false }) => (
   </div>
 );
 
+/**
+ * ThoughtHeader
+ * Minimal collapsible thought status for pure thinking (non-tool chats).
+ * Shows "Thought for {N}s" and expands to display inner thoughts if available.
+ */
+const ThoughtHeader = ({ duration, startedAt, thoughts = [], isStreaming = false }) => {
+  const [isOpen, setIsOpen] = useState(isStreaming);
+
+  useEffect(() => {
+    if (isStreaming) setIsOpen(true);
+  }, [isStreaming]);
+
+  const [elapsed, setElapsed] = useState(() => {
+    if (duration) return duration;
+    if (startedAt) return Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    return 1;
+  });
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const start = startedAt || now;
+      setElapsed(Math.max(1, Math.round((now - start) / 1000)));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isStreaming, startedAt]);
+
+  const displaySeconds = duration || elapsed;
+  const hasThoughts = Array.isArray(thoughts) && thoughts.length > 0;
+
+  if (!hasThoughts) return null;
+
+  return (
+    <div className="mb-2 text-[14px] text-neutral-500 dark:text-[#8e8b86] select-none font-sans">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex items-center gap-1.5 py-0.5 px-0 text-neutral-500 dark:text-[#8e8b86] hover:text-neutral-800 dark:hover:text-[#f7f6f4] transition-colors border-0 bg-transparent outline-none cursor-pointer"
+        title={isOpen ? 'Collapse thoughts' : 'Expand thoughts'}
+      >
+        <span className="font-normal">Thought for {displaySeconds}s</span>
+        <ChevronRight
+          size={13}
+          className={`transition-transform duration-200 text-neutral-400 dark:text-[#8e8b86] ${isOpen ? 'rotate-90' : ''}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="mt-1.5 pl-3 border-l-2 border-neutral-300 dark:border-white/15 text-[13.5px] text-neutral-600 dark:text-[#a09d96] font-normal leading-relaxed whitespace-pre-wrap">
+          {thoughts.join('\n\n')}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
-  const { stopGeneration } = useContext(ChatContext);
+
+  const { thoughts, finalContent, isThinkingTagActive } = useMemo(
+    () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
+    [msg.content, msg.role]
+  );
+
+  const hasWorkingProcess = Boolean(
+    msg.role === 'assistant' &&
+    (
+      (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
+      (Array.isArray(msg.sources) && msg.sources.length > 0) ||
+      Boolean(msg.researchData) ||
+      (msg.stateType && msg.stateType !== 'thinking')
+    )
+  );
 
   if (msg.role === 'user') {
     const { tool, cleanContent } = parseUserToolMessage(msg.content);
@@ -795,42 +882,62 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   return (
     <div className="flex flex-col items-start group/msg w-full">
       <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[15px] py-0.5 max-w-[100%] leading-relaxed w-full min-w-0">
-        {/* Deep Research Area on Canvas */}
-        {msg.researchData && (
-          <DeepResearchCard
-            researchData={msg.researchData}
-            isStreaming={isLatestStreaming}
-            onStop={stopGeneration}
-          />
-        )}
+        {/* Smooth Cross-Fade between ThinkingOrb and WorkingProcessAccordion */}
+        <AnimatePresence mode="wait">
+          {hasWorkingProcess ? (
+            <motion.div
+              key="working-process"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <WorkingProcessAccordion
+                steps={msg.workingSteps}
+                sources={msg.sources}
+                researchData={msg.researchData}
+                status={msg.status}
+                stateType={msg.stateType}
+                isStreaming={isLatestStreaming}
+                duration={msg.workingDuration}
+                startedAt={msg.startedAt}
+                hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
+              />
+            </motion.div>
+          ) : finalContent === '' && isLatestStreaming ? (
+            <motion.div
+              key="thinking-animation"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <ThinkingAnimation status={msg.status} stateType={msg.stateType} startedAt={msg.startedAt} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-        {/* Memory Updated Event Pill */}
-        {msg.memoryFact && (
-          <div className="flex items-center mb-2.5 pt-0.5">
-            <MemoryUpdateIcon
-              isCompleted={true}
-              animate={Boolean(isLatestStreaming || msg.isNewMemory)}
-              tooltip={`Memory updated: ${msg.memoryFact}`}
-              size={18}
-            />
-          </div>
-        )}
-
-        {msg.content === '' && isLatestStreaming && !msg.researchData ? (
-          <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
-        ) : (
-          msg.content && (
+        {finalContent && (
+          <>
+            {!hasWorkingProcess && thoughts.length > 0 && (
+              <ThoughtHeader
+                duration={msg.workingDuration}
+                startedAt={msg.startedAt}
+                thoughts={thoughts}
+                isStreaming={isLatestStreaming && isThinkingTagActive}
+              />
+            )}
             <div className="markdown-content text-[15px] leading-relaxed">
-              <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
+              <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
             </div>
-          )
+          </>
         )}
-        {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
+        {msg.sources && msg.sources.length > 0 && !(finalContent === '' && isLatestStreaming) && (
           <SourcesPill sources={msg.sources} align="side" />
         )}
-        {msg.content && !(msg.content === '' && isLatestStreaming) && (
+        {finalContent && !(finalContent === '' && isLatestStreaming) && (
           <MessageActions
-            content={msg.content}
+            content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
             isLatest={isLatest}
           />
@@ -842,7 +949,21 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
 
 const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   const isLatestStreaming = isStreaming && isLatest;
-  const { stopGeneration } = useContext(ChatContext);
+
+  const { thoughts, finalContent, isThinkingTagActive } = useMemo(
+    () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
+    [msg.content, msg.role]
+  );
+
+  const hasWorkingProcess = Boolean(
+    msg.role === 'assistant' &&
+    (
+      (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
+      (Array.isArray(msg.sources) && msg.sources.length > 0) ||
+      Boolean(msg.researchData) ||
+      (msg.stateType && msg.stateType !== 'thinking')
+    )
+  );
 
   if (msg.role === 'user') {
     const { tool, cleanContent } = parseUserToolMessage(msg.content);
@@ -881,40 +1002,62 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   return (
     <div className="message-row assistant group/msg w-full">
       <div className="message-bubble-assistant w-full min-w-0">
-        {/* Deep Research Area on Canvas */}
-        {msg.researchData && (
-          <DeepResearchCard
-            researchData={msg.researchData}
-            isStreaming={isLatestStreaming}
-            onStop={stopGeneration}
-          />
-        )}
-
-        {/* Memory Updated Event Pill */}
-        {msg.memoryFact && (
-          <div className="flex items-center mb-2.5 pt-0.5">
-            <MemoryUpdateIcon
-              isCompleted={true}
-              animate={Boolean(isLatestStreaming || msg.isNewMemory)}
-              tooltip={`Memory updated: ${msg.memoryFact}`}
-              size={18}
-            />
-          </div>
-        )}
+        {/* Smooth Cross-Fade between ThinkingOrb and WorkingProcessAccordion */}
+        <AnimatePresence mode="wait">
+          {hasWorkingProcess ? (
+            <motion.div
+              key="working-process"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <WorkingProcessAccordion
+                steps={msg.workingSteps}
+                sources={msg.sources}
+                researchData={msg.researchData}
+                status={msg.status}
+                stateType={msg.stateType}
+                isStreaming={isLatestStreaming}
+                duration={msg.workingDuration}
+                startedAt={msg.startedAt}
+                hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
+              />
+            </motion.div>
+          ) : finalContent === '' && isLatestStreaming ? (
+            <motion.div
+              key="thinking-animation"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <ThinkingAnimation status={msg.status} stateType={msg.stateType} startedAt={msg.startedAt} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         <div className="markdown-content">
-          {msg.content === '' && isLatestStreaming && !msg.researchData ? (
-            <ThinkingAnimation status={msg.status} stateType={msg.stateType} />
-          ) : (
-            msg.content && <MarkdownRenderer content={msg.content} isStreaming={isLatestStreaming} />
+          {finalContent && (
+            <>
+              {!hasWorkingProcess && thoughts.length > 0 && (
+                <ThoughtHeader
+                  duration={msg.workingDuration}
+                  startedAt={msg.startedAt}
+                  thoughts={thoughts}
+                  isStreaming={isLatestStreaming && isThinkingTagActive}
+                />
+              )}
+              <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
+            </>
           )}
         </div>
-        {msg.sources && msg.sources.length > 0 && !(msg.content === '' && isLatestStreaming) && (
+        {msg.sources && msg.sources.length > 0 && !(finalContent === '' && isLatestStreaming) && (
           <SourcesPill sources={msg.sources} align="side" />
         )}
-        {msg.content && !(msg.content === '' && isLatestStreaming) && (
+        {finalContent && !(finalContent === '' && isLatestStreaming) && (
           <MessageActions
-            content={msg.content}
+            content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
             isLatest={isLatest}
           />
@@ -1730,9 +1873,9 @@ const ChatComposer = ({
                     onMouseLeave={() => setHoveredModel(null)}
                     className={`absolute right-0 ${
                       openDirection === 'down' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
-                    } w-[315px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-visible rounded-[14px] p-1.5 select-none`}
+                    } w-[315px] max-w-[calc(100vw-32px)] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-visible rounded-[14px] p-1.5 select-none`}
                   >
-                    {!isRightPanel && hoveredModel && (
+                    {!isRightPanel && typeof window !== 'undefined' && window.innerWidth >= 768 && hoveredModel && (
                       <ModelPreviewCard model={hoveredModel} side={previewSide} />
                     )}
 
@@ -1843,6 +1986,7 @@ const AIChat = ({ isRightPanel = false }) => {
     hasMore,
     fetchMoreMessages
   } = useContext(ChatContext);
+  const { toggleSidebar } = useContext(EditorContext);
   const { user } = useAuth();
   
   const textareaRef = useRef(null);
@@ -2001,7 +2145,7 @@ const AIChat = ({ isRightPanel = false }) => {
                 title="New Chat"
                 aria-label="New Chat"
               >
-                <HugeiconsIcon icon={ChatAdd01Icon} size={20} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={20} className="shrink-0 select-none" />
               </button>
               <button
                 onClick={() => navigate('/dashboard/chat')}
@@ -2103,22 +2247,46 @@ const AIChat = ({ isRightPanel = false }) => {
       <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
         <div className="chat-container flex-1">
           {/* Header with Blurs & Actions */}
-          <div className="chat-header relative flex justify-between items-center p-4 z-50 pointer-events-none">
-            <button 
-              onClick={() => {
-                if (window.history.state && window.history.state.idx > 0) {
-                  navigate(-1);
-                } else {
+          <div className="chat-header relative flex justify-between items-center p-3 sm:p-4 z-50 pointer-events-none">
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              <button
+                onClick={toggleSidebar}
+                className="flex items-center justify-center w-8.5 h-8.5 rounded-full text-gray-600 hover:text-gray-950 dark:text-neutral-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Toggle sidebar"
+                aria-label="Toggle sidebar"
+              >
+                <PanelLeft className="w-4.5 h-4.5" strokeWidth={1.8} />
+              </button>
+
+              <button
+                onClick={() => {
                   const lastPage = localStorage.getItem('noema-last-page-route');
                   navigate(lastPage || '/dashboard/page/new');
-                }
-              }}
-              className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Go back"
-              aria-label="Go back"
-            >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
-            </button>
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13.5px] font-medium text-gray-700 hover:text-gray-950 dark:text-neutral-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08]"
+                title="Go to Homepage"
+                aria-label="Go to Homepage"
+              >
+                <HugeiconsIcon icon={Home01Icon} size={15.5} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                <span>Home</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  if (window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    const lastPage = localStorage.getItem('noema-last-page-route');
+                    navigate(lastPage || '/dashboard/page/new');
+                  }
+                }}
+                className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Go back"
+                aria-label="Go back"
+              >
+                <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
+              </button>
+            </div>
             
             <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
               <button 
@@ -2127,7 +2295,7 @@ const AIChat = ({ isRightPanel = false }) => {
                 title="New Chat"
                 aria-label="New Chat"
               >
-                <HugeiconsIcon icon={ChatAdd01Icon} size={20} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={20} className="shrink-0 select-none" />
               </button>
 
               <button 
@@ -2142,13 +2310,13 @@ const AIChat = ({ isRightPanel = false }) => {
           </div>
 
           {messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-4 mt-[-10vh] z-10 relative">
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-3 sm:px-4 mt-[-6vh] sm:mt-[-10vh] z-10 relative">
               {/* Logo Doodle */}
-              <div className="flex items-center justify-center mb-8 relative group cursor-default">
-                <img src="/kagz.png" alt="KagZ Logo" className="w-[64px] h-[64px] object-contain transition-transform duration-300 group-hover:scale-105 select-none" />
+              <div className="flex items-center justify-center mb-5 sm:mb-8 relative group cursor-default">
+                <img src="/kagz.png" alt="KagZ Logo" className="w-[50px] h-[50px] sm:w-[64px] sm:h-[64px] object-contain transition-transform duration-300 group-hover:scale-105 select-none" />
               </div>
 
-              <div className="h-[40px] mb-8 w-full relative flex items-center justify-center">
+              <div className="h-[36px] sm:h-[40px] mb-6 sm:mb-8 w-full relative flex items-center justify-center">
                 <AnimatePresence mode="wait">
                   <motion.h1
                     key={greetingIndex}
@@ -2156,7 +2324,7 @@ const AIChat = ({ isRightPanel = false }) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="text-[28px] sm:text-[30px] leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
+                    className="text-[22px] sm:text-[30px] leading-[28px] sm:leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
                   >
                     {greetings[greetingIndex]}
                   </motion.h1>
@@ -2164,7 +2332,7 @@ const AIChat = ({ isRightPanel = false }) => {
               </div>
 
               {/* Centered Composer */}
-              <div className="w-full max-w-[770px] mb-8 relative z-20 px-4">
+              <div className="w-full max-w-[770px] mb-8 relative z-20 px-2 sm:px-4">
                 <ChatComposer 
                   textareaRef={textareaRef}
                   query={query}
@@ -2197,7 +2365,7 @@ const AIChat = ({ isRightPanel = false }) => {
 
               {/* Footer with Composer */}
               <div className="chat-footer">
-                <div className="w-full max-w-[770px] mx-auto px-4 relative z-20 pointer-events-auto">
+                <div className="w-full max-w-[770px] mx-auto px-2 sm:px-4 relative z-20 pointer-events-auto">
                   <AnimatePresence>
                     {showScrollButton && (
                       <motion.button

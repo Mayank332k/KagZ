@@ -20,6 +20,19 @@ export const EditorProvider = ({ children }) => {
   // Full path to selected location e.g. ["DSA", "Trees", "Binary Tree"]
   const [selectedPath, setSelectedPath] = useState([]);
   
+  // Mobile drawer sidebar state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // Desktop sidebar collapsed state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = useCallback(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsMobileSidebarOpen((prev) => !prev);
+    } else {
+      setIsSidebarCollapsed((prev) => !prev);
+    }
+  }, []);
+
   // Trigger to refresh sidebar data
   const [refreshSidebarTrigger, setRefreshSidebarTrigger] = useState(0);
   const triggerSidebarRefresh = useCallback(() => {
@@ -183,6 +196,11 @@ export const EditorProvider = ({ children }) => {
         setSelectedLocation,
         selectedPath,
         setSelectedPath,
+        isMobileSidebarOpen,
+        setIsMobileSidebarOpen,
+        isSidebarCollapsed,
+        setIsSidebarCollapsed,
+        toggleSidebar,
         refreshSidebarTrigger,
         triggerSidebarRefresh,
       }}

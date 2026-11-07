@@ -47,9 +47,7 @@ const circlesData = [
   { 
     id: 'chat', 
     icon: ({ className }) => (
-      <span className={`material-symbols-outlined leading-none select-none ${className || 'text-[16px]'}`}>
-        chat
-      </span>
+      <HugeiconsIcon icon={MessageCircleIcon} className={className} size={16} />
     ), 
     label: 'Chat' 
   }
