@@ -8,6 +8,19 @@ import ThinkingOrb from './ThinkingOrb';
 import { resolveStateType } from '../../utils/thoughtParser';
 
 /**
+ * Formats seconds into human-readable duration:
+ * - < 60s: "{N}s"
+ * - >= 60s: "{M}m" or "{M}m {S}s"
+ */
+export function formatDuration(totalSeconds) {
+  const sec = Math.max(1, Math.round(Number(totalSeconds) || 0));
+  if (sec < 60) return `${sec}s`;
+  const mins = Math.floor(sec / 60);
+  const remainingSecs = sec % 60;
+  return remainingSecs === 0 ? `${mins}m` : `${mins}m ${remainingSecs}s`;
+}
+
+/**
  * Authentic stroke-rounded Thought Bubble Icon in Hugeicons tuple format.
  * Features a cloud-like contour with trailing thought bubbles.
  */
@@ -304,8 +317,9 @@ const WorkingProcessAccordion = ({
   duration = null,
   startedAt = null,
   hasVisibleContent = false,
+  thoughts = [],
 }) => {
-  const [isOpen, setIsOpen] = useState(isStreaming && !hasVisibleContent);
+  const [isOpen, setIsOpen] = useState(false);
   const userInteractedRef = useRef(false);
   const prevStreamingRef = useRef(isStreaming);
 
@@ -377,12 +391,41 @@ const WorkingProcessAccordion = ({
   const isWriting = isStreaming && hasVisibleContent && !hasActiveRunningStep;
   const prevWritingRef = useRef(false);
 
-  // Keep accordion open while steps/tools are actively running
-  useEffect(() => {
-    if (isStreaming && hasActiveRunningStep && !userInteractedRef.current) {
-      setIsOpen(true);
+  // Current running thought/step displayed in single-line header when collapsed
+  const currentRunningThought = useMemo(() => {
+    // 1. If an active tool or execution step is currently running
+    const activeStep = visibleSteps.slice().reverse().find((s) => s?.isLive || s?.status === 'running');
+    if (activeStep) {
+      const t = typeof activeStep === 'string' ? activeStep : activeStep?.text;
+      if (t) return t;
     }
-  }, [isStreaming, hasActiveRunningStep]);
+
+    // 2. If status is given and not generic "thinking"
+    if (status && !/^thinking(\.{1,3})?$/i.test(status.trim()) && !/^reasoning(\.{1,3})?$/i.test(status.trim())) {
+      return status;
+    }
+
+    // 3. If there are streamed thoughts from <thought> tag
+    if (Array.isArray(thoughts) && thoughts.length > 0) {
+      const lastThought = thoughts[thoughts.length - 1];
+      if (typeof lastThought === 'string' && lastThought.trim()) {
+        const lines = lastThought.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+        const lastLine = lines[lines.length - 1];
+        if (lastLine) {
+          return lastLine.length > 85 ? `${lastLine.slice(0, 82)}...` : lastLine;
+        }
+      }
+    }
+
+    // 4. If there's any visible step
+    const lastStep = visibleSteps[visibleSteps.length - 1];
+    if (lastStep) {
+      const t = typeof lastStep === 'string' ? lastStep : lastStep?.text;
+      if (t) return t;
+    }
+
+    return 'Thinking...';
+  }, [visibleSteps, status, thoughts]);
 
   // As soon as all tools finish and visible content streams, auto-collapse so user focuses on the answer
   useEffect(() => {
@@ -549,12 +592,20 @@ const WorkingProcessAccordion = ({
           </div>
         ) : null}
 
-        <span>
+        <span
+          className={
+            !isOpen && isStreaming && !isWriting
+              ? 'truncate max-w-[280px] sm:max-w-[460px] shimmer-sentence text-neutral-800 dark:text-neutral-200 font-medium'
+              : ''
+          }
+        >
           {isWriting
             ? 'Writing...'
             : isStreaming
-            ? `Working for ${displaySeconds}s`
-            : `Worked for ${displaySeconds}s`}
+            ? isOpen
+              ? `Working for ${formatDuration(elapsed)}`
+              : currentRunningThought
+            : `Worked for ${formatDuration(displaySeconds)}`}
         </span>
 
         {isOpen ? (

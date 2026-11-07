@@ -145,7 +145,7 @@ const InteractiveChoiceCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.995 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[18px] border border-[#E6E5E3] bg-white font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:border-[#333333] dark:bg-[#1E1E1E] dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+      className="claude-composer-box w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[14.5px] border font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
     >
       {/* HEADER */}
       <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5 sm:px-5">
@@ -167,7 +167,7 @@ const InteractiveChoiceCard = ({
         )}
       </div>
 
-      <div className="h-px w-full bg-[#EDECEA] dark:bg-[#2A2A2A]" />
+      <div className="h-px w-full bg-black/[0.06] dark:bg-white/[0.08]" />
 
       {/* OPTIONS */}
       <div className="flex flex-col">
@@ -186,11 +186,11 @@ const InteractiveChoiceCard = ({
               onMouseEnter={() => setSelectedIndex(idx)}
               className={`group relative flex min-h-[58px] cursor-pointer items-center gap-3 px-4.5 py-3 transition-colors duration-150 sm:px-5 ${
                 isSelected
-                  ? 'bg-black/[0.025] dark:bg-white/[0.035]'
-                  : 'bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
+                  ? 'bg-black/[0.04] dark:bg-white/[0.05]'
+                  : 'bg-transparent hover:bg-black/[0.025] dark:hover:bg-white/[0.035]'
               }`}
             >
-              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#F0EFED] text-[13px] font-medium leading-none text-[#8E8B86] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:text-[#B3B3B3] dark:group-hover:bg-[#333333]">
+              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] text-[13px] font-medium leading-none text-[#8E8B86] dark:text-[#E0E0E0] transition-colors duration-150 group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.12]">
                 {idx + 1}
               </div>
 
@@ -208,7 +208,7 @@ const InteractiveChoiceCard = ({
               {idx < normalizedOptions.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-[#EDECEA] dark:bg-[#2A2A2A] sm:left-5 sm:right-5"
+                  className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-black/[0.06] dark:bg-white/[0.08] sm:left-5 sm:right-5"
                 />
               )}
             </div>
@@ -220,7 +220,7 @@ const InteractiveChoiceCard = ({
       <div className="relative flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 right-4 top-0 h-px bg-[#EDECEA] dark:bg-[#2A2A2A] sm:left-5 sm:right-5"
+          className="pointer-events-none absolute left-4 right-4 top-0 h-px bg-black/[0.06] dark:bg-white/[0.08] sm:left-5 sm:right-5"
         />
 
         <AnimatePresence mode="wait" initial={false}>
@@ -238,8 +238,8 @@ const InteractiveChoiceCard = ({
               }}
               className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3"
             >
-              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-[#F0EFED] transition-colors duration-150 group-hover:bg-[#E6E5E3] dark:bg-[#2A2A2A] dark:group-hover:bg-[#333333]">
-                <span className="material-symbols-outlined text-[15px] leading-none text-[#8E8B86] select-none dark:text-[#B3B3B3]">
+              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] transition-colors duration-150 group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.12]">
+                <span className="material-symbols-outlined text-[15px] leading-none text-[#8E8B86] select-none dark:text-[#E0E0E0]">
                   edit
                 </span>
               </div>
@@ -290,7 +290,7 @@ const InteractiveChoiceCard = ({
           <button
             type="button"
             onClick={onSkip}
-            className="shrink-0 rounded-[10px] bg-[#ECEBE9] px-4 py-2 text-[13px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-[#E2E1DE] dark:bg-[#474747] dark:text-[#F0F0F0] dark:hover:bg-[#545454]"
+            className="shrink-0 rounded-[10px] bg-black/[0.05] px-4 py-2 text-[13px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-[#F0F0F0] dark:hover:bg-white/[0.12]"
           >
             Skip
           </button>

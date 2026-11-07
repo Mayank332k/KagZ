@@ -101,7 +101,7 @@ const ToolMentionMenu = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.16, ease: "easeOut" }}
-      className="absolute bottom-full left-0 right-0 mb-1.5 w-full bg-white dark:bg-[#202020] border border-[#f0efed] dark:border-[#2c2c2b] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[18px] p-2 select-none"
+      className="claude-composer-box absolute bottom-full left-0 right-0 mb-1.5 w-full border shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[14.5px] p-2 select-none"
     >
       {/* Section Header */}
       <div className="px-3 pt-1.5 pb-1 text-[12px] leading-[16px] font-medium text-[#7d7a75] dark:text-[#ada9a3]">

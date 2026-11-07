@@ -214,10 +214,20 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 32px 20px 20px;
+  padding: 24px 20px 12px;
   z-index: 40;
   background: linear-gradient(to top, var(--bg-base) 65%, transparent 100%);
   pointer-events: none;
+}
+
+.claude-composer-box {
+  background-color: #f0eee6;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:where(.dark, .dark *) .claude-composer-box {
+  background-color: rgb(46, 46, 46) !important;
+  border-color: rgb(62, 62, 62) !important;
 }
 
 /* --- Chat Messages --- */

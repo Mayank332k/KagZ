@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
-import { ChevronRight, PanelLeft } from 'lucide-react';
+import { ChevronRight, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon, Home01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
@@ -11,7 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
 import InteractiveChoiceCard from './InteractiveChoiceCard';
-import WorkingProcessAccordion from './WorkingProcessAccordion';
+import WorkingProcessAccordion, { formatDuration } from './WorkingProcessAccordion';
 import { parseThoughtAndContent } from '../../utils/thoughtParser';
 import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
 import MemoryUpdateIcon from './MemoryUpdateIcon';
@@ -635,7 +635,7 @@ const ThinkingAnimation = ({ status, stateType = 'thinking', startedAt }) => {
           </motion.div>
         ) : (
           <span className="text-[14.5px] tracking-[-0.01em]">
-            Thinking for {elapsed}s
+            Thinking for {formatDuration(elapsed)}
           </span>
         )}
       </AnimatePresence>
@@ -811,7 +811,7 @@ const ThoughtHeader = ({ duration, startedAt, thoughts = [], isStreaming = false
         className="inline-flex items-center gap-1.5 py-0.5 px-0 text-neutral-500 dark:text-[#8e8b86] hover:text-neutral-800 dark:hover:text-[#f7f6f4] transition-colors border-0 bg-transparent outline-none cursor-pointer"
         title={isOpen ? 'Collapse thoughts' : 'Expand thoughts'}
       >
-        <span className="font-normal">Thought for {displaySeconds}s</span>
+        <span className="font-normal">Thought for {formatDuration(displaySeconds)}</span>
         <ChevronRight
           size={13}
           className={`transition-transform duration-200 text-neutral-400 dark:text-[#8e8b86] ${isOpen ? 'rotate-90' : ''}`}
@@ -902,6 +902,7 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
                 duration={msg.workingDuration}
                 startedAt={msg.startedAt}
                 hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
+                thoughts={thoughts}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (
@@ -1022,6 +1023,7 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
                 duration={msg.workingDuration}
                 startedAt={msg.startedAt}
                 hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
+                thoughts={thoughts}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (
@@ -1604,6 +1606,112 @@ const ChatComposer = ({
 
   const activeModel = models.find(m => m.value === selectedModel) || models[0];
 
+  const isReplyMode = messages && messages.length > 0;
+
+  const renderModelDropdown = (isMinimal = false) => (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => {
+          setIsDropdownOpen((prev) => !prev);
+          setHoveredModel(null);
+        }}
+        className={
+          isMinimal
+            ? `flex items-center gap-1 text-[13px] font-normal transition-opacity cursor-pointer select-none py-1 px-1 bg-transparent border-0 text-gray-900 dark:text-white hover:opacity-80`
+            : `flex items-center gap-1.5 px-2 py-1 rounded-[6px] text-[13px] font-normal transition-colors duration-160 cursor-pointer ${
+                isDropdownOpen
+                  ? 'text-[var(--c-text-primary)] bg-black/5 dark:bg-white/10'
+                  : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
+              }`
+        }
+      >
+        {!isMinimal && <img src="/kagz.png" alt="kagZ" className="w-[18px] h-[18px] object-contain shrink-0 select-none" />}
+        <span>{activeModel.label}</span>
+        <svg 
+          width="12" 
+          height="12" 
+          viewBox="0 0 16 16" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="1.6" 
+          className={`shrink-0 text-gray-700 dark:text-white transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}
+        >
+          <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {isDropdownOpen && (
+          <motion.div
+            role="listbox"
+            initial={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            onMouseLeave={() => setHoveredModel(null)}
+            className={`absolute right-0 ${
+              openDirection === 'down' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+            } w-[315px] max-w-[calc(100vw-32px)] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-visible rounded-[14px] p-1.5 select-none`}
+          >
+            {!isRightPanel && typeof window !== 'undefined' && window.innerWidth >= 768 && hoveredModel && (
+              <ModelPreviewCard model={hoveredModel} side={previewSide} />
+            )}
+
+            <div className="flex flex-col gap-0.5">
+              {models.map((model) => {
+                const isActive = selectedModel === model.value;
+
+                return (
+                  <button
+                    key={model.value}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    onMouseEnter={() => {
+                      if (!isRightPanel) setHoveredModel(model);
+                    }}
+                    onClick={() => {
+                      setSelectedModel(model.value);
+                      setIsDropdownOpen(false);
+                      setHoveredModel(null);
+                    }}
+                    className={`flex items-start w-full px-2.5 py-2 rounded-[8px] text-left transition-colors duration-160 cursor-pointer ${
+                      isActive 
+                        ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
+                        : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
+                    }`}
+                  >
+                    <div className="w-7 h-7 shrink-0 flex items-center justify-center mt-0.5">
+                      <img src="/kagz.png" alt="kagZ" className="w-[24px] h-[24px] object-contain select-none" />
+                    </div>
+                    <div className="flex flex-col ml-1.5 min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={`text-[14.5px] leading-snug ${isActive ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
+                          {model.label}
+                        </span>
+                        {model.badge && (
+                          <span className="px-1.5 py-0.5 rounded-[4px] bg-[var(--ca-hover)] text-[10.5px] font-medium text-[var(--c-text-tertiary)]">
+                            {model.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[12.5px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
+                        {model.subtitle}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  const isMultiLine = Boolean(query && (query.includes('\n') || (textareaRef?.current && textareaRef.current.scrollHeight > 30)));
+
   return (
     <div className="w-full relative">
       {/* Floating Tool Mention Menu */}
@@ -1682,275 +1790,364 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
-      <form onSubmit={onFormSubmit} className="flex flex-col bg-[var(--composer-bg)] border border-black/[0.08] dark:border-transparent focus-within:border-black/[0.16] dark:focus-within:border-transparent rounded-[18px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-4 pt-3 pb-2.5 mx-auto">
-        {/* Top Context Pills (Page Context) */}
-        {attachedPage && (
-          <div className="flex items-center gap-1.5 mb-2 pt-0.5 flex-wrap">
-            <div className="inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[13px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
-              <HugeiconsIcon icon={File02Icon} size={15} className="shrink-0 text-gray-400 dark:text-neutral-400" />
-              <span className="max-w-[260px] truncate leading-tight">
-                {attachedPage.title || "Untitled"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setAttachedPage(null)}
-                className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
-                title="Remove page context"
-                aria-label="Remove page context"
-              >
-                <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div 
-          className="flex items-start flex-wrap w-full cursor-text gap-x-1.5"
-          onClick={() => textareaRef?.current?.focus()}
-        >
-          {activeTool && (
-            <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[16px] leading-[1.5]">
-              <span className="text-gray-400 dark:text-neutral-500 font-normal select-none">-</span>
-              {activeTool.icon && (
-                <HugeiconsIcon 
-                  icon={activeTool.icon} 
-                  size={17} 
-                  strokeWidth={2} 
-                  className="shrink-0 text-[#007AFF] dark:text-[#2f88ff]" 
-                />
-              )}
-              <span className="text-[#007AFF] dark:text-[#2f88ff] font-medium leading-[1.5]">
-                {activeTool.label}
-              </span>
+      {isReplyMode ? (
+        /* Reply Mode (Rounded rectangle matching Claude when conversation has messages) */
+        <form onSubmit={onFormSubmit} className="flex flex-col w-full mx-auto">
+          {/* Top Context Pills (Page Context) */}
+          {attachedPage && (
+            <div className="flex items-center gap-1.5 mb-2 px-1 flex-wrap">
+              <div className="inline-flex items-center gap-2 pl-3 pr-2 py-1 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[13px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
+                <HugeiconsIcon icon={File02Icon} size={15} className="shrink-0 text-gray-400 dark:text-neutral-400" />
+                <span className="max-w-[260px] truncate leading-tight">
+                  {attachedPage.title || "Untitled"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedPage(null)}
+                  className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                  title="Remove page context"
+                  aria-label="Remove page context"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
+                </button>
+              </div>
             </div>
           )}
-          <div className={`relative ${activeTool ? "flex-1 min-w-[120px]" : "w-full"}`}>
-            {!query && !activeChoicePrompt && !activeTool && (
-              <div className="absolute top-0 left-0 right-0 pointer-events-none px-1 py-1 text-[15.5px] leading-[1.5] text-[var(--text-muted)] select-none overflow-hidden">
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={suggestionIndex}
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -3 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="inline-flex items-baseline gap-2 truncate max-w-full leading-[1.5]"
-                  >
-                    <span className="truncate leading-[1.5]">{currentSuggestion?.placeholder}</span>
-                    {!isRightPanel && (
-                      <span className="shrink-0 text-[11px] leading-none px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-neutral-400 font-mono tracking-wide align-middle inline-block">
-                        Tab ⇥
-                      </span>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+
+          {/* Claude Composer Box */}
+          <div 
+            className={`claude-composer-box relative flex ${isMultiLine ? 'items-end' : 'items-center'} w-full min-h-[45px] px-3.5 py-2 rounded-[14.5px] border focus-within:border-black/[0.14] dark:focus-within:border-[rgb(70,70,70)] shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all duration-200 cursor-text`}
+            onClick={() => textareaRef?.current?.focus()}
+          >
+            {activeTool && (
+              <div className="inline-flex items-center gap-1.5 py-0.5 select-none shrink-0 mr-2 text-[13.5px] self-center">
+                {activeTool.icon && (
+                  <HugeiconsIcon 
+                    icon={activeTool.icon} 
+                    size={15} 
+                    strokeWidth={2} 
+                    className="shrink-0 text-[#007AFF] dark:text-[#2f88ff]" 
+                  />
+                )}
+                <span className="text-[#007AFF] dark:text-[#2f88ff] font-medium">
+                  {activeTool.label}
+                </span>
               </div>
             )}
+
             <textarea
-          ref={textareaRef}
-          value={query}
-          onChange={(e) => {
-            const val = e.target.value;
-            setQuery(val);
-            const cursor = e.target.selectionStart ?? val.length;
-            const textBeforeCursor = val.slice(0, cursor);
-            const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
-            if (match) {
-              setIsMentionOpen(true);
-              setMentionFilter(match[1]);
-              setMentionSelectedIndex(0);
-            } else if (isMentionOpen) {
-              setIsMentionOpen(false);
-            }
-          }}
-          onKeyUp={(e) => {
-            const cursor = e.target.selectionStart ?? e.target.value.length;
-            const textBeforeCursor = e.target.value.slice(0, cursor);
-            const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
-            if (match) {
-              setIsMentionOpen(true);
-              setMentionFilter(match[1]);
-            } else if (isMentionOpen) {
-              setIsMentionOpen(false);
-            }
-          }}
-          onKeyDown={onKeyDown}
-          placeholder={
-            activeChoicePrompt
-              ? "Or reply directly..."
-              : activeTool?.id === 'research'
-              ? "Ask anything to research deeply..."
-              : activeTool
-              ? `Ask anything with ${activeTool.label.toLowerCase()}...`
-              : ""
-          }
-          rows={1}
-          autoFocus
-          className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[28px]"
-          style={{ maxHeight: '250px' }}
-        />
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between mt-1.5 pt-0.5 relative">
-          {/* Left Controls */}
-          <div className="flex items-center gap-1 -ml-1">
-            <button
-              type="button"
-              onClick={handleToggleAttachPage}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
-                attachedPage 
-                  ? 'text-[#007AFF] dark:text-[#2f88ff] bg-[#007AFF]/10 dark:bg-[#007AFF]/15 hover:bg-[#007AFF]/20' 
-                  : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-              title={
-                attachedPage 
-                  ? `Page added: ${attachedPage.title || "Untitled"} (Click to remove)` 
-                  : activePage 
-                  ? `Add current page: ${activePage.title || "Untitled"}` 
-                  : "Add current page"
+              ref={textareaRef}
+              value={query}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQuery(val);
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = '23px';
+                  if (val.trim() !== '') {
+                    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+                  }
+                }
+                const cursor = e.target.selectionStart ?? val.length;
+                const textBeforeCursor = val.slice(0, cursor);
+                const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+                if (match) {
+                  setIsMentionOpen(true);
+                  setMentionFilter(match[1]);
+                  setMentionSelectedIndex(0);
+                } else if (isMentionOpen) {
+                  setIsMentionOpen(false);
+                }
+              }}
+              onKeyUp={(e) => {
+                const cursor = e.target.selectionStart ?? e.target.value.length;
+                const textBeforeCursor = e.target.value.slice(0, cursor);
+                const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+                if (match) {
+                  setIsMentionOpen(true);
+                  setMentionFilter(match[1]);
+                } else if (isMentionOpen) {
+                  setIsMentionOpen(false);
+                }
+              }}
+              onKeyDown={onKeyDown}
+              placeholder={
+                activeChoicePrompt
+                  ? "Or reply directly..."
+                  : activeTool?.id === 'research'
+                  ? "Ask anything to research deeply..."
+                  : activeTool
+                  ? `Ask anything with ${activeTool.label.toLowerCase()}...`
+                  : "Reply"
               }
-              aria-label="Add current page context"
-            >
-              <HugeiconsIcon 
-                icon={Add01Icon} 
-                size={18.5} 
-                strokeWidth={1.8} 
-                className="shrink-0" 
-              />
-            </button>
+              rows={1}
+              autoFocus
+              className="flex-1 bg-transparent resize-none outline-none border-0 m-0 text-[14.5px] leading-[23px] font-normal text-gray-900 dark:text-[#edece8] placeholder-[#9c9a94] dark:placeholder-[#7e7c76] px-0 py-0 custom-scrollbar min-h-[23px] max-h-[180px] self-center"
+              style={{ height: '23px' }}
+            />
 
-            <button 
-              type="button"
-              onClick={() => setIsThinking(!isThinking)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
-                isThinking 
-                  ? 'text-red-500 dark:text-red-400 hover:bg-red-500/10' 
-                  : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-              title={isThinking ? "Thinking Enabled" : "Enable Thinking"}
-              aria-label="Toggle Thinking"
-            >
-              <HugeiconsIcon 
-                icon={isThinking ? LimitationIcon : Brain03Icon} 
-                size={18.5} 
-                strokeWidth={1.8} 
-                className="shrink-0" 
-              />
-            </button>
+            {/* Action Icon on right inside box */}
+            <div className={`shrink-0 ml-2 flex items-center justify-center ${isMultiLine ? 'self-end mb-0.5' : 'self-center'}`}>
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stopGeneration}
+                  className="w-[28px] h-[28px] flex items-center justify-center rounded-[6px] text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  title="Stop generation"
+                >
+                  <div className="w-4 h-4 bg-current rounded-[3.5px]" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!query.trim()}
+                  className="w-[28px] h-[28px] rounded-[6px] flex items-center justify-center text-[#9c9a94] dark:text-[#7e7c76] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:text-[#9c9a94] dark:disabled:hover:text-[#7e7c76] hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer"
+                  title="Send message (Enter)"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                    <path d="M13 3.5V8.5C13 9.60457 12.1046 10.5 11 10.5H3.5M3.5 10.5L6.5 7.5M3.5 10.5L6.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Right Controls */}
-          <div className="flex items-center gap-2">
-            <div className="relative" ref={dropdownRef}>
+          {/* Sub-row below box: Left (+ / thinking) | Center disclaimer | Right model */}
+          <div className="relative flex items-center justify-between mt-2 w-full px-[5px]">
+            <div className="flex items-center gap-1 z-10">
               <button
                 type="button"
-                onClick={() => {
-                  setIsDropdownOpen((prev) => !prev);
-                  setHoveredModel(null);
-                }}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-[6px] text-[13px] font-normal transition-colors duration-160 cursor-pointer ${
-                  isDropdownOpen
-                    ? 'text-[var(--c-text-primary)] bg-black/5 dark:bg-white/10'
-                    : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
+                onClick={handleToggleAttachPage}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer select-none border-0 ${
+                  attachedPage 
+                    ? 'text-[#007AFF] dark:text-[#2f88ff] bg-[#007AFF]/10' 
+                    : 'text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
                 }`}
+                title={
+                  attachedPage 
+                    ? `Page added: ${attachedPage.title || "Untitled"} (Click to remove)` 
+                    : activePage 
+                    ? `Add current page: ${activePage.title || "Untitled"}` 
+                    : "Add current page"
+                }
+                aria-label="Add current page context"
               >
-                <img src="/kagz.png" alt="kagZ" className="w-[18px] h-[18px] object-contain shrink-0 select-none" />
-                <span>{activeModel.label}</span>
-                <span className={`material-symbols-outlined text-[15px] leading-none select-none text-[var(--c-icon-secondary)] transition-transform duration-160 ${isDropdownOpen ? 'rotate-180' : ''}`}>
-                  {openDirection === 'down' ? 'expand_more' : 'expand_less'}
-                </span>
+                <Plus size={17} strokeWidth={1.75} className="shrink-0" />
               </button>
 
-              <AnimatePresence>
-                {isDropdownOpen && (
-                  <motion.div
-                    role="listbox"
-                    initial={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: openDirection === 'down' ? -4 : 4, scale: 0.98 }}
-                    transition={{ duration: 0.16, ease: "easeOut" }}
-                    onMouseLeave={() => setHoveredModel(null)}
-                    className={`absolute right-0 ${
-                      openDirection === 'down' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
-                    } w-[315px] max-w-[calc(100vw-32px)] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] shadow-[var(--shadow-menu)] z-50 overflow-visible rounded-[14px] p-1.5 select-none`}
-                  >
-                    {!isRightPanel && typeof window !== 'undefined' && window.innerWidth >= 768 && hoveredModel && (
-                      <ModelPreviewCard model={hoveredModel} side={previewSide} />
-                    )}
-
-                    <div className="flex flex-col gap-0.5">
-                      {models.map((model) => {
-                        const isActive = selectedModel === model.value;
-
-                        return (
-                          <button
-                            key={model.value}
-                            type="button"
-                            role="option"
-                            aria-selected={isActive}
-                            onMouseEnter={() => {
-                              if (!isRightPanel) setHoveredModel(model);
-                            }}
-                            onClick={() => {
-                              setSelectedModel(model.value);
-                              setIsDropdownOpen(false);
-                              setHoveredModel(null);
-                            }}
-                            className={`flex items-start w-full px-2.5 py-2 rounded-[8px] text-left transition-colors duration-160 cursor-pointer ${
-                              isActive 
-                                ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]' 
-                                : 'text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)]'
-                            }`}
-                          >
-                            <div className="w-7 h-7 shrink-0 flex items-center justify-center mt-0.5">
-                              <img src="/kagz.png" alt="kagZ" className="w-[24px] h-[24px] object-contain select-none" />
-                            </div>
-                            <div className="flex flex-col ml-1.5 min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-1">
-                                <span className={`text-[14.5px] leading-snug ${isActive ? 'font-medium text-[var(--c-text-primary)]' : 'font-normal text-[var(--c-text-primary)]'}`}>
-                                  {model.label}
-                                </span>
-                                {model.badge && (
-                                  <span className="px-1.5 py-0.5 rounded-[4px] bg-[var(--ca-hover)] text-[10.5px] font-medium text-[var(--c-text-tertiary)]">
-                                    {model.badge}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[12.5px] text-[var(--c-text-tertiary)] leading-tight mt-0.5">
-                                {model.subtitle}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <button 
+                type="button"
+                onClick={() => setIsThinking(!isThinking)}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer select-none border-0 ${
+                  isThinking 
+                    ? 'text-red-500 dark:text-red-400 bg-red-500/10' 
+                    : 'text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                }`}
+                title={isThinking ? "Thinking Enabled" : "Enable Thinking"}
+                aria-label="Toggle Thinking"
+              >
+                <Brain size={17} strokeWidth={1.75} className="shrink-0" />
+              </button>
             </div>
 
-            {isStreaming ? (
+            {/* Center Disclaimer: absolutely centered for 100% true horizontal center */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-[12px] text-[#7A7875] select-none text-center hidden sm:block">
+                KagZ is AI and can make mistakes.
+              </span>
+            </div>
+
+            {/* Right: Clean minimal model name matching Image 1 */}
+            <div className="z-10 flex items-center justify-end">
+              {renderModelDropdown(true)}
+            </div>
+          </div>
+        </form>
+      ) : (
+        /* Regular Composer (New Chat / Empty messages state) */
+        <form onSubmit={onFormSubmit} className="claude-composer-box flex flex-col border rounded-[14.5px] shadow-[0_2px_12px_rgb(0,0,0,0.04)] focus-within:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-200 px-4 pt-3 pb-2.5 mx-auto">
+          {/* Top Context Pills (Page Context) */}
+          {attachedPage && (
+            <div className="flex items-center gap-1.5 mb-2 pt-0.5 flex-wrap">
+              <div className="inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.08] text-[13px] font-medium text-gray-600 dark:text-neutral-300 transition-colors select-none group max-w-full">
+                <HugeiconsIcon icon={File02Icon} size={15} className="shrink-0 text-gray-400 dark:text-neutral-400" />
+                <span className="max-w-[260px] truncate leading-tight">
+                  {attachedPage.title || "Untitled"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedPage(null)}
+                  className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+                  title="Remove page context"
+                  aria-label="Remove page context"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} size={10} className="shrink-0 select-none" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div 
+            className="flex items-start flex-wrap w-full cursor-text gap-x-1.5"
+            onClick={() => textareaRef?.current?.focus()}
+          >
+            {activeTool && (
+              <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[16px] leading-[1.5]">
+                <span className="text-gray-400 dark:text-neutral-500 font-normal select-none">-</span>
+                {activeTool.icon && (
+                  <HugeiconsIcon 
+                    icon={activeTool.icon} 
+                    size={17} 
+                    strokeWidth={2} 
+                    className="shrink-0 text-[#007AFF] dark:text-[#2f88ff]" 
+                  />
+                )}
+                <span className="text-[#007AFF] dark:text-[#2f88ff] font-medium leading-[1.5]">
+                  {activeTool.label}
+                </span>
+              </div>
+            )}
+            <div className={`relative ${activeTool ? "flex-1 min-w-[120px]" : "w-full"}`}>
+              {!query && !activeChoicePrompt && !activeTool && (
+                <div className="absolute top-0 left-0 right-0 pointer-events-none px-1 py-1 text-[15.5px] leading-[1.5] text-[var(--text-muted)] select-none overflow-hidden">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={suggestionIndex}
+                      initial={{ opacity: 0, y: 3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -3 }}
+                      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                      className="inline-flex items-baseline gap-2 truncate max-w-full leading-[1.5]"
+                    >
+                      <span className="truncate leading-[1.5]">{currentSuggestion?.placeholder}</span>
+                      {!isRightPanel && (
+                        <span className="shrink-0 text-[11px] leading-none px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-neutral-400 font-mono tracking-wide align-middle inline-block">
+                          Tab ⇥
+                        </span>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              )}
+              <textarea
+                ref={textareaRef}
+                value={query}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setQuery(val);
+                  const cursor = e.target.selectionStart ?? val.length;
+                  const textBeforeCursor = val.slice(0, cursor);
+                  const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+                  if (match) {
+                    setIsMentionOpen(true);
+                    setMentionFilter(match[1]);
+                    setMentionSelectedIndex(0);
+                  } else if (isMentionOpen) {
+                    setIsMentionOpen(false);
+                  }
+                }}
+                onKeyUp={(e) => {
+                  const cursor = e.target.selectionStart ?? e.target.value.length;
+                  const textBeforeCursor = e.target.value.slice(0, cursor);
+                  const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/);
+                  if (match) {
+                    setIsMentionOpen(true);
+                    setMentionFilter(match[1]);
+                  } else if (isMentionOpen) {
+                    setIsMentionOpen(false);
+                  }
+                }}
+                onKeyDown={onKeyDown}
+                placeholder={
+                  activeChoicePrompt
+                    ? "Or reply directly..."
+                    : activeTool?.id === 'research'
+                    ? "Ask anything to research deeply..."
+                    : activeTool
+                    ? `Ask anything with ${activeTool.label.toLowerCase()}...`
+                    : ""
+                }
+                rows={1}
+                autoFocus
+                className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[28px]"
+                style={{ maxHeight: '250px' }}
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-1.5 pt-0.5 relative">
+            {/* Left Controls */}
+            <div className="flex items-center gap-1 -ml-1">
               <button
                 type="button"
-                onClick={stopGeneration}
-                className="w-[38px] h-[38px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1 cursor-pointer"
-                title="Stop generation"
+                onClick={handleToggleAttachPage}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
+                  attachedPage 
+                    ? 'text-[#007AFF] dark:text-[#2f88ff] bg-[#007AFF]/10 dark:bg-[#007AFF]/15 hover:bg-[#007AFF]/20' 
+                    : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                title={
+                  attachedPage 
+                    ? `Page added: ${attachedPage.title || "Untitled"} (Click to remove)` 
+                    : activePage 
+                    ? `Add current page: ${activePage.title || "Untitled"}` 
+                    : "Add current page"
+                }
+                aria-label="Add current page context"
               >
-                <div className="w-3.5 h-3.5 bg-white rounded-[2px]" />
+                <HugeiconsIcon 
+                  icon={Add01Icon} 
+                  size={18.5} 
+                  strokeWidth={1.8} 
+                  className="shrink-0" 
+                />
               </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!query.trim()}
-                className="w-[38px] h-[38px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1 cursor-pointer"
+
+              <button 
+                type="button"
+                onClick={() => setIsThinking(!isThinking)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border-0 ${
+                  isThinking 
+                    ? 'text-red-500 dark:text-red-400 hover:bg-red-500/10' 
+                    : 'text-gray-400 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                title={isThinking ? "Thinking Enabled" : "Enable Thinking"}
+                aria-label="Toggle Thinking"
               >
-                <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_upward</span>
+                <HugeiconsIcon 
+                  icon={isThinking ? LimitationIcon : Brain03Icon} 
+                  size={18.5} 
+                  strokeWidth={1.8} 
+                  className="shrink-0" 
+                />
               </button>
-            )}
+            </div>
+
+            {/* Right Controls */}
+            <div className="flex items-center gap-2">
+              {renderModelDropdown()}
+
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stopGeneration}
+                  className="w-[38px] h-[38px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1 cursor-pointer"
+                  title="Stop generation"
+                >
+                  <div className="w-3.5 h-3.5 bg-white rounded-[2px]" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!query.trim()}
+                  className="w-[38px] h-[38px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_upward</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
 
       {/* Subtle Bottom Keyboard Helper (matching Linear / Apple native spec) */}
       {activeChoicePrompt && (
@@ -1986,7 +2183,6 @@ const AIChat = ({ isRightPanel = false }) => {
     hasMore,
     fetchMoreMessages
   } = useContext(ChatContext);
-  const { toggleSidebar } = useContext(EditorContext);
   const { user } = useAuth();
   
   const textareaRef = useRef(null);
@@ -2046,12 +2242,19 @@ const AIChat = ({ isRightPanel = false }) => {
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      if (query.trim() !== '') {
-        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 250)}px`;
+      if (messages.length > 0) {
+        textareaRef.current.style.height = '23px';
+        if (query.trim() !== '') {
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+        }
+      } else {
+        textareaRef.current.style.height = 'auto';
+        if (query.trim() !== '') {
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 250)}px`;
+        }
       }
     }
-  }, [query]);
+  }, [query, messages.length]);
 
   const prevScrollHeightRef = useRef(0);
   const wasLoadingMoreRef = useRef(false);
@@ -2137,7 +2340,25 @@ const AIChat = ({ isRightPanel = false }) => {
       <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
         <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
           {/* Right Panel Header */}
-          <div className="flex items-center justify-end px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)]">
+          <div className="flex items-center justify-between px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)] border-b border-black/[0.04] dark:border-white/[0.04]">
+            <button 
+              onClick={() => {
+                if (setIsRightChatOpen) {
+                  setIsRightChatOpen(false);
+                } else if (window.history.state && window.history.state.idx > 0) {
+                  navigate(-1);
+                } else {
+                  const lastPage = localStorage.getItem('noema-last-page-route');
+                  navigate(lastPage || '/dashboard/page/new');
+                }
+              }}
+              className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Go back"
+              aria-label="Go back"
+            >
+              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
+            </button>
+
             <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
               <button
                 onClick={() => clearChat()}
@@ -2248,45 +2469,21 @@ const AIChat = ({ isRightPanel = false }) => {
         <div className="chat-container flex-1">
           {/* Header with Blurs & Actions */}
           <div className="chat-header relative flex justify-between items-center p-3 sm:p-4 z-50 pointer-events-none">
-            <div className="flex items-center gap-1.5 pointer-events-auto">
-              <button
-                onClick={toggleSidebar}
-                className="flex items-center justify-center w-8.5 h-8.5 rounded-full text-gray-600 hover:text-gray-950 dark:text-neutral-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title="Toggle sidebar"
-                aria-label="Toggle sidebar"
-              >
-                <PanelLeft className="w-4.5 h-4.5" strokeWidth={1.8} />
-              </button>
-
-              <button
-                onClick={() => {
+            <button 
+              onClick={() => {
+                if (window.history.state && window.history.state.idx > 0) {
+                  navigate(-1);
+                } else {
                   const lastPage = localStorage.getItem('noema-last-page-route');
                   navigate(lastPage || '/dashboard/page/new');
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13.5px] font-medium text-gray-700 hover:text-gray-950 dark:text-neutral-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08]"
-                title="Go to Homepage"
-                aria-label="Go to Homepage"
-              >
-                <HugeiconsIcon icon={Home01Icon} size={15.5} strokeWidth={1.8} className="shrink-0 select-none text-current" />
-                <span>Home</span>
-              </button>
-
-              <button 
-                onClick={() => {
-                  if (window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    const lastPage = localStorage.getItem('noema-last-page-route');
-                    navigate(lastPage || '/dashboard/page/new');
-                  }
-                }}
-                className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title="Go back"
-                aria-label="Go back"
-              >
-                <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
-              </button>
-            </div>
+                }
+              }}
+              className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Go back"
+              aria-label="Go back"
+            >
+              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
+            </button>
             
             <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
               <button 
@@ -2300,7 +2497,7 @@ const AIChat = ({ isRightPanel = false }) => {
 
               <button 
                 onClick={handleDockToSidebar}
-                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="hidden md:flex w-8.5 h-8.5 items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="Open in Sidebar"
                 aria-label="Open in Sidebar"
               >
