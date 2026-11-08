@@ -5,6 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import CodeBlock from './CodeBlock';
+import { healStreamingMarkdown } from '../../utils/markdownHealer';
 import 'katex/dist/katex.min.css';
 import './MarkdownRenderer.css';
 
@@ -367,65 +368,9 @@ function formatKbdShortcuts(text) {
     .join('');
 }
 
-/**
- * Remark plugin: wraps the last 1-2 characters of the final text node
- * in a span with class "ink-edge-token" for the blur→sharp settle effect.
- * Only activates when isStreaming=true.
- */
-function createRemarkInkEdge(isStreaming) {
-  return () => (tree) => {
-    if (!isStreaming) return;
-
-    let lastTextNode = null;
-    let lastParent = null;
-    let lastIndex = -1;
-
-    function walk(node, parent, index) {
-      if (!node) return;
-      if (node.type === 'text' && node.value && node.value.trim().length > 0) {
-        lastTextNode = node;
-        lastParent = parent;
-        lastIndex = index;
-      }
-      if (node.children) {
-        for (let i = 0; i < node.children.length; i++) {
-          walk(node.children[i], node, i);
-        }
-      }
-    }
-
-    walk(tree, null, -1);
-
-    if (lastTextNode && lastParent && lastTextNode.value.length > 1) {
-      const val = lastTextNode.value;
-      // Take last 1-2 characters (but not just whitespace)
-      const match = val.match(/^(.*)(\S{1,2}\s*)$/);
-      if (match) {
-        const lead = match[1];
-        const tail = match[2];
-        const newChildren = [];
-
-        if (lead) {
-          newChildren.push({ type: 'text', value: lead });
-        }
-
-        // Wrap the tail in a span with ink-edge-token class
-        newChildren.push({
-          type: 'element',
-          tagName: 'span',
-          properties: { className: 'ink-edge-token' },
-          children: [{ type: 'text', value: tail }],
-        });
-
-        lastParent.children.splice(lastIndex, 1, ...newChildren);
-      }
-    }
-  };
-}
-
 const MarkdownRenderer = ({ content, isStreaming = false }) => {
   // Pre-process interactive tags & plain keyboard shortcuts
-  const processedContent = content
+  const baseContent = content
     ? formatKbdShortcuts(
         content
           .replace(/<interactive_choice>[\s\S]*?(?:<\/interactive_choice>|$)/gi, '')
@@ -435,23 +380,20 @@ const MarkdownRenderer = ({ content, isStreaming = false }) => {
       )
     : '';
 
-  const remarkPlugins = useMemo(
-    () => (isStreaming ? [remarkGfm, remarkMath, createRemarkInkEdge(true)] : remarkPluginsList),
-    [isStreaming]
-  );
+  // Heal incomplete markdown fences/math tags during active streaming
+  const processedContent = isStreaming
+    ? healStreamingMarkdown(baseContent)
+    : baseContent;
 
   return (
     <div className="markdown-content">
       <ReactMarkdown
-        remarkPlugins={remarkPlugins}
+        remarkPlugins={remarkPluginsList}
         rehypePlugins={rehypePluginsList}
         components={MarkdownComponents}
       >
         {processedContent}
       </ReactMarkdown>
-      {isStreaming && (
-        <span className="stream-caret" aria-hidden="true" />
-      )}
     </div>
   );
 };

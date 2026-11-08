@@ -122,17 +122,15 @@ const Dashboard = () => {
           <Outlet />
         </div>
         
-        {/* Right side chat panel when chat is shifted to sidebar */}
+        {/* Right side chat panel when chat is shifted to sidebar (desktop only) */}
         <AnimatePresence>
-          {!isChatRoute && isRightChatOpen && (
+          {!isChatRoute && !isMobile && isRightChatOpen && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: isMobile ? '100%' : rightPanelWidth, opacity: 1 }}
+              animate={{ width: rightPanelWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className={`h-full shrink-0 overflow-hidden relative flex flex-row border-l border-[var(--c-border-hairline)] bg-[var(--c-surface-elevated)] ${
-                isMobile ? 'fixed inset-0 z-50 w-full' : ''
-              }`}
+              className="h-full shrink-0 overflow-hidden relative flex flex-row border-l border-[var(--c-border-hairline)] bg-[var(--c-surface-elevated)]"
             >
               {/* Drag Handle on Left Edge of Right Panel */}
               <div
@@ -155,10 +153,16 @@ const Dashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* Floating Action Button (FAB) — §6.7 & §7.5 measured */}
-        {!isChatRoute && !isRightChatOpen && (
+        {/* Floating Action Button (FAB) — Opens main chat page on mobile, sidebar on desktop */}
+        {!isChatRoute && (!isRightChatOpen || isMobile) && (
           <button
-            onClick={() => setIsRightChatOpen(true)}
+            onClick={() => {
+              if (isMobile) {
+                navigate('/dashboard/chat');
+              } else {
+                setIsRightChatOpen(true);
+              }
+            }}
             aria-label="Open AI Assistant"
             title="Ask AI"
             className="fixed right-4 bottom-4 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer bg-white dark:bg-[#202020] text-[#2c2c2b] dark:text-[#f0efed] shadow-[0_0_0_1px_var(--c-border,#e6e5e3),0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_var(--c-border,#383836),0_4px_12px_-2px_rgba(0,0,0,0.2)] transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.06] z-50 group"

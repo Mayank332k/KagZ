@@ -54,7 +54,7 @@
 
 :root,
 .light {
-  --ui-font: ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif;
+  --ui-font: "Montserrat", sans-serif;
   --font-serif: "Georgia", serif;
   --font-mono: "SF Mono", Menlo, monospace;
 
@@ -197,6 +197,7 @@ html {
     background-color: var(--c-surface);
     color: var(--c-text-primary);
     font-family: var(--ui-font);
+    font-optical-sizing: auto;
     transition: font-size 0.15s ease;
     margin: 0;
   }
@@ -460,11 +461,23 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
 }
 
 /* --- Smooth Per-Token Stream Landing Animation --- */
+.stream-word-fade,
 .stream-token-landing,
 .frosted-stream-token {
   display: inline;
-  animation: streamTokenLand 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform, filter;
+  animation: streamWordFade 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes streamWordFade {
+  0% {
+    opacity: 0.15;
+    transform: translateY(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes streamTokenLand {
@@ -506,38 +519,6 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
   }
 }
 
-/* Ink-edge settle: subtle blur→sharp on the live streaming tail */
-.ink-edge-token {
-  display: inline;
-  will-change: filter, opacity, transform;
-  animation: inkEdgeSettle 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes inkEdgeSettle {
-  0% {
-    filter: blur(2.5px);
-    opacity: 0.4;
-    transform: translateY(0.75px);
-  }
-  50% {
-    filter: blur(1.25px);
-    opacity: 0.75;
-  }
-  100% {
-    filter: blur(0px);
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ink-edge-token {
-    animation: none;
-    filter: none;
-    opacity: 1;
-    transform: none;
-  }
-}
 
 /* ProseMirror Selected Node Outline Reset */
 .ProseMirror-selectednode,

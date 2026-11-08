@@ -20,7 +20,7 @@ import { marked } from 'marked';
  */
 
 // Parse inline markdown (bold, italic, code) without block elements
-const parseInlineMarkdown = (text) => {
+export const parseInlineMarkdown = (text) => {
   if (!text || typeof text !== 'string') return text;
   // Configure marked for inline-only parsing
   return marked.parseInline(text);
@@ -47,6 +47,7 @@ const InteractiveChoiceCard = ({
   onSelect,
   onSkip,
   onDismiss,
+  className = '',
 }) => {
   const normalizedOptions = useMemo(
     () => (Array.isArray(options) ? options.map(normalizeOption).filter(Boolean) : []),
@@ -145,7 +146,7 @@ const InteractiveChoiceCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.995 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="claude-composer-box w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[14.5px] border font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+      className={`claude-composer-box w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[14.5px] border font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)] ${className}`}
     >
       {/* HEADER */}
       <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5 sm:px-5">

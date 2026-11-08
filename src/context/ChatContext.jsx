@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { chatAPI, invalidateCache } from '../services/api';
 import { useToast } from './ToastContext';
 import { validateAiInput } from '../utils/aiValidation';
+import { createStreamPacer } from '../utils/streamPacer';
 
 import { ChatContext } from './ChatContextDefinition';
 import { normalizeChatModel } from '../constants/chatModels';
@@ -117,7 +118,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendMessage = async (userQuery, historyOverride = null, pageContext = null) => {
+  const sendMessage = async (userQuery, historyOverride = null, pageContext = null, options = {}) => {
     if (!userQuery.trim() || isStreaming) return;
 
     // Validate chat input before proceeding
@@ -154,7 +155,8 @@ export const ChatProvider = ({ children }) => {
       {
         role: 'user',
         content: userQuery,
-        pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null
+        pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null,
+        isChoiceResponse: Boolean(options?.isChoiceResponse),
       },
       {
         role: 'assistant',
@@ -173,108 +175,25 @@ export const ChatProvider = ({ children }) => {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Smooth Token-by-Token Streaming Pacer (rAF-capped ~30fps)
-    let streamQueue = '';
-    let isStreamNetworkDone = false;
-    let isPacerRunning = false;
-    let streamError = false;
-    let memoryStartedAt = 0;
-    let rafId = null;
-    let lastFlushTime = 0;
-
-    const pumpNextTokens = () => {
-      if (signal.aborted) {
-        streamQueue = '';
-        isPacerRunning = false;
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        return;
-      }
-
-      const now = performance.now();
-
-      if (streamQueue.length === 0) {
-        isPacerRunning = false;
-        if (isStreamNetworkDone) {
-          setIsStreaming(false);
-        }
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        return;
-      }
-
-      if (memoryStartedAt > 0) {
-        const elapsed = Date.now() - memoryStartedAt;
-        const MIN_MEMORY_DWELL_MS = 1800;
-        if (elapsed < MIN_MEMORY_DWELL_MS) {
-          isPacerRunning = true;
-          rafId = requestAnimationFrame(pumpNextTokens);
-          return;
-        }
-        memoryStartedAt = 0;
-      }
-
-      // rAF-capped pacing: target ~30fps = ~33ms per frame
-      // Only flush if enough time has passed since last flush
-      const minFrameInterval = 33; // ~30fps cap
-      if (now - lastFlushTime < minFrameInterval) {
-        rafId = requestAnimationFrame(pumpNextTokens);
-        return;
-      }
-
-      isPacerRunning = true;
-
-      // Dynamic token-aware pacing:
-      // Stream tokens smoothly by syllables / words rather than 1-char stuttering
-      const qLen = streamQueue.length;
-      // eslint-disable-next-line no-useless-assignment -- used at line 257, 258
-      let chunkSize = 1;
-      if (qLen > 120) {
-        chunkSize = Math.min(qLen, Math.ceil(qLen / 6));
-      } else if (qLen > 40) {
-        chunkSize = Math.min(qLen, Math.ceil(qLen / 8));
-      } else if (qLen > 10) {
-        // Find next word/punctuation boundary within 3-8 chars
-        const spaceIdx = streamQueue.slice(2).search(/\s|[.,!?;:\n]/);
-        if (spaceIdx >= 0) {
-          chunkSize = Math.min(spaceIdx + 3, qLen);
-        } else {
-          chunkSize = Math.min(4, qLen);
-        }
-      } else {
-        // Small queue: take up to next space or 2-3 chars
-        const spaceIdx = streamQueue.search(/\s/);
-        if (spaceIdx >= 0 && spaceIdx <= 3) {
-          chunkSize = spaceIdx + 1;
-        } else {
-          chunkSize = Math.min(2, qLen);
-        }
-      }
-
-      const chunk = streamQueue.slice(0, chunkSize);
-      streamQueue = streamQueue.slice(chunkSize);
-
-      setMessages((prev) => {
-        const lastIndex = prev.length - 1;
-        if (lastIndex < 0) return prev;
-        const lastMsg = prev[lastIndex];
-        if (lastMsg.role !== 'assistant') return prev;
-        return [
-          ...prev.slice(0, lastIndex),
-          { ...lastMsg, content: lastMsg.content + chunk }
-        ];
-      });
-
-      lastFlushTime = now;
-      rafId = requestAnimationFrame(pumpNextTokens);
-    };
+    // Ultra-smooth, adaptive token pacer via requestAnimationFrame & word-boundary pacing
+    const pacer = createStreamPacer({
+      onFlush: (chunk) => {
+        setMessages((prev) => {
+          const lastIndex = prev.length - 1;
+          if (lastIndex < 0) return prev;
+          const lastMsg = prev[lastIndex];
+          if (lastMsg.role !== 'assistant') return prev;
+          return [
+            ...prev.slice(0, lastIndex),
+            { ...lastMsg, content: lastMsg.content + chunk }
+          ];
+        });
+      },
+    });
 
     const enqueueStreamContent = (text, immediate = false) => {
       if (immediate) {
+        pacer.flushImmediately();
         setMessages((prev) => {
           const lastIndex = prev.length - 1;
           if (lastIndex < 0) return prev;
@@ -288,32 +207,11 @@ export const ChatProvider = ({ children }) => {
         return;
       }
 
-      streamQueue += text;
-      if (!isPacerRunning) {
-        pumpNextTokens();
-      }
+      pacer.push(text);
     };
 
     const flushQueueImmediately = () => {
-      memoryStartedAt = 0;
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-      isPacerRunning = false;
-      if (!streamQueue) return;
-      const remaining = streamQueue;
-      streamQueue = '';
-      setMessages((prev) => {
-        const lastIndex = prev.length - 1;
-        if (lastIndex < 0) return prev;
-        const lastMsg = prev[lastIndex];
-        if (lastMsg.role !== 'assistant') return prev;
-        return [
-          ...prev.slice(0, lastIndex),
-          { ...lastMsg, content: lastMsg.content + remaining }
-        ];
-      });
+      pacer.flushImmediately();
     };
 
     const MAX_RECONNECT_ATTEMPTS = 3;
@@ -599,11 +497,7 @@ export const ChatProvider = ({ children }) => {
               });
             } else if (event.type === 'done') {
               completedSuccessfully = true;
-              isStreamNetworkDone = true;
-              // Smoothly let the remaining tokens drain into the chat before closing the stream
-              while (streamQueue.length > 0 && !signal.aborted) {
-                await new Promise((resolve) => setTimeout(resolve, 20));
-              }
+              await pacer.drain();
               break;
             } else if (event.type === 'error') {
               const errText = event.error || event.data || "An error occurred.";
@@ -624,12 +518,7 @@ export const ChatProvider = ({ children }) => {
           if (attempt <= MAX_RECONNECT_ATTEMPTS && !signal.aborted) {
             console.warn(`[Chat] Connection error, reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`, err);
 
-            if (rafId) {
-              cancelAnimationFrame(rafId);
-              rafId = null;
-            }
-            streamQueue = '';
-            isPacerRunning = false;
+            pacer.abort();
 
             setMessages((prev) => {
               const lastIndex = prev.length - 1;
@@ -683,14 +572,10 @@ export const ChatProvider = ({ children }) => {
         }
       }
     } finally {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
       if (signal.aborted) {
-        streamQueue = '';
-      } else if (streamQueue.length > 0) {
-        flushQueueImmediately();
+        pacer.abort();
+      } else {
+        pacer.flushImmediately();
       }
       if (abortControllerRef.current?.signal === signal) {
         abortControllerRef.current = null;

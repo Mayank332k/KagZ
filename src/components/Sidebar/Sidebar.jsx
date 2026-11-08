@@ -17,6 +17,7 @@ import {
   StarIcon,
   TextIcon,
   Blockchain04Icon,
+  LayoutAlignLeftIcon,
 } from "@hugeicons/core-free-icons";
 
 import ActionModal from "../UI/ActionModal";
@@ -345,7 +346,11 @@ const Sidebar = () => {
     } else {
       document.documentElement.style.setProperty(
         "--font-sans",
-        'system-ui, "Inter", "Segoe UI", Roboto, sans-serif',
+        '"Montserrat", sans-serif',
+      );
+      document.documentElement.style.setProperty(
+        "--ui-font",
+        '"Montserrat", sans-serif',
       );
     }
   }, [fontFamily]);
@@ -1010,23 +1015,11 @@ const Sidebar = () => {
 
   if (isCollapsed && !isMobileSidebarOpen) {
     return (
-      <>
-        <div className="hidden md:flex h-screen w-12 flex-col items-center py-3 border-r border-black/[0.06] dark:border-white/[0.07] transition-colors duration-300 relative z-50 bg-[#f9f8f7] dark:bg-[#202020]">
-          <button
-            onClick={() => setIsCollapsed(false)}
-            className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
-            title="Open sidebar"
-            aria-label="Open sidebar"
-          >
-            <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
-          </button>
-        </div>
-        <SearchPalette
-          isOpen={isSearchActive}
-          onClose={() => setIsSearchActive(false)}
-          recentPages={mockRecent}
-        />
-      </>
+      <SearchPalette
+        isOpen={isSearchActive}
+        onClose={() => setIsSearchActive(false)}
+        recentPages={mockRecent}
+      />
     );
   }
 
@@ -1795,7 +1788,7 @@ const Sidebar = () => {
                         >
                           <span className="capitalize">
                             {fontFamily === "sans"
-                              ? "Sans-serif"
+                              ? "Montserrat (Default)"
                               : fontFamily === "serif"
                                 ? "Serif"
                                 : fontFamily === "system"
@@ -1815,7 +1808,7 @@ const Sidebar = () => {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
-                              { id: "sans", label: "Sans-serif" },
+                              { id: "sans", label: "Montserrat (Default)" },
                               { id: "serif", label: "Serif" },
                               { id: "mono", label: "Monospace" },
                               { id: "system", label: "System Default" },
@@ -2888,7 +2881,7 @@ const Sidebar = () => {
               title="Close sidebar"
               aria-label="Close sidebar"
             >
-              <PanelLeft className="w-4 h-4" strokeWidth={1.8} />
+              <HugeiconsIcon icon={LayoutAlignLeftIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none" />
             </button>
           <div className="flex items-center gap-0.5 relative">
             <button
@@ -2968,10 +2961,16 @@ const Sidebar = () => {
                 <button
                   key={item.id}
                   onClick={() => {
-                    if (!isRightChatOpen && chatStartupMode === "fresh") {
-                      clearChat();
+                    const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+                    if (isMobileScreen) {
+                      if (setIsMobileSidebarOpen) setIsMobileSidebarOpen(false);
+                      navigate('/dashboard/chat');
+                    } else {
+                      if (!isRightChatOpen && chatStartupMode === "fresh") {
+                        clearChat();
+                      }
+                      setIsRightChatOpen((prev) => !prev);
                     }
-                    setIsRightChatOpen((prev) => !prev);
                   }}
                   className="block cursor-pointer outline-none"
                 >

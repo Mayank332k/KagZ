@@ -1,16 +1,18 @@
-import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo, useCallback } from 'react';
 import { ChevronRight, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LimitationIcon, Add01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
+import { chatAPI } from '../../services/api';
+import { useChatScroll } from '../../hooks/useChatScroll';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import ThinkingOrb from './ThinkingOrb';
-import InteractiveChoiceCard from './InteractiveChoiceCard';
+import InteractiveChoiceCard, { parseInlineMarkdown } from './InteractiveChoiceCard';
 import WorkingProcessAccordion, { formatDuration } from './WorkingProcessAccordion';
 import { parseThoughtAndContent } from '../../utils/thoughtParser';
 import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
@@ -22,7 +24,8 @@ import './AIChat.css';
 
 // Message action toolbar for assistant result cards
 
-const formatSource = (src) => {
+const formatSource = (rawSrc) => {
+  const src = typeof rawSrc === 'string' ? { url: rawSrc, title: rawSrc } : (rawSrc || {});
   if (src.url) {
     try {
       const normalizedUrl = src.url.startsWith('http://') || src.url.startsWith('https://')
@@ -277,7 +280,8 @@ const SourcesPill = ({ sources }) => {
   );
 };
 
-const MessageActions = ({ content, timestamp, isLatest }) => {
+const MessageActions = ({ content, timestamp, isLatest, sources }) => {
+  const { openSources } = useContext(SourcesSheetContext);
   const { isPageOpen, appendContent, workspaceTree, triggerSidebarRefresh, activePage } = useContext(EditorContext);
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -366,7 +370,7 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
   })();
 
   return (
-    <div className={`flex items-center gap-1.5 mt-2 select-none transition-opacity duration-200 ${isLatest ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
+    <div className={`flex items-center gap-1.5 mt-2 select-none transition-opacity duration-200 ${isLatest ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100'}`}>
       {/* Copy */}
       <button
         onClick={handleCopy}
@@ -453,6 +457,23 @@ const MessageActions = ({ content, timestamp, isLatest }) => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Sources button (only shown when sources exist) */}
+      {sources && sources.length > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            const formattedSources = sources.map(formatSource);
+            openSources(formattedSources);
+          }}
+          className="w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+          title={`View ${sources.length} sources`}
+          aria-label="View sources"
+        >
+          <HugeiconsIcon icon={BookOpen02Icon} size={15} strokeWidth={1.8} className="select-none text-current" />
+        </button>
+      )}
 
       {/* Timestamp */}
       {formattedTime && (
@@ -827,7 +848,18 @@ const ThoughtHeader = ({ duration, startedAt, thoughts = [], isStreaming = false
   );
 };
 
-const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
+const ChatMessageItem = React.memo(({
+  msg,
+  idx,
+  isLatest,
+  isStreaming,
+  messages,
+  onSelectChoice,
+  onSkipChoice,
+  dismissedChoiceId,
+  choiceSelectedIndex,
+  onSelectedIndexChange,
+}) => {
   const isLatestStreaming = isStreaming && isLatest;
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
@@ -841,15 +873,62 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
       (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
       (Array.isArray(msg.sources) && msg.sources.length > 0) ||
       Boolean(msg.researchData) ||
-      (msg.stateType && msg.stateType !== 'thinking')
+      (msg.stateType && msg.stateType !== 'thinking') ||
+      (Array.isArray(thoughts) && thoughts.length > 0)
     )
   );
 
+  const choiceData = useMemo(
+    () => (msg.role === 'assistant' ? parseInteractiveChoice(msg.content) : null),
+    [msg.content, msg.role]
+  );
+
+  const allSources = useMemo(() => {
+    if (Array.isArray(msg.sources) && msg.sources.length > 0) return msg.sources;
+    if (Array.isArray(msg.researchData?.sources) && msg.researchData.sources.length > 0) return msg.researchData.sources;
+    if (Array.isArray(msg.workingSteps)) {
+      const extracted = msg.workingSteps
+        .filter((s) => s && (s.url || (s.type === 'execution' && s.domain)))
+        .map((s) => ({ url: s.url, title: s.text, domain: s.domain }));
+      if (extracted.length > 0) return extracted;
+    }
+    return [];
+  }, [msg.sources, msg.researchData, msg.workingSteps]);
+
+  const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
+  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user');
+  const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
+  const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
+
+  const promptId = msg.id || msg._id || `${msg.createdAt || msg.timestamp || idx}`;
+  const isChoiceActive = Boolean(
+    choiceData &&
+    !isChoiceResolved &&
+    isLatest &&
+    !isStreaming &&
+    dismissedChoiceId !== promptId
+  );
+
   if (msg.role === 'user') {
+    const prevMsg = idx > 0 && messages ? messages[idx - 1] : null;
+    const isPrevChoice = prevMsg?.role === 'assistant' && Boolean(parseInteractiveChoice(prevMsg?.content));
+    const isChoiceResp = Boolean(msg.isChoiceResponse || isPrevChoice);
+
+    if (isChoiceResp) {
+      return null;
+    }
+
     const { tool, cleanContent } = parseUserToolMessage(msg.content);
 
     return (
-      <div className="flex flex-col items-end group/msg">
+      <motion.div
+        data-role="user"
+        data-msg-index={idx}
+        initial={{ opacity: 0, y: 0 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="flex flex-col items-end group/msg"
+      >
         <div className="bg-gray-100 dark:bg-[#202020] text-gray-800 dark:text-gray-200 text-[13.5px] px-4 py-2 rounded-[20px] max-w-[85%] leading-normal shadow-sm [&_p]:mb-0">
           {msg.pageContext?.title && (
             <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[12px] font-medium text-gray-600 dark:text-gray-300 select-none">
@@ -875,12 +954,16 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
           )}
         </div>
         <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col items-start group/msg w-full">
+    <div
+      data-role="assistant"
+      data-msg-index={idx}
+      className={`flex flex-col items-start group/msg w-full ${isLatest ? 'min-h-[calc(100%-120px)]' : ''}`}
+    >
       <div className="bg-transparent text-gray-800 dark:text-gray-200 text-[15px] py-0.5 max-w-[100%] leading-relaxed w-full min-w-0">
         {/* Smooth Cross-Fade between ThinkingOrb and WorkingProcessAccordion */}
         <AnimatePresence mode="wait">
@@ -928,19 +1011,54 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
                 isStreaming={isLatestStreaming && isThinkingTagActive}
               />
             )}
-            <div className="markdown-content text-[15px] leading-relaxed">
+            <div className="text-[15px] leading-relaxed">
               <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
             </div>
           </>
         )}
-        {msg.sources && msg.sources.length > 0 && !(finalContent === '' && isLatestStreaming) && (
-          <SourcesPill sources={msg.sources} align="side" />
+
+        {/* Inline Resolved Choice */}
+        {isChoiceResolved && (
+          <div
+            data-choice-resolved="true"
+            className="mt-3 inline-flex flex-col gap-1.5 p-3 rounded-[12px] bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-[13.5px] max-w-full"
+          >
+            {choiceData.question && (!finalContent || !finalContent.toLowerCase().includes(choiceData.question.toLowerCase().trim())) && (
+              <div className="text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8] font-normal leading-snug">
+                <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(choiceData.question) }} />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <span className="material-symbols-outlined text-[13px] leading-none font-bold select-none">check</span>
+              </div>
+              <span className="text-[#8E8B86] dark:text-[#8A8A8A] text-[12.5px] font-normal">Selected:</span>
+              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">{displayAnswer}</span>
+            </div>
+          </div>
         )}
+
+        {/* Inline Active Choice Card */}
+        {isChoiceActive && (
+          <div className="mt-3 w-full">
+            <InteractiveChoiceCard
+              question={choiceData.question}
+              options={choiceData.options}
+              selectedIndex={choiceSelectedIndex}
+              onSelectedIndexChange={onSelectedIndexChange}
+              onSelect={(chosen) => onSelectChoice && onSelectChoice(chosen, { id: promptId, question: choiceData.question })}
+              onSkip={() => onSkipChoice && onSkipChoice(promptId)}
+              onDismiss={() => onSkipChoice && onSkipChoice(promptId)}
+            />
+          </div>
+        )}
+
         {finalContent && !(finalContent === '' && isLatestStreaming) && (
           <MessageActions
             content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
             isLatest={isLatest}
+            sources={allSources}
           />
         )}
       </div>
@@ -948,7 +1066,18 @@ const ChatMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   );
 });
 
-const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
+const RightPanelMessageItem = React.memo(({
+  msg,
+  idx,
+  isLatest,
+  isStreaming,
+  messages,
+  onSelectChoice,
+  onSkipChoice,
+  dismissedChoiceId,
+  choiceSelectedIndex,
+  onSelectedIndexChange,
+}) => {
   const isLatestStreaming = isStreaming && isLatest;
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
@@ -962,15 +1091,62 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
       (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
       (Array.isArray(msg.sources) && msg.sources.length > 0) ||
       Boolean(msg.researchData) ||
-      (msg.stateType && msg.stateType !== 'thinking')
+      (msg.stateType && msg.stateType !== 'thinking') ||
+      (Array.isArray(thoughts) && thoughts.length > 0)
     )
   );
 
+  const choiceData = useMemo(
+    () => (msg.role === 'assistant' ? parseInteractiveChoice(msg.content) : null),
+    [msg.content, msg.role]
+  );
+
+  const allSources = useMemo(() => {
+    if (Array.isArray(msg.sources) && msg.sources.length > 0) return msg.sources;
+    if (Array.isArray(msg.researchData?.sources) && msg.researchData.sources.length > 0) return msg.researchData.sources;
+    if (Array.isArray(msg.workingSteps)) {
+      const extracted = msg.workingSteps
+        .filter((s) => s && (s.url || (s.type === 'execution' && s.domain)))
+        .map((s) => ({ url: s.url, title: s.text, domain: s.domain }));
+      if (extracted.length > 0) return extracted;
+    }
+    return [];
+  }, [msg.sources, msg.researchData, msg.workingSteps]);
+
+  const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
+  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user');
+  const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
+  const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
+
+  const promptId = msg.id || msg._id || `${msg.createdAt || msg.timestamp || idx}`;
+  const isChoiceActive = Boolean(
+    choiceData &&
+    !isChoiceResolved &&
+    isLatest &&
+    !isStreaming &&
+    dismissedChoiceId !== promptId
+  );
+
   if (msg.role === 'user') {
+    const prevMsg = idx > 0 && messages ? messages[idx - 1] : null;
+    const isPrevChoice = prevMsg?.role === 'assistant' && Boolean(parseInteractiveChoice(prevMsg?.content));
+    const isChoiceResp = Boolean(msg.isChoiceResponse || isPrevChoice);
+
+    if (isChoiceResp) {
+      return null;
+    }
+
     const { tool, cleanContent } = parseUserToolMessage(msg.content);
 
     return (
-      <div className="message-row user group/msg flex flex-col items-end">
+      <motion.div
+        data-role="user"
+        data-msg-index={idx}
+        initial={{ opacity: 0, y: 0 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="message-row user group/msg flex flex-col items-end"
+      >
         <div className="message-bubble-user">
           {msg.pageContext?.title && (
             <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-[12px] font-medium text-gray-600 dark:text-gray-300 select-none">
@@ -996,12 +1172,16 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
           )}
         </div>
         <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="message-row assistant group/msg w-full">
+    <div
+      data-role="assistant"
+      data-msg-index={idx}
+      className={`message-row assistant group/msg w-full ${isLatest ? 'min-h-[calc(100vh-280px)]' : ''}`}
+    >
       <div className="message-bubble-assistant w-full min-w-0">
         {/* Smooth Cross-Fade between ThinkingOrb and WorkingProcessAccordion */}
         <AnimatePresence mode="wait">
@@ -1054,14 +1234,49 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
             </>
           )}
         </div>
-        {msg.sources && msg.sources.length > 0 && !(finalContent === '' && isLatestStreaming) && (
-          <SourcesPill sources={msg.sources} align="side" />
+
+        {/* Inline Resolved Choice */}
+        {isChoiceResolved && (
+          <div
+            data-choice-resolved="true"
+            className="mt-3 inline-flex flex-col gap-1.5 p-3 rounded-[12px] bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-[13.5px] max-w-full"
+          >
+            {choiceData.question && (!finalContent || !finalContent.toLowerCase().includes(choiceData.question.toLowerCase().trim())) && (
+              <div className="text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8] font-normal leading-snug">
+                <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(choiceData.question) }} />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <span className="material-symbols-outlined text-[13px] leading-none font-bold select-none">check</span>
+              </div>
+              <span className="text-[#8E8B86] dark:text-[#8A8A8A] text-[12.5px] font-normal">Selected:</span>
+              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">{displayAnswer}</span>
+            </div>
+          </div>
         )}
+
+        {/* Inline Active Choice Card */}
+        {isChoiceActive && (
+          <div className="mt-3 w-full">
+            <InteractiveChoiceCard
+              question={choiceData.question}
+              options={choiceData.options}
+              selectedIndex={choiceSelectedIndex}
+              onSelectedIndexChange={onSelectedIndexChange}
+              onSelect={(chosen) => onSelectChoice && onSelectChoice(chosen, { id: promptId, question: choiceData.question })}
+              onSkip={() => onSkipChoice && onSkipChoice(promptId)}
+              onDismiss={() => onSkipChoice && onSkipChoice(promptId)}
+            />
+          </div>
+        )}
+
         {finalContent && !(finalContent === '' && isLatestStreaming) && (
           <MessageActions
             content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
             isLatest={isLatest}
+            sources={allSources}
           />
         )}
       </div>
@@ -1069,7 +1284,7 @@ const RightPanelMessageItem = React.memo(({ msg, isLatest, isStreaming }) => {
   );
 });
 
-const parseInteractiveChoice = (content) => {
+function parseInteractiveChoice(content) {
   if (!content || typeof content !== 'string') return null;
 
   const tryParseJson = (str) => {
@@ -1363,7 +1578,7 @@ const ChatComposer = ({
     ) {
       payload = `Delete task: ${chosenAnswer}`;
     }
-    handleSend(attachedPage, payload);
+    handleSend(attachedPage, payload, { isChoiceResponse: true });
   };
 
   const handleSkipChoice = () => {
@@ -1733,21 +1948,6 @@ const ChatComposer = ({
               if (textareaRef?.current) textareaRef.current.focus();
             }}
             onClose={() => setIsMentionOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Floating Interactive Choices Card */}
-      <AnimatePresence>
-        {activeChoicePrompt && (
-          <InteractiveChoiceCard
-            question={activeChoicePrompt.question}
-            options={activeChoicePrompt.options}
-            selectedIndex={choiceSelectedIndex}
-            onSelectedIndexChange={setChoiceSelectedIndex}
-            onSelect={handleSelectChoice}
-            onSkip={handleSkipChoice}
-            onDismiss={handleSkipChoice}
           />
         )}
       </AnimatePresence>
@@ -2141,7 +2341,12 @@ const ChatComposer = ({
                   disabled={!query.trim()}
                   className="w-[38px] h-[38px] rounded-full bg-[#9CA3AF] dark:bg-white flex items-center justify-center text-white dark:text-black hover:bg-[#6B7280] dark:hover:bg-gray-200 disabled:opacity-40 transition-colors shadow-sm ml-1 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_upward</span>
+                  <span
+                    className="material-symbols-outlined text-[19.5px] leading-none select-none"
+                    style={{ fontVariationSettings: "'wght' 350, 'opsz' 20" }}
+                  >
+                    arrow_upward
+                  </span>
                 </button>
               )}
             </div>
@@ -2181,13 +2386,54 @@ const AIChat = ({ isRightPanel = false }) => {
     setIsRightChatOpen,
     isLoadingMore,
     hasMore,
-    fetchMoreMessages
+    fetchMoreMessages,
+    loadSession,
+    sessionId
   } = useContext(ChatContext);
+  const { toggleSidebar, isSidebarCollapsed, isMobileSidebarOpen } = useContext(EditorContext) || {};
   const { user } = useAuth();
   
   const textareaRef = useRef(null);
   const chatScrollRef = useRef(null);
+  const titleDropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
+  const [recentSessions, setRecentSessions] = useState([]);
+
+  const activeChatTitle = useMemo(() => {
+    if (messages && messages.length > 0) {
+      const firstUserMsg = messages.find((m) => m.role === 'user');
+      if (firstUserMsg && firstUserMsg.content) {
+        const clean = firstUserMsg.content.trim().replace(/^#+\s*/, '');
+        return clean.length > 38 ? clean.slice(0, 38) + '...' : clean;
+      }
+    }
+    return 'New Chat';
+  }, [messages]);
+
+  // Click outside to close title dropdown
+  useEffect(() => {
+    if (!isTitleMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (titleDropdownRef.current && !titleDropdownRef.current.contains(e.target)) {
+        setIsTitleMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTitleMenuOpen]);
+
+  // Load recent sessions when title dropdown opens
+  useEffect(() => {
+    if (isTitleMenuOpen) {
+      chatAPI.getSessions().then((res) => {
+        if (res.data?.sessions) {
+          setRecentSessions(res.data.sessions);
+        }
+      }).catch((err) => console.warn('Failed to load recent sessions:', err));
+    }
+  }, [isTitleMenuOpen]);
 
   const timeGreeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -2212,7 +2458,6 @@ const AIChat = ({ isRightPanel = false }) => {
     "Summarize your recent notes"
   ], [timeGreeting]);
   const [greetingIndex, setGreetingIndex] = useState(0);
-  const [showScrollButton, setShowScrollButton] = useState(false);
   const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
   const [activeSources, setActiveSources] = useState(null);
 
@@ -2256,76 +2501,49 @@ const AIChat = ({ isRightPanel = false }) => {
     }
   }, [query, messages.length]);
 
-  const prevScrollHeightRef = useRef(0);
-  const wasLoadingMoreRef = useRef(false);
-  const prevMessagesCountRef = useRef(messages.length);
+  const {
+    showScrollButton,
+    handleScroll,
+    scrollToBottom,
+  } = useChatScroll({
+    chatScrollRef,
+    messages,
+    isStreaming,
+    isRightPanel,
+    isLoadingMore,
+    hasMore,
+    fetchMoreMessages,
+  });
 
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    
-    // Show scroll button if scrolled up more than 150px
-    if (scrollHeight - scrollTop - clientHeight > 150) {
-      setShowScrollButton(true);
-    } else {
-      setShowScrollButton(false);
-    }
+  const [choiceSelectedIndex, setChoiceSelectedIndex] = useState(-1);
 
-    if (scrollTop === 0 && !isLoadingMore && hasMore) {
-      prevScrollHeightRef.current = scrollHeight;
-      wasLoadingMoreRef.current = true;
-      fetchMoreMessages();
-    }
-  };
-
-  const scrollToBottom = (behavior = 'smooth') => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTo({
-        top: chatScrollRef.current.scrollHeight,
-        behavior
-      });
-    }
-  };
-
-  useLayoutEffect(() => {
-    if (chatScrollRef.current) {
-      if (wasLoadingMoreRef.current) {
-        const newScrollHeight = chatScrollRef.current.scrollHeight;
-        chatScrollRef.current.scrollTop = newScrollHeight - prevScrollHeightRef.current;
-        wasLoadingMoreRef.current = false;
-      } else {
-        const container = chatScrollRef.current;
-        const isNewMessage = messages.length > prevMessagesCountRef.current;
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 250;
-
-        if (isNewMessage) {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: 'smooth'
-          });
-          setTimeout(() => {
-            if (chatScrollRef.current) {
-              chatScrollRef.current.scrollTo({
-                top: chatScrollRef.current.scrollHeight,
-                behavior: 'smooth'
-              });
-            }
-          }, 80);
-        } else if (isNearBottom) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }
-      prevMessagesCountRef.current = messages.length;
-    }
-  }, [messages]);
-
-  const handleSend = async (pageCtx = null, overrideText = null) => {
+  const handleSend = async (pageCtx = null, overrideText = null, sendOptions = {}) => {
     const text = (overrideText !== null && overrideText !== undefined ? overrideText : query).trim();
     if (!text || isStreaming) return;
-    sendMessage(text, null, pageCtx);
-    setTimeout(() => {
-      scrollToBottom('smooth');
-    }, 40);
+    sendMessage(text, null, pageCtx, sendOptions);
   };
+
+  const handleSelectChoice = useCallback((chosenAnswer, prompt) => {
+    if (prompt?.id) {
+      setDismissedChoiceId(prompt.id);
+    }
+    let payload = chosenAnswer;
+    if (
+      prompt?.question &&
+      /delete/i.test(prompt.question) &&
+      !/^delete/i.test(chosenAnswer) &&
+      !/^(yes|no|cancel|skip)/i.test(chosenAnswer)
+    ) {
+      payload = `Delete task: ${chosenAnswer}`;
+    }
+    handleSend(null, payload, { isChoiceResponse: true });
+  }, [isStreaming, query]);
+
+  const handleSkipChoice = useCallback((promptId) => {
+    if (promptId) {
+      setDismissedChoiceId(promptId);
+    }
+  }, []);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -2340,47 +2558,56 @@ const AIChat = ({ isRightPanel = false }) => {
       <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
         <div className="flex flex-col h-full bg-white dark:bg-[var(--color-dark-bg)] border-l border-black/[0.06] dark:border-white/[0.07] overflow-hidden relative shadow-sm">
           {/* Right Panel Header */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 bg-white dark:bg-[var(--color-dark-bg)] border-b border-black/[0.04] dark:border-white/[0.04]">
-            <button 
-              onClick={() => {
-                if (setIsRightChatOpen) {
-                  setIsRightChatOpen(false);
-                } else if (window.history.state && window.history.state.idx > 0) {
-                  navigate(-1);
-                } else {
-                  const lastPage = localStorage.getItem('noema-last-page-route');
-                  navigate(lastPage || '/dashboard/page/new');
-                }
-              }}
-              className="flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Go back"
-              aria-label="Go back"
-            >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
-            </button>
+          <div className="h-[44px] sm:h-[46px] w-full px-3 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-40 shrink-0">
+            {/* Left: Back/Close + Title */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button 
+                onClick={() => {
+                  if (setIsRightChatOpen) {
+                    setIsRightChatOpen(false);
+                  } else if (window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    const lastPage = localStorage.getItem('noema-last-page-route');
+                    navigate(lastPage || '/dashboard/page/new');
+                  }
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                title="Close chat"
+                aria-label="Close chat"
+              >
+                <span className="material-symbols-outlined text-[18px] leading-none select-none text-current">keyboard_backspace</span>
+              </button>
 
-            <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <span className="text-[13.5px] font-medium text-gray-800 dark:text-white truncate max-w-[140px] select-none">
+                {activeChatTitle || 'Chat'}
+              </span>
+            </div>
+
+            {/* Right: New Chat + Expand to full chat */}
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => clearChat()}
-                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="New Chat"
                 aria-label="New Chat"
               >
-                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={20} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
               </button>
+
               <button
                 onClick={() => navigate('/dashboard/chat')}
-                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title="Expand Chat"
-                aria-label="Expand Chat"
+                className="w-8 h-8 flex items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="Expand to full chat"
+                aria-label="Expand to full chat"
               >
-                <HugeiconsIcon icon={ExpandIcon} size={20} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={ExpandIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
               </button>
             </div>
           </div>
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-[18px] custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
             {isLoadingMore && <MessageSkeletonLoader />}
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
@@ -2404,8 +2631,15 @@ const AIChat = ({ isRightPanel = false }) => {
                 <ChatMessageItem
                   key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
                   msg={msg}
+                  idx={idx}
                   isLatest={idx === messages.length - 1}
                   isStreaming={isStreaming}
+                  messages={messages}
+                  onSelectChoice={handleSelectChoice}
+                  onSkipChoice={handleSkipChoice}
+                  dismissedChoiceId={dismissedChoiceId}
+                  choiceSelectedIndex={choiceSelectedIndex}
+                  onSelectedIndexChange={setChoiceSelectedIndex}
                 />
               ))
             )}
@@ -2421,15 +2655,12 @@ const AIChat = ({ isRightPanel = false }) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
                   transition={{ duration: 0.15 }}
-                  onClick={() => {
-                    setShowScrollButton(false);
-                    scrollToBottom('smooth');
-                  }}
-                  className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
+                  onClick={() => scrollToBottom('smooth')}
+                  className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 w-11 h-11 rounded-full bg-white dark:bg-[#252525] border border-black/[0.08] dark:border-white/[0.12] shadow-[0_4px_20px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)] flex items-center justify-center text-gray-700 hover:text-black dark:text-neutral-200 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#2e2e2e] transition-all hover:scale-105 active:scale-95 cursor-pointer"
                   title="Scroll to bottom"
                   aria-label="Scroll to bottom"
                 >
-                  <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
+                  <HugeiconsIcon icon={ArrowDown01Icon} size={20} strokeWidth={2.2} className="select-none text-current" />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -2467,82 +2698,174 @@ const AIChat = ({ isRightPanel = false }) => {
     <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
       <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
         <div className="chat-container flex-1">
-          {/* Header with Blurs & Actions */}
-          <div className="chat-header relative flex justify-between items-center p-3 sm:p-4 z-50 pointer-events-none">
-            <button 
-              onClick={() => {
-                if (window.history.state && window.history.state.idx > 0) {
-                  navigate(-1);
-                } else {
-                  const lastPage = localStorage.getItem('noema-last-page-route');
-                  navigate(lastPage || '/dashboard/page/new');
-                }
-              }}
-              className="pointer-events-auto relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Go back"
-              aria-label="Go back"
-            >
-              <span className="material-symbols-outlined text-[17px] leading-none select-none text-current">keyboard_backspace</span>
-            </button>
-            
-            <div className="inline-flex items-center p-1 gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] pointer-events-auto">
-              <button 
-                onClick={() => clearChat()}
-                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title="New Chat"
-                aria-label="New Chat"
-              >
-                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={20} className="shrink-0 select-none" />
-              </button>
+          {/* Top Navbar */}
+          <div className="chat-navbar h-[44px] sm:h-[46px] w-full px-3 sm:px-4 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-40 shrink-0">
+            {/* Left: Sidebar Toggle + Chat Title Dropdown */}
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              {(!isMobileSidebarOpen || isSidebarCollapsed) && (
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className={`w-8 h-8 items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0 ${
+                    !isMobileSidebarOpen ? 'flex' : 'hidden'
+                  } ${isSidebarCollapsed ? 'md:flex' : 'md:hidden'}`}
+                  title="Open sidebar"
+                  aria-label="Open sidebar"
+                >
+                  <HugeiconsIcon icon={LayoutAlignLeftIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                </button>
+              )}
 
-              <button 
+              <div className="relative" ref={titleDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsTitleMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-[7px] text-[13.5px] sm:text-[14px] font-medium text-gray-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer select-none max-w-[200px] xs:max-w-[300px] sm:max-w-[460px]"
+                >
+                  <span className="truncate">{activeChatTitle}</span>
+                  <span className={`material-symbols-outlined text-[16px] text-gray-500 dark:text-white leading-none transition-transform duration-200 ${isTitleMenuOpen ? 'rotate-180' : ''}`}>
+                    keyboard_arrow_down
+                  </span>
+                </button>
+
+                {/* Dropdown Menu for Recent Chats & Actions */}
+                <AnimatePresence>
+                  {isTitleMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full mt-1.5 w-68 max-h-[360px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1e1e1e] border border-black/[0.08] dark:border-white/[0.1] rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] p-1.5 z-50 flex flex-col gap-0.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearChat();
+                          setIsTitleMenuOpen(false);
+                        }}
+                        className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-[13px] text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-left cursor-pointer"
+                      >
+                        <HugeiconsIcon icon={AddCircleHalfDotIcon} size={16} className="shrink-0 text-gray-500 dark:text-gray-400" />
+                        <span className="font-medium">New Chat</span>
+                      </button>
+
+                      {recentSessions.length > 0 && (
+                        <>
+                          <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1" />
+                          <div className="px-2.5 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                            Recent Chats
+                          </div>
+                          {recentSessions.slice(0, 8).map((session) => (
+                            <button
+                              key={session.sessionId}
+                              type="button"
+                              onClick={() => {
+                                if (session.sessionId !== sessionId) {
+                                  loadSession(session.sessionId);
+                                }
+                                setIsTitleMenuOpen(false);
+                              }}
+                              className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[13px] transition-colors text-left cursor-pointer ${
+                                session.sessionId === sessionId
+                                  ? 'bg-black/[0.05] dark:bg-white/[0.1] text-gray-900 dark:text-white font-medium'
+                                  : 'text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10'
+                              }`}
+                            >
+                              <span className="truncate">{session.title || 'Untitled Chat'}</span>
+                              {session.sessionId === sessionId && (
+                                <span className="material-symbols-outlined text-[15px] text-blue-500 shrink-0 ml-1">check</span>
+                              )}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Right: Dock to Sidebar + New Chat */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
                 onClick={handleDockToSidebar}
-                className="hidden md:flex w-8.5 h-8.5 items-center justify-center rounded-full text-gray-500 dark:text-neutral-400 hover:text-gray-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="hidden md:flex w-8 h-8 items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 title="Open in Sidebar"
                 aria-label="Open in Sidebar"
               >
-                <HugeiconsIcon icon={SidebarRightIcon} size={20} className="shrink-0 select-none" />
+                <HugeiconsIcon icon={SidebarRightIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => clearChat()}
+                className="w-8 h-8 flex items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                title="New Chat"
+                aria-label="New Chat"
+              >
+                <HugeiconsIcon icon={AddCircleHalfDotIcon} size={19} strokeWidth={1.8} className="shrink-0 select-none text-current" />
               </button>
             </div>
           </div>
 
           {messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-3 sm:px-4 mt-[-6vh] sm:mt-[-10vh] z-10 relative">
-              {/* Logo Doodle */}
-              <div className="flex items-center justify-center mb-5 sm:mb-8 relative group cursor-default">
-                <img src="/kagz.png" alt="KagZ Logo" className="w-[50px] h-[50px] sm:w-[64px] sm:h-[64px] object-contain transition-transform duration-300 group-hover:scale-105 select-none" />
+            <>
+              <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-3 sm:px-4 mt-[-6vh] sm:mt-[-10vh] z-10 relative">
+                {/* Logo Doodle */}
+                <div className="flex items-center justify-center mb-5 sm:mb-8 relative group cursor-default">
+                  <img src="/kagz.png" alt="KagZ Logo" className="w-[50px] h-[50px] sm:w-[64px] sm:h-[64px] object-contain transition-transform duration-300 group-hover:scale-105 select-none" />
+                </div>
+
+                <div className="h-[36px] sm:h-[40px] mb-6 sm:mb-8 w-full relative flex items-center justify-center">
+                  <AnimatePresence mode="wait">
+                    <motion.h1
+                      key={greetingIndex}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                      className="text-[22px] sm:text-[30px] leading-[28px] sm:leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
+                    >
+                      {greetings[greetingIndex]}
+                    </motion.h1>
+                  </AnimatePresence>
+                </div>
+
+                {/* Centered Composer - Desktop Only */}
+                <div className="w-full max-w-[770px] mb-8 relative z-20 px-2 sm:px-4 hidden sm:block">
+                  <ChatComposer 
+                    textareaRef={textareaRef}
+                    query={query}
+                    setQuery={setQuery}
+                    handleKeyDown={handleKeyDown}
+                    handleSend={handleSend}
+                    isStreaming={isStreaming}
+                    dismissedChoiceId={dismissedChoiceId}
+                    setDismissedChoiceId={setDismissedChoiceId}
+                    isRightPanel={isRightPanel}
+                  />
+                </div>
               </div>
 
-              <div className="h-[36px] sm:h-[40px] mb-6 sm:mb-8 w-full relative flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                  <motion.h1
-                    key={greetingIndex}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="text-[22px] sm:text-[30px] leading-[28px] sm:leading-[36px] font-semibold text-gray-900 dark:text-[#f0efed] tracking-tight absolute text-center w-full"
-                  >
-                    {greetings[greetingIndex]}
-                  </motion.h1>
-                </AnimatePresence>
+              {/* Bottom Composer on Mobile in Normal Reply Position */}
+              <div className="chat-footer sm:hidden">
+                <div className="w-full max-w-[770px] mx-auto px-2 sm:px-4 relative z-20 pointer-events-auto">
+                  <ChatComposer 
+                    textareaRef={textareaRef}
+                    query={query}
+                    setQuery={setQuery}
+                    handleKeyDown={handleKeyDown}
+                    handleSend={handleSend}
+                    isStreaming={isStreaming}
+                    dismissedChoiceId={dismissedChoiceId}
+                    setDismissedChoiceId={setDismissedChoiceId}
+                    isRightPanel={isRightPanel}
+                  />
+                </div>
               </div>
-
-              {/* Centered Composer */}
-              <div className="w-full max-w-[770px] mb-8 relative z-20 px-2 sm:px-4">
-                <ChatComposer 
-                  textareaRef={textareaRef}
-                  query={query}
-                  setQuery={setQuery}
-                  handleKeyDown={handleKeyDown}
-                  handleSend={handleSend}
-                  isStreaming={isStreaming}
-                  dismissedChoiceId={dismissedChoiceId}
-                  setDismissedChoiceId={setDismissedChoiceId}
-                  isRightPanel={isRightPanel}
-                />
-              </div>
-            </div>
+            </>
           ) : (
             <>
               {/* Chat Scroll Area */}
@@ -2553,8 +2876,15 @@ const AIChat = ({ isRightPanel = false }) => {
                     <RightPanelMessageItem
                       key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
                       msg={msg}
+                      idx={idx}
                       isLatest={idx === messages.length - 1}
                       isStreaming={isStreaming}
+                      messages={messages}
+                      onSelectChoice={handleSelectChoice}
+                      onSkipChoice={handleSkipChoice}
+                      dismissedChoiceId={dismissedChoiceId}
+                      choiceSelectedIndex={choiceSelectedIndex}
+                      onSelectedIndexChange={setChoiceSelectedIndex}
                     />
                   ))}
                 </div>
@@ -2571,15 +2901,12 @@ const AIChat = ({ isRightPanel = false }) => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 6 }}
                         transition={{ duration: 0.15 }}
-                        onClick={() => {
-                          setShowScrollButton(false);
-                          scrollToBottom('smooth');
-                        }}
-                        className="absolute -top-13 left-1/2 -translate-x-1/2 z-50 w-8 h-8 rounded-full bg-white/95 dark:bg-[#222]/95 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.1] shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-gray-600 hover:text-black dark:text-neutral-300 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all hover:scale-105 cursor-pointer"
+                        onClick={() => scrollToBottom('smooth')}
+                        className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 w-11 h-11 rounded-full bg-white dark:bg-[#252525] border border-black/[0.08] dark:border-white/[0.12] shadow-[0_4px_20px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)] flex items-center justify-center text-gray-700 hover:text-black dark:text-neutral-200 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#2e2e2e] transition-all hover:scale-105 active:scale-95 cursor-pointer"
                         title="Scroll to bottom"
                         aria-label="Scroll to bottom"
                       >
-                        <span className="material-symbols-outlined text-[18px] leading-none select-none">arrow_downward</span>
+                        <HugeiconsIcon icon={ArrowDown01Icon} size={20} strokeWidth={2.2} className="select-none text-current" />
                       </motion.button>
                     )}
                   </AnimatePresence>

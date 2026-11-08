@@ -317,6 +317,7 @@ const WorkingProcessAccordion = ({
   duration = null,
   startedAt = null,
   hasVisibleContent = false,
+  thoughts = [],
 }) => {
   const [isOpen, setIsOpen] = useState(isStreaming && !hasVisibleContent);
   const userInteractedRef = useRef(false);
@@ -566,8 +567,8 @@ const WorkingProcessAccordion = ({
           {isWriting
             ? 'Writing...'
             : isStreaming
-            ? `Working for ${formatDuration(elapsed)}`
-            : `Worked for ${formatDuration(displaySeconds)}`}
+            ? (visibleSteps.length > 0 ? `Working for ${formatDuration(elapsed)}` : `Thinking for ${formatDuration(elapsed)}`)
+            : (visibleSteps.length > 0 ? `Worked for ${formatDuration(displaySeconds)}` : `Thought for ${formatDuration(displaySeconds)}`)}
         </span>
 
         {isOpen ? (
@@ -597,6 +598,14 @@ const WorkingProcessAccordion = ({
               ref={scrollContainerRef}
               className="border-l-2 border-neutral-300 dark:border-white/15 ml-2 pl-3 py-1.5 my-1 flex flex-col gap-2 max-h-[260px] overflow-y-auto overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(150,150,150,0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-black/20 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
             >
+              {/* Thinking Reasoning (from <think> tags) */}
+              {Array.isArray(thoughts) && thoughts.length > 0 && (
+                <div className="flex flex-col gap-1 pb-1 w-full min-w-0">
+                  <div className="text-[13.5px] text-neutral-600 dark:text-[#a09d96] font-normal leading-relaxed whitespace-pre-wrap select-text">
+                    {thoughts.join('\n\n')}
+                  </div>
+                </div>
+              )}
               {thoughtGroups.map((group, gIdx) => {
                 const isLatestGroup = gIdx === thoughtGroups.length - 1;
                 const hasTools = group.tools.length > 0;
