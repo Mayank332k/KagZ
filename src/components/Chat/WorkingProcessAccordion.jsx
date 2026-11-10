@@ -10,6 +10,7 @@ import {
   Quiz04Icon,
   Search01Icon,
   Globe02Icon,
+  WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -289,6 +290,19 @@ const StepIcon = ({ step, isLive, size = 15 }) => {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
         <HugeiconsIcon icon={Quiz04Icon} size={size} strokeWidth={1.8} />
+      </div>
+    );
+  }
+
+  // Reconnecting step
+  if (
+    stateType === 'reconnecting' ||
+    lower.includes('reconnect') ||
+    lower.includes('trying to reconnect')
+  ) {
+    return (
+      <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-amber-500${pulseClass}`}>
+        <HugeiconsIcon icon={WifiDisconnected01Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
@@ -627,7 +641,21 @@ const WorkingProcessAccordion = ({
       };
     }
 
-    // 6. Searching the web
+    // 6. Reconnecting
+    if (
+      state === 'reconnecting' ||
+      lower.includes('reconnect') ||
+      lower.includes('trying to reconnect') ||
+      lower.includes('connection error')
+    ) {
+      return {
+        key: 'reconnecting',
+        label: stepText || 'Reconnecting...',
+        icon: <HugeiconsIcon icon={WifiDisconnected01Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 7. Searching the web
     return {
       key: 'searching',
       label: 'Searching the web',
