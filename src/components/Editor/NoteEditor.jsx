@@ -37,7 +37,6 @@ import { TableCell } from '@tiptap/extension-table-cell';
 
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import ThinkingOrb from '../Chat/ThinkingOrb';
 
 const createStreamId = () => `stream-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -45,7 +44,6 @@ const AILoadingNodeComponent = (props) => {
   const status = props.node.attrs.status || 'Writing...';
   return (
     <NodeViewWrapper className="ai-loading-wrapper my-1.5 inline-flex items-center gap-2 select-none pointer-events-none user-select-none outline-none ring-0">
-      <ThinkingOrb size={18} stateType="thinking" />
       <span className="shimmer-sentence text-[15px] font-medium leading-none tracking-tight select-none">
         {status}
       </span>
@@ -141,7 +139,7 @@ const NoteEditor = () => {
   const [locationLocked, setLocationLocked] = useState(false);
   const [isNewPage, setIsNewPage] = useState(false);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(pageId && pageId !== "new"));
   const [saveStatus, setSaveStatus] = useState("idle"); // 'idle' | 'saving' | 'saved' | 'error'
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -658,7 +656,7 @@ const NoteEditor = () => {
     // Skip loading state if we just auto-saved a new page and the URL changed from "new" to an ID.
     // This prevents the editor from unmounting and destroying the user's cursor/focus while they type.
     const isSavingNewPage = prevPageIdRef.current === "new" && pageId !== "new";
-    if (!isSavingNewPage) {
+    if (!isSavingNewPage && pageId !== "new") {
       setLoading(true);
     }
     prevPageIdRef.current = pageId;
@@ -1658,6 +1656,8 @@ const NoteEditor = () => {
           border-left: 3px solid currentColor !important;
           margin: 8px 0 !important;
           padding-left: 14px !important;
+          font-family: var(--font-quote, "Lora", serif) !important;
+          font-style: italic !important;
           color: #7d7a75 !important;
         }
 
@@ -1666,7 +1666,7 @@ const NoteEditor = () => {
         }
 
         .ProseMirror code:not(pre code) {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+          font-family: var(--font-mono, "JetBrains Mono", monospace) !important;
           font-size: 0.85em !important;
           line-height: 1.4 !important;
           background: rgba(0, 0, 0, 0.05) !important;
@@ -1952,8 +1952,6 @@ const NoteEditor = () => {
               <div className="flex items-center gap-2.5 px-4 py-2 bg-white/95 dark:bg-[#1f1f1f]/95 rounded-full shadow-2xl border border-gray-200/50 dark:border-white/5 relative overflow-hidden backdrop-blur-md">
                 {/* Background Shimmer (Clipped properly by overflow-hidden) */}
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gray-100/40 dark:via-white/[0.03] to-transparent animate-shimmer-move" />
-                
-                <ThinkingOrb size={20} stateType="thinking" className="relative z-10" />
                 
                 {/* Premium Text Shimmer */}
                 <span className="relative z-10 shimmer-sentence text-[15px] font-medium leading-none tracking-tight select-none">

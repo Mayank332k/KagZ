@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Globe, FileText, CheckSquare, Search } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BookOpen01Icon, QuillWrite01Icon, QuillWrite02Icon } from '@hugeicons/core-free-icons';
-import ThinkingOrb from './ThinkingOrb';
-import { resolveStateType } from '../../utils/thoughtParser';
+import {
+  BookOpen01Icon,
+  BookOpen02Icon,
+  QuillWrite02Icon,
+  Quiz04Icon,
+  Search01Icon,
+  Globe02Icon,
+} from '@hugeicons/core-free-icons';
 
 /**
  * Formats seconds into human-readable duration:
@@ -176,6 +181,20 @@ function getStepAction(step) {
     };
   }
 
+  // 8. Memory recall / update
+  if (
+    step?.stateType === 'memory' ||
+    step?.stateType === 'remembering' ||
+    lower.includes('memory') ||
+    lower.includes('remember') ||
+    lower.includes('yaad')
+  ) {
+    return {
+      type: 'memory',
+      tooltip: 'View AI Memory in settings',
+    };
+  }
+
   return null;
 }
 
@@ -188,7 +207,7 @@ const FaviconIcon = ({ domain }) => {
   if (!domain || hasError) {
     return (
       <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]">
-        <Globe size={16.5} />
+        <HugeiconsIcon icon={Globe02Icon} size={16.5} strokeWidth={1.8} />
       </div>
     );
   }
@@ -210,12 +229,12 @@ const FaviconIcon = ({ domain }) => {
  * Step Icon for chronological steps:
  * - Memory update / saved: QuillWrite02Icon
  * - Memory recalled / use: BookOpen01Icon
- * - Completed workspace note: FileText document icon
- * - Completed web URL: Real site Favicon
- * - Completed search: Globe icon
- * - Completed task: CheckSquare icon
+ * - Completed workspace note / read: BookOpen02Icon
+ * - Completed web URL: Real site Favicon (fallback Globe02Icon)
+ * - Completed search / research: Search01Icon
+ * - Completed task: Quiz04Icon
  */
-const StepIcon = ({ step, isLive }) => {
+const StepIcon = ({ step, isLive, size = 15 }) => {
   const text = typeof step === 'string' ? step : step?.text || '';
   const stateType = typeof step === 'object' ? step?.stateType : null;
   const lower = text.toLowerCase();
@@ -230,7 +249,7 @@ const StepIcon = ({ step, isLive }) => {
   ) {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <HugeiconsIcon icon={QuillWrite02Icon} size={16.5} strokeWidth={1.8} />
+        <HugeiconsIcon icon={QuillWrite02Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
@@ -245,16 +264,16 @@ const StepIcon = ({ step, isLive }) => {
   ) {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <HugeiconsIcon icon={BookOpen01Icon} size={16.5} strokeWidth={1.8} />
+        <HugeiconsIcon icon={BookOpen01Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
 
-  // Completed workspace note
+  // Completed workspace note / Reading item
   if (isWorkspaceNote(step, text)) {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <FileText size={16.5} />
+        <HugeiconsIcon icon={BookOpen02Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
@@ -269,7 +288,7 @@ const StepIcon = ({ step, isLive }) => {
   if (stateType === 'task_management' || lower.includes('task') || lower.includes('kanban')) {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <CheckSquare size={16.5} />
+        <HugeiconsIcon icon={Quiz04Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
@@ -284,7 +303,7 @@ const StepIcon = ({ step, isLive }) => {
   ) {
     return (
       <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-        <Search size={16.5} />
+        <HugeiconsIcon icon={Search01Icon} size={size} strokeWidth={1.8} />
       </div>
     );
   }
@@ -292,7 +311,7 @@ const StepIcon = ({ step, isLive }) => {
   // Default web search query
   return (
     <div className={`shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]${pulseClass}`}>
-      <Globe size={16.5} />
+      <HugeiconsIcon icon={Globe02Icon} size={size} strokeWidth={1.8} />
     </div>
   );
 };
@@ -318,8 +337,10 @@ const WorkingProcessAccordion = ({
   startedAt = null,
   hasVisibleContent = false,
   thoughts = [],
+  finalContent = '',
+  onOpenSources = null,
 }) => {
-  const [isOpen, setIsOpen] = useState(isStreaming && !hasVisibleContent);
+  const [isOpen, setIsOpen] = useState(false);
   const userInteractedRef = useRef(false);
   const prevStreamingRef = useRef(isStreaming);
 
@@ -355,19 +376,23 @@ const WorkingProcessAccordion = ({
       }
     }
 
-    // Fallback: If steps are empty (e.g. loaded from session/DB) but sources exist, generate source steps
-    if (list.length === 0 && Array.isArray(sources) && sources.length > 0) {
-      list = sources.map((s) => {
-        const domain = s.domain || (s.url ? (() => { try { return new URL(s.url).hostname; } catch { return ''; } })() : '');
-        const title = s.title || (s.url ? s.url.replace(/^https?:\/\/[^/]+\/?/, '') : '') || domain || 'Source';
-        return {
-          type: 'execution',
-          text: domain ? `Read ${domain}` : `Read ${title}`,
-          domain,
-          url: s.url,
-          stateType: s.type === 'workspace' ? 'workspace_search' : 'web_search',
-          isLive: false,
-        };
+    // Merge sources if present: ensure all verified URLs exist in the step breakdown alongside memory & task steps
+    if (Array.isArray(sources) && sources.length > 0) {
+      sources.forEach((s) => {
+        const url = s.url || '';
+        const domain = s.domain || (url ? (() => { try { return new URL(url).hostname; } catch { return ''; } })() : '');
+        const alreadyInList = list.some((st) => st.url === url || (domain && st.domain === domain));
+        if (!alreadyInList) {
+          const title = s.title || (url ? url.replace(/^https?:\/\/[^/]+\/?/, '') : '') || domain || 'Source';
+          list.push({
+            type: 'execution',
+            text: domain ? `Read ${domain}` : `Read ${title}`,
+            domain,
+            url,
+            stateType: s.type === 'workspace' ? 'workspace_search' : 'web_search',
+            isLive: false,
+          });
+        }
       });
     }
 
@@ -390,23 +415,6 @@ const WorkingProcessAccordion = ({
 
   const isWriting = isStreaming && hasVisibleContent && !hasActiveRunningStep;
   const prevWritingRef = useRef(false);
-
-  // Keep accordion open while steps/tools are actively running
-  useEffect(() => {
-    if (isStreaming && hasActiveRunningStep && !userInteractedRef.current) {
-      setIsOpen(true);
-    }
-  }, [isStreaming, hasActiveRunningStep]);
-
-  // As soon as all tools finish and visible content streams, auto-collapse so user focuses on the answer
-  useEffect(() => {
-    if (!prevWritingRef.current && isWriting) {
-      if (!userInteractedRef.current) {
-        setIsOpen(false);
-      }
-    }
-    prevWritingRef.current = isWriting;
-  }, [isWriting]);
 
   // Auto-collapse when streaming finishes
   useEffect(() => {
@@ -437,59 +445,7 @@ const WorkingProcessAccordion = ({
 
   const displaySeconds = duration || elapsed;
 
-  // Dynamic active stateType for the header ThinkingOrb
-  const activeStateType = useMemo(() => {
-    const lastStep = visibleSteps[visibleSteps.length - 1];
-    const lastText = typeof lastStep === 'string' ? lastStep : lastStep?.text;
-    const lastType = typeof lastStep === 'object' ? lastStep?.stateType : null;
-    return resolveStateType(lastType || stateType, lastText || status);
-  }, [visibleSteps, stateType, status]);
-
   const scrollContainerRef = useRef(null);
-
-  // Group visible steps into hierarchical Thought Groups with stable keys
-  const thoughtGroups = useMemo(() => {
-    const groups = [];
-    let currentGroup = null;
-
-    for (let i = 0; i < visibleSteps.length; i++) {
-      const step = visibleSteps[i];
-      const isThought = typeof step === 'object' && (step?.type === 'thought' || step?.isThought);
-
-      if (isThought) {
-        const thoughtKey = (step.text || '').replace(/\s+/g, '-').slice(0, 36);
-        // If an unparented group with tools was created just before this thought, attach to this thought!
-        if (currentGroup && !currentGroup.thought && currentGroup.tools.length > 0) {
-          currentGroup.thought = step;
-          currentGroup.id = `tg-${groups.length - 1}-${thoughtKey}`;
-        } else {
-          currentGroup = {
-            id: `tg-${groups.length}-${thoughtKey}`,
-            thought: step,
-            tools: [],
-          };
-          groups.push(currentGroup);
-        }
-      } else {
-        // Tool execution step
-        if (!currentGroup) {
-          currentGroup = {
-            id: `tg-default-${groups.length}`,
-            thought: null,
-            tools: [step],
-          };
-          groups.push(currentGroup);
-        } else {
-          currentGroup.tools.push(step);
-        }
-      }
-    }
-
-    return groups;
-  }, [visibleSteps]);
-
-  // Tracks user manual toggle state: { [groupId]: boolean }
-  const [manualExpanded, setManualExpanded] = useState({});
   const navigate = useNavigate();
 
   const handleStepClick = (e, action) => {
@@ -504,14 +460,9 @@ const WorkingProcessAccordion = ({
       navigate(action.target);
     } else if (action.type === 'workspace_search') {
       navigate('/dashboard');
+    } else if (action.type === 'memory') {
+      window.dispatchEvent(new CustomEvent('open-settings', { detail: { tab: 'ai' } }));
     }
-  };
-
-  const toggleGroup = (groupId) => {
-    setManualExpanded((prev) => ({
-      ...prev,
-      [groupId]: !prev[groupId],
-    }));
   };
 
   // Auto-scroll inside accordion only during live streaming when new steps arrive and user is already at the bottom
@@ -524,243 +475,302 @@ const WorkingProcessAccordion = ({
     }
   }, [visibleSteps.length, isOpen, isStreaming]);
 
-  // If there are no steps to show, do not render
-  if (visibleSteps.length === 0) return null;
+  // Response streaming is only true when tools are finished/idle and actual reply text is streaming
+  const isResponseStreaming = Boolean(
+    (!isStreaming || !hasActiveRunningStep) &&
+    (hasVisibleContent || (finalContent && finalContent.trim().length > 0))
+  );
+
+  const latestThoughtRef = useRef('');
+
+  const conversationalThought = useMemo(() => {
+    // If response tokens already started arriving and tools are done, thought should cleanly exit
+    if (isResponseStreaming) return null;
+
+    // 1. Explicit thought step from backend event.event or workingSteps
+    const thoughtStep = visibleSteps.slice().reverse().find((s) => s?.type === 'thought' || s?.isThought);
+    if (thoughtStep?.text && typeof thoughtStep.text === 'string' && thoughtStep.text.trim()) {
+      latestThoughtRef.current = thoughtStep.text.trim();
+      return latestThoughtRef.current;
+    }
+    // 2. Initial or continuous thought from <think> tag (no character limit cutoff)
+    if (Array.isArray(thoughts) && thoughts.length > 0) {
+      const activeThought = thoughts[thoughts.length - 1];
+      if (typeof activeThought === 'string' && activeThought.trim() && !activeThought.trim().startsWith('```')) {
+        latestThoughtRef.current = activeThought.trim();
+        return latestThoughtRef.current;
+      }
+    }
+    // 3. Fallback to cached thought during active streaming so intermediate tool transitions don't blink it out
+    if (isStreaming && latestThoughtRef.current) {
+      return latestThoughtRef.current;
+    }
+    return null;
+  }, [isResponseStreaming, visibleSteps, thoughts, isStreaming]);
+
+  // Preserved thought: Stays accessible inside expanded accordion even after final response starts streaming
+  const persistedThought = useMemo(() => {
+    const thoughtStep = visibleSteps.slice().reverse().find((s) => s?.type === 'thought' || s?.isThought);
+    if (thoughtStep?.text && typeof thoughtStep.text === 'string' && thoughtStep.text.trim()) {
+      return thoughtStep.text.trim();
+    }
+    if (Array.isArray(thoughts) && thoughts.length > 0) {
+      const activeThought = thoughts[thoughts.length - 1];
+      if (typeof activeThought === 'string' && activeThought.trim() && !activeThought.trim().startsWith('```')) {
+        return activeThought.trim();
+      }
+    }
+    if (latestThoughtRef.current) {
+      return latestThoughtRef.current;
+    }
+    return null;
+  }, [visibleSteps, thoughts]);
+
+  const toolSteps = useMemo(() => {
+    return visibleSteps.filter((s) => s?.type !== 'thought' && !s?.isThought);
+  }, [visibleSteps]);
+
+  const activeStep = useMemo(() => {
+    const running = toolSteps.find((s) => s?.isLive || s?.status === 'running');
+    if (running) return running;
+    return toolSteps[toolSteps.length - 1] || null;
+  }, [toolSteps]);
+
+  const activeStepText = useMemo(() => {
+    if (!activeStep) return status || 'Searching web...';
+    const text = typeof activeStep === 'string' ? activeStep : (activeStep.text || status || 'Searching web...');
+    return text.replace(/>\s*$/, '').trim();
+  }, [activeStep, status]);
+
+  const activeToolMeta = useMemo(() => {
+    // Phase: Completed or response tokens started arriving -> "Worked for {N}s >" (NO ICON)
+    if (!isStreaming || isResponseStreaming) {
+      if (toolSteps.length === 0 && (!sources || sources.length === 0) && !researchData) {
+        return null;
+      }
+      return {
+        key: 'worked',
+        label: `Worked for ${formatDuration(displaySeconds)}`,
+        icon: null,
+      };
+    }
+
+    // Pure thinking chat without tools should not show a tool action button
+    if (toolSteps.length === 0 && (!status || /^thinking(\.{1,3})?$/i.test(status.trim()))) {
+      return null;
+    }
+
+    // Active tool running: Compact into active phrasing
+    const stepText = typeof activeStep === 'string' ? activeStep : (activeStep?.text || status || '');
+    const lower = stepText.toLowerCase();
+    const state = activeStep?.stateType || stateType;
+
+    // 1. Updating memory
+    if (
+      state === 'memory' ||
+      lower.includes('saving memory') ||
+      lower.includes('saved to memory') ||
+      lower.includes('updated memory') ||
+      lower.includes('updating memory')
+    ) {
+      return {
+        key: 'updating',
+        label: 'Updating memory',
+        icon: <HugeiconsIcon icon={QuillWrite02Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 2. Recalling memory
+    if (
+      state === 'remembering' ||
+      lower.includes('recalled memory') ||
+      lower.includes('remember') ||
+      lower.includes('yaad') ||
+      lower.includes('memory')
+    ) {
+      return {
+        key: 'recalling',
+        label: 'Recalling memory',
+        icon: <HugeiconsIcon icon={BookOpen01Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 3. Notes / Workspace
+    if (isWorkspaceNote(activeStep, stepText)) {
+      return {
+        key: 'notes',
+        label: 'Reading notes',
+        icon: <HugeiconsIcon icon={BookOpen02Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 4. Reading page / note / URL
+    if (
+      lower.startsWith('reading') ||
+      lower.startsWith('read ') ||
+      isWebUrlOrDomain(stepText, activeStep?.domain)
+    ) {
+      const domain = activeStep?.domain || extractDomain(stepText);
+      return {
+        key: `reading-${domain || 'page'}`,
+        label: domain ? `Reading ${domain}` : 'Reading notes',
+        icon: domain ? <FaviconIcon domain={domain} /> : <HugeiconsIcon icon={BookOpen02Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 5. Updating tasks
+    if (state === 'task_management' || lower.includes('task') || lower.includes('kanban')) {
+      return {
+        key: 'tasks',
+        label: 'Updating tasks',
+        icon: <HugeiconsIcon icon={Quiz04Icon} size={14.5} strokeWidth={1.8} />,
+      };
+    }
+
+    // 6. Searching the web
+    return {
+      key: 'searching',
+      label: 'Searching the web',
+      icon: <HugeiconsIcon icon={Search01Icon} size={14.5} strokeWidth={1.8} />,
+    };
+  }, [isStreaming, isResponseStreaming, displaySeconds, activeStep, status, stateType]);
 
   const handleToggle = () => {
     userInteractedRef.current = true;
     setIsOpen((prev) => !prev);
   };
 
+  // If there are no steps or status or thought to show, do not render
+  if (visibleSteps.length === 0 && !status && !isStreaming && !conversationalThought) return null;
+
   return (
     <div className="w-full my-1.5 select-none font-sans text-left">
-      {/* Sleek Accordion Header with dynamic state: Quill when writing, ThinkingOrb when working */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="group/work inline-flex items-center gap-2 text-[15px] font-normal text-neutral-500 dark:text-[#8e8b86] hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors focus:outline-none cursor-pointer py-1"
-        title={isOpen ? 'Collapse working process' : 'Expand working process'}
-      >
-        {isWriting ? (
+      {/* 1. Conversational Acknowledgement: Disappears as soon as response tokens start arriving */}
+      <AnimatePresence>
+        {!isResponseStreaming && conversationalThought && (
           <motion.div
-            animate={{
-              rotate: [-4, 6, -4],
-              y: [0, -1.2, 0],
-              x: [0, 0.8, 0],
-            }}
-            transition={{
-              duration: 1.4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            className="w-5 h-5 shrink-0 flex items-center justify-center text-neutral-400 dark:text-[#8e8b86]"
+            key="conversational-thought-container"
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-2 select-text overflow-hidden"
           >
-            <HugeiconsIcon icon={QuillWrite01Icon} size={17.5} strokeWidth={1.8} />
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={conversationalThought}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                style={{ fontFamily: 'var(--font-quote)' }}
+                className="inline-block trailing-dark-shade italic text-[15px] sm:text-[15.5px] leading-relaxed select-text"
+              >
+                {conversationalThought}
+              </motion.span>
+            </AnimatePresence>
           </motion.div>
-        ) : isStreaming ? (
-          <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-            <ThinkingOrb size={20} stateType={activeStateType} />
-          </div>
-        ) : null}
-
-        <span>
-          {isWriting
-            ? 'Writing...'
-            : isStreaming
-            ? (visibleSteps.length > 0 ? `Working for ${formatDuration(elapsed)}` : `Thinking for ${formatDuration(elapsed)}`)
-            : (visibleSteps.length > 0 ? `Worked for ${formatDuration(displaySeconds)}` : `Thought for ${formatDuration(displaySeconds)}`)}
-        </span>
-
-        {isOpen ? (
-          <ChevronDown
-            size={16}
-            className="shrink-0 text-neutral-400 dark:text-[#8e8b86] group-hover/work:text-neutral-600 dark:group-hover/work:text-neutral-200 transition-colors"
-          />
-        ) : (
-          <ChevronRight
-            size={16}
-            className="shrink-0 text-neutral-400 dark:text-[#8e8b86] group-hover/work:text-neutral-600 dark:group-hover/work:text-neutral-200 transition-colors"
-          />
         )}
-      </button>
+      </AnimatePresence>
 
-      {/* Collapsible Body with Guideline */}
+      {/* 2. Research / Tool State: Inline with Left Icon, Shaded Text & Dynamic '>' Arrow */}
+      {activeToolMeta && (
+        <div className="my-1 select-none flex items-center flex-wrap">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.button
+              key={activeToolMeta.key}
+              type="button"
+              onClick={handleToggle}
+              initial={{ opacity: 0, y: 3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none"
+              title={isOpen ? 'Click to collapse steps' : 'Click to expand steps'}
+            >
+              {/* Left Tool Icon (Only present for active tools; null on 'worked') */}
+              {activeToolMeta.icon && (
+                <span className="shrink-0 mr-2 flex items-center justify-center text-[#8e8e93] dark:text-[#98989f]">
+                  {activeToolMeta.icon}
+                </span>
+              )}
+
+              {/* Text with active-tool-shimmer during streaming, trailing-dark-shade on completed 'worked' */}
+              <span
+                className={`inline-block font-normal tracking-[-0.01em] ${
+                  isStreaming && !isResponseStreaming
+                    ? 'active-tool-shimmer'
+                    : 'trailing-dark-shade group-hover/toggle:opacity-90'
+                }`}
+              >
+                {activeToolMeta.label}
+              </span>
+
+              {/* Dynamic '>' arrow placed exact after the last word */}
+              <ChevronRight
+                size={14}
+                className={`ml-2 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#5a5a5e] dark:text-[#8e8e93] dark:group-hover/toggle:text-[#d1d1d6] transition-transform duration-200 ease-out ${
+                  isOpen ? 'rotate-90' : ''
+                }`}
+              />
+            </motion.button>
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* 3. Detailed Step Breakdown (Shown when expanded) */}
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden"
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden mt-1.5 mb-2"
           >
             <div
               ref={scrollContainerRef}
-              className="border-l-2 border-neutral-300 dark:border-white/15 ml-2 pl-3 py-1.5 my-1 flex flex-col gap-2 max-h-[260px] overflow-y-auto overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(150,150,150,0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-black/20 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
+              className="border-l-2 border-black/[0.08] dark:border-white/10 ml-1.5 pl-3 py-1.5 flex flex-col gap-2 max-h-[220px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar text-[13px]"
             >
-              {/* Thinking Reasoning (from <think> tags) */}
-              {Array.isArray(thoughts) && thoughts.length > 0 && (
-                <div className="flex flex-col gap-1 pb-1 w-full min-w-0">
-                  <div className="text-[13.5px] text-neutral-600 dark:text-[#a09d96] font-normal leading-relaxed whitespace-pre-wrap select-text">
-                    {thoughts.join('\n\n')}
+              {/* Preserved thought at top with Thought Icon on left */}
+              {persistedThought && (
+                <div className="flex items-start gap-2 text-neutral-600 dark:text-neutral-400 pb-0.5 mb-1">
+                  <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-0.5">
+                    <HugeiconsIcon icon={ThoughtBubbleIcon} size={15} strokeWidth={1.8} />
                   </div>
+                  <span
+                    style={{ fontFamily: 'var(--font-quote)' }}
+                    className="italic text-[13.5px] leading-relaxed text-neutral-700 dark:text-neutral-300 select-text"
+                  >
+                    {persistedThought}
+                  </span>
                 </div>
               )}
-              {thoughtGroups.map((group, gIdx) => {
-                const isLatestGroup = gIdx === thoughtGroups.length - 1;
-                const hasTools = group.tools.length > 0;
-                // Live thought active while streaming and tools are executing
-                const isThoughtActive = isStreaming && isLatestGroup && (!hasVisibleContent || group.tools.some((t) => t.isLive || t.status === 'running'));
-                // Closed by default until user explicitly clicks to expand
-                const isExpanded = Boolean(manualExpanded[group.id]);
-                const thoughtText = typeof group.thought === 'string' ? group.thought : group.thought?.text || '';
 
+              {toolSteps.map((step, sIdx) => {
+                const text = typeof step === 'string' ? step : step?.text || '';
+                const action = getStepAction(step);
+                const isClickable = Boolean(action);
+                const isLive = isStreaming && sIdx === toolSteps.length - 1 && step?.isLive !== false;
                 return (
-                  <motion.div
-                    key={group.id}
-                    initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col w-full min-w-0"
+                  <div
+                    key={step.url || step.query || step.text || sIdx}
+                    onClick={isClickable ? (e) => handleStepClick(e, action) : undefined}
+                    className={`flex items-center gap-2 text-neutral-600 dark:text-neutral-400 ${
+                      isClickable ? 'cursor-pointer hover:text-black dark:hover:text-white group' : ''
+                    }`}
+                    title={action?.tooltip}
                   >
-                    {/* Thought Header Row */}
-                    {group.thought ? (
-                      <div
-                        onClick={() => hasTools && toggleGroup(group.id)}
-                        className={`flex items-start gap-2.5 text-[15px] leading-relaxed break-words py-0.5 rounded transition-colors w-full min-w-0 ${
-                          hasTools ? 'cursor-pointer hover:text-neutral-900 dark:hover:text-[#f7f6f4] group/thought' : ''
-                        }`}
-                      >
-                        <AnimatePresence mode="wait" initial={false}>
-                          {isThoughtActive ? (
-                            <motion.div
-                              key="quill"
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{
-                                opacity: 1,
-                                scale: 1,
-                                rotate: [-4, 6, -4],
-                                y: [0, -1.2, 0],
-                                x: [0, 0.8, 0],
-                              }}
-                              exit={{ opacity: 0, scale: 0.8 }}
-                              transition={{
-                                opacity: { duration: 0.2 },
-                                scale: { duration: 0.2 },
-                                rotate: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
-                                y: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
-                                x: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
-                              }}
-                              className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[3px]"
-                            >
-                              <HugeiconsIcon icon={QuillWrite01Icon} size={16.5} strokeWidth={1.8} />
-                            </motion.div>
-                          ) : (
-                            <motion.div
-                              key="cloud"
-                              initial={{ opacity: 0, scale: 0.85 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.85 }}
-                              transition={{ duration: 0.22, ease: 'easeOut' }}
-                              className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-[3px]"
-                            >
-                              <HugeiconsIcon icon={ThoughtBubbleIcon} size={16.5} strokeWidth={1.8} />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                        <span
-                          className={`flex-1 min-w-0 font-normal break-words [overflow-wrap:anywhere] ${
-                            isThoughtActive
-                              ? 'shimmer-sentence text-neutral-800 dark:text-neutral-200'
-                              : 'text-neutral-500 dark:text-[#8e8b86]'
-                          }`}
-                        >
-                          {thoughtText}
-                        </span>
-
-                        {/* Subtle chevron (no numbers) */}
-                        {hasTools && (
-                          <div className="shrink-0 flex items-center text-neutral-400 dark:text-[#787672] select-none pr-0.5 mt-[3px]">
-                            <ChevronRight
-                              size={14}
-                              className={`transition-transform duration-200 text-neutral-400 dark:text-[#787672] ${
-                                isExpanded ? 'rotate-90' : ''
-                              }`}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {/* Tool Execution Steps (flat along the same vertical line, no tree branches or extra indent) */}
-                    {hasTools && (
-                      <AnimatePresence initial={false}>
-                        {(isExpanded || !group.thought) && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                            className="overflow-hidden w-full min-w-0"
-                          >
-                            <div className="pt-1 pb-1 flex flex-col gap-1.5 w-full min-w-0">
-                              {group.tools.map((step, tIdx) => {
-                                const text = typeof step === 'string' ? step : step?.text || '';
-                                const isLastTool = isStreaming && isLatestGroup && tIdx === group.tools.length - 1;
-                                const isLive = isStreaming && isLastTool && step?.isLive !== false;
-                                const endsWithChevron = text.trim().endsWith('>');
-                                const cleanText = endsWithChevron ? text.trim().slice(0, -1).trim() : text;
-                                const action = !isLive ? getStepAction(step) : null;
-                                const isClickable = Boolean(action);
-
-                                return (
-                                  <motion.div
-                                    key={step.url || step.query || step.text || tIdx}
-                                    initial={{ opacity: 0, y: 4, filter: 'blur(2px)' }}
-                                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                                    exit={{ opacity: 0, y: -2 }}
-                                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                                    onClick={isClickable ? (e) => handleStepClick(e, action) : undefined}
-                                    className={`flex items-start gap-2.5 text-[14.5px] leading-relaxed break-words w-full min-w-0 rounded transition-colors ${
-                                      isClickable
-                                        ? 'cursor-pointer hover:text-neutral-900 dark:hover:text-[#f7f6f4] group/step'
-                                        : ''
-                                    }`}
-                                    title={action?.tooltip}
-                                  >
-                                    <div className="shrink-0 mt-[3px]">
-                                      <StepIcon step={step} isLive={isLive} />
-                                    </div>
-                                    <span
-                                      className={`flex-1 min-w-0 break-words [overflow-wrap:anywhere] ${
-                                        isLive
-                                          ? 'shimmer-sentence font-medium text-neutral-800 dark:text-neutral-200'
-                                          : isClickable
-                                          ? 'text-neutral-500 dark:text-[#8e8b86] font-normal group-hover/step:text-neutral-800 dark:group-hover/step:text-neutral-200 group-hover/step:underline underline-offset-2 decoration-neutral-300 dark:decoration-neutral-600'
-                                          : 'text-neutral-500 dark:text-[#8e8b86] font-normal'
-                                      }`}
-                                    >
-                                      {cleanText}
-                                      {isClickable && (
-                                        <span className="inline-block ml-1 opacity-0 group-hover/step:opacity-75 transition-opacity text-[11px] select-none text-neutral-400 dark:text-neutral-500 font-mono">
-                                          ↗
-                                        </span>
-                                      )}
-                                      {endsWithChevron && (
-                                        <span className="inline-block ml-1 text-neutral-400 dark:text-neutral-500 text-[13px] select-none font-mono">
-                                          &gt;
-                                        </span>
-                                      )}
-                                    </span>
-                                  </motion.div>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                    <div className="shrink-0">
+                      <StepIcon step={step} isLive={isLive} />
+                    </div>
+                    <span className={`truncate ${isClickable ? 'group-hover:underline underline-offset-2' : ''}`}>
+                      {text}
+                    </span>
+                    {isClickable && (
+                      <span className="text-[10px] text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

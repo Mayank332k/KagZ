@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import authService from '../services/auth.service';
+import { memoryAPI } from '../services/api';
 import { AuthContext } from './AuthContextDefinition';
 const AUTH_EVENT_KEY = 'noema-auth-event';
 
@@ -22,10 +23,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const refreshMemory = useCallback(async (force = false) => {
-    const res = await authService.getCurrentUser(force);
-    applyUserPayload(res);
-    return res?.memory ?? null;
-  }, [applyUserPayload]);
+    const res = await memoryAPI.getStats(force);
+    if (res?.data?.success && res.data.memory) {
+      setMemory(res.data.memory);
+    }
+    return res?.data?.memory ?? null;
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {

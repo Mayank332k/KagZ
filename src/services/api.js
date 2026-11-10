@@ -217,6 +217,14 @@ export const authAPI = {
   },
 };
 
+// ── Memory ────────────────────────────────────────────────────────────────────
+export const memoryAPI = {
+  getStats: (force = false) => {
+    if (force) invalidateCache('memory:stats');
+    return cachedGet('memory:stats', () => api.get('/memory'));
+  },
+};
+
 // ── Workspaces ────────────────────────────────────────────────────────────────
 export const workspacesAPI = {
   getAll: () =>

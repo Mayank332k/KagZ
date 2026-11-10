@@ -4,7 +4,7 @@ import Sidebar from '../../components/Sidebar/Sidebar';
 import { ChatContext } from '../../context/ChatContextDefinition';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageCircle as MessageCircleIcon } from '@hugeicons/core-free-icons';
+import { BubbleChatNotificationIcon } from '@hugeicons/core-free-icons';
 
 const AIChat = lazy(() => import('../../components/Chat/AIChat'));
 
@@ -168,7 +168,7 @@ const Dashboard = () => {
             className="fixed right-4 bottom-4 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer bg-white dark:bg-[#202020] text-[#2c2c2b] dark:text-[#f0efed] shadow-[0_0_0_1px_var(--c-border,#e6e5e3),0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_var(--c-border,#383836),0_4px_12px_-2px_rgba(0,0,0,0.2)] transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.06] z-50 group"
           >
             <HugeiconsIcon
-              icon={MessageCircleIcon}
+              icon={BubbleChatNotificationIcon}
               size={20}
               strokeWidth={1.8}
               className="select-none text-[#2383e2] dark:text-[#4fa7ff]"

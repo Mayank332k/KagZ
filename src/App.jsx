@@ -21,6 +21,12 @@ const AIChat = lazy(() => import('./components/Chat/AIChat'));
 
 const RouteLoader = () => <ConnectingScreen />;
 
+const ContentLoader = () => (
+  <div className="flex-1 w-full h-full flex items-center justify-center bg-[var(--c-surface)] text-neutral-400">
+    <div className="w-5 h-5 border-2 border-black/10 dark:border-white/10 border-t-black/60 dark:border-t-white/60 rounded-full animate-spin" />
+  </div>
+);
+
 const DashboardIndex = () => {
   const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
   if (mode === 'resume') {
@@ -58,7 +64,7 @@ const router = createBrowserRouter([
       {
         path: "chat",
         element: (
-          <Suspense fallback={<RouteLoader />}>
+          <Suspense fallback={<ContentLoader />}>
             <AIChat />
           </Suspense>
         ),
@@ -66,23 +72,19 @@ const router = createBrowserRouter([
       {
         path: "page/:pageId",
         element: (
-          <Suspense fallback={<RouteLoader />}>
+          <Suspense fallback={<ContentLoader />}>
             <NoteEditor />
           </Suspense>
         ),
       },
       {
         path: "workspace/:workspaceId",
-        element: (
-          <Suspense fallback={<RouteLoader />}>
-            <Workspace />
-          </Suspense>
-        ),
+        element: <Navigate to="/dashboard/page/new" replace />,
       },
       {
         path: "tasks",
         element: (
-          <Suspense fallback={<RouteLoader />}>
+          <Suspense fallback={<ContentLoader />}>
             <Tasks />
           </Suspense>
         ),

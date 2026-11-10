@@ -434,6 +434,75 @@
   animation: shimmer-sentence 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+@keyframes tool-shimmer-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.active-tool-shimmer {
+  background: linear-gradient(
+    90deg,
+    #7a7a80 0%,
+    #7a7a80 20%,
+    #e4e4e7 50%,
+    #7a7a80 80%,
+    #7a7a80 100%
+  );
+  background-size: 250% 100%;
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+  animation: tool-shimmer-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+:root:not(.dark) .active-tool-shimmer {
+  background: linear-gradient(
+    90deg,
+    #8e8e93 0%,
+    #8e8e93 20%,
+    #1c1c1e 50%,
+    #8e8e93 80%,
+    #8e8e93 100%
+  );
+  background-size: 250% 100%;
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+  animation: tool-shimmer-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.trailing-dark-shade {
+  background: linear-gradient(
+    90deg,
+    #d4d4d8 0%,
+    #a1a1aa 75%,
+    #3f3f46 100%
+  );
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+:root:not(.dark) .trailing-dark-shade {
+  background: linear-gradient(
+    90deg,
+    #27272a 0%,
+    #52525b 75%,
+    #d4d4d8 100%
+  );
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
 /* --- Sources Peanut Capsule Pill & Popover --- */
 .sources-peanut-btn {
   display: inline-flex;

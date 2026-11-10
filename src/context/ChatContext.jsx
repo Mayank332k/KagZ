@@ -217,6 +217,8 @@ export const ChatProvider = ({ children }) => {
     const MAX_RECONNECT_ATTEMPTS = 3;
     let attempt = 0;
     let completedSuccessfully = false;
+    let streamError = false;
+    let memoryStartedAt = null;
 
     try {
       while (attempt <= MAX_RECONNECT_ATTEMPTS && !signal.aborted) {
@@ -270,10 +272,26 @@ export const ChatProvider = ({ children }) => {
                   });
                 }
 
-                // 2. Concrete Execution Step
-                const execText =
-                  (typeof event.message === 'string' && event.message.trim()) ||
-                  (event.query ? `Searching web for "${event.query}"...` : (thoughtText ? '' : `Running ${event.tool}...`));
+                // 2. Concrete Execution Step (always record for tool execution)
+                let execText = typeof event.message === 'string' ? event.message.trim() : '';
+                if (!execText) {
+                  if (event.tool === 'user_memory') {
+                    const action = event.action || 'recall';
+                    execText = action === 'save'
+                      ? 'Updating user memory'
+                      : action === 'forget'
+                        ? 'Clearing user memory'
+                        : 'Recalled memory & context';
+                  } else if (event.tool === 'web_search' && event.query) {
+                    execText = `Searching web for "${event.query}"...`;
+                  } else if (event.tool === 'search_workspace' && event.query) {
+                    execText = `Searching notes for "${event.query}"...`;
+                  } else if (event.tool === 'manage_tasks') {
+                    execText = 'Updating tasks & kanban board...';
+                  } else if (!thoughtText) {
+                    execText = `Running ${event.tool}...`;
+                  }
+                }
 
                 if (execText && !prevSteps.some((s) => s.text === execText)) {
                   newSteps.push({
@@ -282,7 +300,9 @@ export const ChatProvider = ({ children }) => {
                     tool: event.tool,
                     query: event.query,
                     action: event.action,
-                    stateType: event.tool || event.stateType || 'action',
+                    stateType: event.tool === 'user_memory'
+                      ? (event.action === 'save' ? 'memory' : 'remembering')
+                      : (event.tool || event.stateType || 'action'),
                     status: 'running',
                     isLive: true,
                     timestamp: Date.now(),
@@ -475,6 +495,7 @@ export const ChatProvider = ({ children }) => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('auth:memory-updated'));
               }
+              const memoryDuration = memoryStartedAt ? Math.max(1, Math.round((Date.now() - memoryStartedAt) / 1000)) : undefined;
               setMessages((prev) => {
                 const lastIndex = prev.length - 1;
                 if (lastIndex < 0) return prev;
@@ -487,10 +508,11 @@ export const ChatProvider = ({ children }) => {
                     ...lastMsg,
                     memorySaved: true,
                     memoryFact: factText,
+                    memoryDuration,
                     isNewMemory: true,
                     workingSteps: [
                       ...prevSteps,
-                      { text: `Updated memory: ${factText}`, stateType: 'memory', timestamp: Date.now() }
+                      { type: 'execution', text: `Updated memory: ${factText}`, stateType: 'memory', timestamp: Date.now() }
                     ],
                   }
                 ];

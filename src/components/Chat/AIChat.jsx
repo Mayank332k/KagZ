@@ -11,7 +11,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { chatAPI } from '../../services/api';
 import { useChatScroll } from '../../hooks/useChatScroll';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
-import ThinkingOrb from './ThinkingOrb';
 import InteractiveChoiceCard, { parseInlineMarkdown } from './InteractiveChoiceCard';
 import WorkingProcessAccordion, { formatDuration } from './WorkingProcessAccordion';
 import { parseThoughtAndContent } from '../../utils/thoughtParser';
@@ -122,45 +121,38 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
             onClose();
           }
         }}
-        className={`relative z-10 bg-[#eeece8] dark:bg-[#161616] border-t border-black/[0.08] dark:border-white/[0.08] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden ${
+        className={`relative z-10 bg-[#eeece8] dark:bg-[#161616] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden p-3.5 sm:p-4 ${
           isRightPanel
-            ? 'w-full rounded-t-[28px]'
-            : 'w-full sm:w-[94%] max-w-[560px] mx-auto rounded-t-[34px] border-x border-black/[0.08] dark:border-white/[0.08]'
+            ? 'w-full rounded-t-[33px]'
+            : 'w-full sm:w-[94%] max-w-[560px] mx-auto rounded-t-[37px] sm:rounded-[37px] sm:mb-4'
         }`}
       >
-        {/* Top bar with grab handle & subtle controls */}
-        <div className="relative pt-3 pb-2 px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-1.5 z-10">
-            <span className="text-[12px] font-medium tracking-tight text-neutral-600 dark:text-neutral-400">
-              Sources
-            </span>
-            <span className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
-              • {sources.length}
-            </span>
-          </div>
-
-          {/* Centered Grab Handle Pill */}
-          <div
-            className="absolute left-1/2 -translate-x-1/2 top-3 cursor-grab active:cursor-grabbing py-1"
-            onClick={onClose}
-          >
-            <div className="w-12 h-1 bg-black/25 dark:bg-[#505050] rounded-full" />
-          </div>
-
-          {/* Subtle Close Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="z-10 w-6 h-6 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            title="Close"
-            aria-label="Close"
-          >
-            <span className="material-symbols-outlined text-[15px] leading-none select-none">close</span>
-          </button>
-        </div>
-
         {/* Inner nested rounded component with color hierarchy */}
-        <div className="mx-3.5 sm:mx-4 mb-4 rounded-[20px] bg-white dark:bg-[#2d2d2f] border border-black/[0.06] dark:border-white/[0.06] shadow-sm overflow-hidden divide-y divide-black/[0.06] dark:divide-[#3c3c3e] max-h-[52vh] overflow-y-auto custom-scrollbar">
+        <div className="rounded-[25px] bg-white dark:bg-[#2d2d2f] border border-black/[0.06] dark:border-white/[0.06] shadow-sm overflow-hidden flex flex-col max-h-[56vh]">
+          {/* Top header bar */}
+          <div className="px-4.5 py-3 flex items-center justify-between border-b border-black/[0.06] dark:border-[#3c3c3e] shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-semibold tracking-tight text-neutral-800 dark:text-neutral-200">
+                Sources
+              </span>
+              <span className="text-[12.5px] font-medium text-neutral-400 dark:text-neutral-500">
+                • {sources.length}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close"
+            >
+              <span className="material-symbols-outlined text-[16px] leading-none select-none">close</span>
+            </button>
+          </div>
+
+          {/* Sources List */}
+          <div className="divide-y divide-black/[0.06] dark:divide-[#3c3c3e] overflow-y-auto custom-scrollbar flex-1">
           {sources.map((item, idx) => (
             <div
               key={idx}
@@ -221,10 +213,10 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
                 </div>
 
                 <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-[14.5px] font-normal text-gray-900 dark:text-[#ececec] truncate leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  <span className="text-[15.5px] font-medium text-gray-900 dark:text-[#ececec] truncate leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {item.title}
                   </span>
-                  <span className="text-[12px] text-gray-400 dark:text-[#8e8e93] truncate mt-0.5">
+                  <span className="text-[13px] text-gray-400 dark:text-[#9e9ea3] truncate mt-0.5">
                     {item.isWeb ? item.domain || item.siteName : 'Workspace Note'}
                   </span>
                 </div>
@@ -241,6 +233,7 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
               </div>
             </div>
           ))}
+          </div>
         </div>
       </motion.div>
     </div>
@@ -534,18 +527,7 @@ const resolveStateType = (type, text) => {
 };
 
 const ThinkingAnimation = ({ status, stateType = 'thinking', startedAt }) => {
-  const incomingStatus = status || null;
-  const currentType = resolveStateType(stateType, incomingStatus);
-
-  const [activeItem, setActiveItem] = useState({
-    status: incomingStatus,
-    stateType: currentType,
-  });
-  const queueRef = useRef([]);
-  const timerRef = useRef(null);
-  const isPacingRef = useRef(false);
-
-  // Live timer for thinking duration
+  // Live timer for working duration
   const [elapsed, setElapsed] = useState(() => {
     if (startedAt) return Math.max(1, Math.round((Date.now() - startedAt) / 1000));
     return 1;
@@ -560,106 +542,15 @@ const ThinkingAnimation = ({ status, stateType = 'thinking', startedAt }) => {
     return () => clearInterval(timer);
   }, [startedAt]);
 
-  useEffect(() => {
-    if (!incomingStatus) return;
-
-    const drainQueue = () => {
-      if (queueRef.current.length === 0) {
-        isPacingRef.current = false;
-        return;
-      }
-      isPacingRef.current = true;
-      const next = queueRef.current.shift();
-      setActiveItem(next);
-
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        drainQueue();
-      }, MIN_STATE_DISPLAY_MS);
-    };
-
-    // High priority: if reconnecting, immediately show WiFi animation without queue delay
-    if (currentType === 'reconnecting') {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      queueRef.current = [];
-      isPacingRef.current = false;
-      setActiveItem({ status: incomingStatus, stateType: 'reconnecting' });
-      return;
-    }
-
-    // High priority: if remembering / memory, immediately show without queue delay and hold dwell time
-    if (currentType === 'remembering' || currentType === 'memory') {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      queueRef.current = [];
-      isPacingRef.current = true;
-      setActiveItem({ status: incomingStatus, stateType: currentType });
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        drainQueue();
-      }, MIN_STATE_DISPLAY_MS);
-      return;
-    }
-
-    // Deduplicate against currently displayed or last queued status
-    const lastInQueue = queueRef.current[queueRef.current.length - 1];
-    if (incomingStatus !== activeItem.status && (!lastInQueue || lastInQueue.status !== incomingStatus)) {
-      queueRef.current.push({ status: incomingStatus, stateType: currentType });
-      // Keep queue concise (max 2 pending states) so it never lags indefinitely
-      if (queueRef.current.length > 2) {
-        queueRef.current = [queueRef.current[queueRef.current.length - 1]];
-      }
-    }
-
-    if (!isPacingRef.current && queueRef.current.length > 0) {
-      drainQueue();
-    }
-  }, [incomingStatus, currentType, activeItem.status]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const hasStatus = Boolean(activeItem.status);
-  const activeStateType = activeItem.status ? activeItem.stateType : currentType;
-  const isMemoryState = activeStateType === 'remembering' || activeStateType === 'memory';
+  const displayLabel = status && !/^thinking(\.{1,3})?$/i.test(status.trim()) && !/^reasoning(\.{1,3})?$/i.test(status.trim())
+    ? status
+    : `Working for ${formatDuration(elapsed)}`;
 
   return (
-    <div className="flex items-center text-neutral-500 dark:text-[#8e8b86] font-normal py-0.5 min-h-[30px] gap-2 select-none">
-      <div className="shrink-0 flex items-center justify-center">
-        {isMemoryState ? (
-          <div className="w-6 h-6 flex items-center justify-center">
-            <MemoryUpdateIcon isUpdating={true} showText={false} size={20} />
-          </div>
-        ) : (
-          <ThinkingOrb size={22} stateType={activeStateType} />
-        )}
-      </div>
-      <AnimatePresence mode="wait">
-        {hasStatus ? (
-          <motion.div
-            key={activeItem.status}
-            initial={{ opacity: 0, x: 4, filter: 'blur(3px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -4, filter: 'blur(3px)' }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-visible flex items-center text-[14.5px] tracking-[-0.01em]"
-          >
-            <StatusScrollReveal text={activeItem.status} />
-          </motion.div>
-        ) : (
-          <span className="text-[14.5px] tracking-[-0.01em]">
-            Thinking for {formatDuration(elapsed)}
-          </span>
-        )}
-      </AnimatePresence>
+    <div className="flex items-center text-neutral-500 dark:text-[#8e8b86] font-normal py-0.5 min-h-[30px] select-none">
+      <span className="active-tool-shimmer text-[14.5px] font-normal tracking-[-0.01em]">
+        {displayLabel}
+      </span>
     </div>
   );
 };
@@ -861,6 +752,7 @@ const ChatMessageItem = React.memo(({
   onSelectedIndexChange,
 }) => {
   const isLatestStreaming = isStreaming && isLatest;
+  const { openSources } = useContext(SourcesSheetContext);
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
     () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
@@ -986,6 +878,8 @@ const ChatMessageItem = React.memo(({
                 startedAt={msg.startedAt}
                 hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
                 thoughts={thoughts}
+                finalContent={finalContent}
+                onOpenSources={openSources}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (
@@ -1079,6 +973,7 @@ const RightPanelMessageItem = React.memo(({
   onSelectedIndexChange,
 }) => {
   const isLatestStreaming = isStreaming && isLatest;
+  const { openSources } = useContext(SourcesSheetContext);
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
     () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
@@ -1204,6 +1099,8 @@ const RightPanelMessageItem = React.memo(({
                 startedAt={msg.startedAt}
                 hasVisibleContent={Boolean(finalContent && finalContent.trim().length > 0)}
                 thoughts={thoughts}
+                finalContent={finalContent}
+                onOpenSources={openSources}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (

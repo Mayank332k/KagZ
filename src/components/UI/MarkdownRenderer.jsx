@@ -344,6 +344,7 @@ const MarkdownComponents = {
     }
     return <pre>{children}</pre>;
   },
+  script: () => null,
 };
 
 const remarkPluginsList = [remarkGfm, remarkMath];

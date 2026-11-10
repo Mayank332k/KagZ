@@ -5,7 +5,7 @@ import {
   Telescope02Icon,
   Globe02Icon,
   Brain03Icon,
-  Blockchain04Icon,
+  LibrariesIcon,
 } from '@hugeicons/core-free-icons';
 
 export const AVAILABLE_TOOLS = [
@@ -41,7 +41,7 @@ export const AVAILABLE_TOOLS = [
     tag: '@workspace',
     label: 'Workspace notes',
     description: 'Browse and search your notes & files',
-    icon: Blockchain04Icon,
+    icon: LibrariesIcon,
     emoji: '📁',
     iconColor: '#9CA3AF',
   },

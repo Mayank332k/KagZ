@@ -5,19 +5,20 @@ import { ChatContext } from "../../context/ChatContextDefinition";
 import { EditorContext } from "../../context/EditorContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "next-themes";
-import { PanelLeft, SquarePen } from "lucide-react";
+import { SquarePen } from "lucide-react";
 import { SlidersHorizontalIcon, Loading03Icon } from "hugeicons-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Delete02Icon,
   Home01Icon,
   ListTodo as ListTodoIcon,
-  MessageCircle as MessageCircleIcon,
+  BubbleChatNotificationIcon,
   Edit03Icon,
   StarIcon,
   TextIcon,
-  Blockchain04Icon,
+  LibrariesIcon,
   LayoutAlignLeftIcon,
+  Shield01Icon,
 } from "@hugeicons/core-free-icons";
 
 import ActionModal from "../UI/ActionModal";
@@ -69,6 +70,33 @@ const AI_PERSONA_OPTIONS = [
     desc: "Imaginative and enthusiastic. Offers novel angles, vivid phrasing, and creative brainstorming.",
     icon: "lightbulb",
   },
+];
+
+const SETTINGS_TAB_TITLES = {
+  preferences: "Account & Preferences",
+  typography: "Typography & Editor",
+  privacy: "Privacy & Data",
+  ai: "KagZ AI",
+};
+
+const MOBILE_SETTINGS_ITEMS = [
+  { label: "Account & Preferences", keywords: "account profile sign in member", tab: "preferences" },
+  { label: "Theme", keywords: "appearance dark light system", tab: "preferences" },
+  { label: "High contrast", keywords: "contrast visibility borders", tab: "preferences" },
+  { label: "On startup & reload", keywords: "resume last chat fresh", tab: "preferences" },
+  { label: "Reasoning process", keywords: "thinking orb", tab: "preferences" },
+  { label: "Typography & Editor", keywords: "font typeface text size", tab: "typography" },
+  { label: "Font family", keywords: "inter serif mono typeface", tab: "typography" },
+  { label: "Font size", keywords: "text size interface", tab: "typography" },
+  { label: "Spell check", keywords: "writing assistance browser", tab: "typography" },
+  { label: "Privacy & Data", keywords: "cookies storage cache clear", tab: "privacy" },
+  { label: "Cookie preferences", keywords: "analytics marketing tracking", tab: "privacy" },
+  { label: "Local storage cache", keywords: "storage quota clear local data", tab: "privacy" },
+  { label: "KagZ AI", keywords: "personality tone instructions memory limits", tab: "ai" },
+  { label: "Personality & Tone", keywords: "professional playful concise mentor creative", tab: "ai" },
+  { label: "Custom instructions", keywords: "prompt behaviour format code", tab: "ai" },
+  { label: "Session Continuity", keywords: "resume last start fresh reload", tab: "ai" },
+  { label: "Memory", keywords: "usage remaining words limit", tab: "ai" },
 ];
 
 const SidebarSkeletonItem = () => (
@@ -210,6 +238,24 @@ const Sidebar = () => {
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settingsTab, setSettingsTab] = useState("preferences");
+  const [settingsMobileView, setSettingsMobileView] = useState("menu");
+  const [isSettingsMobile, setIsSettingsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsSettingsMobile(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (showSettingsCard && isSettingsMobile) {
+      setSettingsMobileView("menu");
+    }
+  }, [showSettingsCard, isSettingsMobile]);
 
   useEffect(() => {
     if (showSettingsCard && settingsTab === "ai") {
@@ -331,26 +377,38 @@ const Sidebar = () => {
     if (fontFamily === "serif") {
       document.documentElement.style.setProperty(
         "--font-sans",
-        "ui-serif, Georgia, serif",
+        '"Source Serif 4", "Lyon Text", Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--ui-font",
+        '"Source Serif 4", "Lyon Text", Georgia, serif',
       );
     } else if (fontFamily === "mono") {
       document.documentElement.style.setProperty(
         "--font-sans",
-        "ui-monospace, SFMono-Regular, monospace",
+        '"JetBrains Mono", "SF Mono", Menlo, monospace',
+      );
+      document.documentElement.style.setProperty(
+        "--ui-font",
+        '"JetBrains Mono", "SF Mono", Menlo, monospace',
       );
     } else if (fontFamily === "system") {
       document.documentElement.style.setProperty(
         "--font-sans",
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       );
+      document.documentElement.style.setProperty(
+        "--ui-font",
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      );
     } else {
       document.documentElement.style.setProperty(
         "--font-sans",
-        '"Montserrat", sans-serif',
+        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       );
       document.documentElement.style.setProperty(
         "--ui-font",
-        '"Montserrat", sans-serif',
+        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       );
     }
   }, [fontFamily]);
@@ -464,7 +522,7 @@ const Sidebar = () => {
       path: "/dashboard/chat",
       icon: () => (
         <HugeiconsIcon
-          icon={MessageCircleIcon}
+          icon={BubbleChatNotificationIcon}
           size={17}
           strokeWidth={1.8}
           className="leading-none select-none"
@@ -1288,6 +1346,25 @@ const Sidebar = () => {
       );
     };
 
+    const openSettingsTab = (tab) => {
+      setSettingsTab(tab);
+      setSettingsSearchQuery("");
+      setSettingsMobileView("content");
+    };
+
+    const handleMobileBack = () => {
+      setSettingsSearchQuery("");
+      setSettingsMobileView("menu");
+    };
+
+    const activeSettingsTitle = settingsSearchQuery
+      ? "Search Results"
+      : SETTINGS_TAB_TITLES[settingsTab] || "Settings";
+    const mobileSearchResults = MOBILE_SETTINGS_ITEMS.filter((item) =>
+      matchesQuery(item.label, item.keywords),
+    );
+    const showMobileMenu = isSettingsMobile && settingsMobileView === "menu";
+
     return createPortal(
       <div
         className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-[4px]"
@@ -1296,7 +1373,7 @@ const Sidebar = () => {
         }}
       >
         <div
-          className="bg-[var(--c-surface)] text-[var(--c-text-primary)] rounded-[16px] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] border border-[var(--c-border)] flex w-[92vw] max-w-[1040px] h-[86vh] max-h-[760px] overflow-hidden text-sm relative"
+          className="bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-[0_14px_28px_-6px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] flex w-full h-[100dvh] max-w-none max-h-none rounded-none border-0 md:w-[92vw] md:max-w-[1040px] md:h-[86vh] md:max-h-[760px] md:rounded-[16px] md:border md:border-[var(--c-border)] overflow-hidden text-sm relative"
           style={{
             fontFamily:
               "var(--ui-font, ui-sans-serif, -apple-system, system-ui, sans-serif)",
@@ -1313,7 +1390,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={() => setShowSettingsCard(false)}
-            className="absolute top-3.5 right-3.5 w-7 h-7 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[6px] transition-colors duration-100 text-[var(--c-icon-secondary)] hover:text-[var(--c-text-primary)] z-20 cursor-pointer"
+            className="hidden md:flex absolute top-3.5 right-3.5 w-7 h-7 items-center justify-center hover:bg-[var(--ca-hover)] rounded-[6px] transition-colors duration-100 text-[var(--c-icon-secondary)] hover:text-[var(--c-text-primary)] z-20 cursor-pointer"
             aria-label="Close settings"
           >
             <span className="material-symbols-outlined text-[18px] leading-none select-none">
@@ -1321,8 +1398,218 @@ const Sidebar = () => {
             </span>
           </button>
 
+          {/* Mobile Settings Menu */}
+          {showMobileMenu && (
+            <div className="md:hidden flex-1 min-h-0 flex flex-col bg-[var(--c-surface)] overflow-y-auto custom-scrollbar">
+              <div className="px-4 pt-4 pb-2">
+                <div className="flex items-center justify-between h-11">
+                  <h1 className="text-[28px] font-semibold tracking-tight text-[var(--c-text-primary)]">
+                    Settings
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsCard(false)}
+                    aria-label="Close settings"
+                    className="w-9 h-9 -mr-1.5 flex items-center justify-center rounded-full text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] active:scale-95 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[22px] leading-none select-none">
+                      close
+                    </span>
+                  </button>
+                </div>
+
+                <div className="mt-4 flex items-center gap-2.5 h-11 px-3 rounded-[20px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
+                  <span className="material-symbols-outlined text-[20px] text-[var(--c-icon-secondary)] leading-none select-none">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    value={settingsSearchQuery}
+                    onChange={(e) => setSettingsSearchQuery(e.target.value)}
+                    placeholder="Search settings"
+                    className="flex-1 min-w-0 bg-transparent text-[16px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] outline-none"
+                  />
+                  {settingsSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSearchQuery("")}
+                      aria-label="Clear search"
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--c-icon-secondary)] hover:bg-[var(--ca-hover)] cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px] leading-none select-none">
+                        cancel
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="text-[12px] font-medium text-[var(--c-text-tertiary)] select-none">
+                      ⌘K
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {settingsSearchQuery ? (
+                <div className="px-4 pb-10 mt-2">
+                  {mobileSearchResults.length > 0 ? (
+                    <div className="rounded-[30px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] divide-y divide-[var(--c-border)] dark:divide-[var(--c-border-hairline)] overflow-hidden">
+                      {mobileSearchResults.map((item) => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => openSettingsTab(item.tab)}
+                          className="w-full flex items-center justify-between gap-3 px-4 h-12 text-left text-[14.5px] text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)] transition-colors duration-100 cursor-pointer"
+                        >
+                          <span className="truncate">{item.label}</span>
+                          <span className="material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] shrink-0 select-none">
+                            chevron_right
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="px-1 pt-6 text-[13px] text-[var(--c-text-secondary)]">
+                      No settings found for “{settingsSearchQuery}”.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="px-4 pb-8 flex-1 flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => openSettingsTab("preferences")}
+                    className="relative w-full flex items-center gap-3.5 rounded-[24px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] px-4 py-3.5 mt-1 mb-6 text-left overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.995] transition-transform duration-100 cursor-pointer"
+                  >
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-400/15 via-indigo-400/5 to-violet-400/15 dark:from-sky-500/15 dark:via-indigo-500/10 dark:to-violet-500/15"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-indigo-400/20 blur-3xl dark:bg-indigo-500/20"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -left-14 -bottom-20 h-40 w-40 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/15"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-white/10 dark:from-white/[0.03] dark:to-transparent"
+                    />
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt="Avatar"
+                        className="relative w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-[var(--c-brand)]/20"
+                      />
+                    ) : (
+                      <div className="relative w-12 h-12 rounded-full bg-[var(--c-brand-subtle)] text-[var(--c-brand)] ring-1 ring-[var(--c-brand)]/25 flex items-center justify-center font-semibold text-[18px] shrink-0 select-none">
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="relative flex flex-col min-w-0 flex-1">
+                      <span className="font-semibold text-[var(--c-text-primary)] text-[15.5px] leading-tight truncate">
+                        {displayName}
+                      </span>
+                      <span className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5 truncate">
+                        {user?.email || "Personal account"}
+                      </span>
+                    </div>
+                    <span className="relative material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] leading-none select-none shrink-0">
+                      chevron_right
+                    </span>
+                  </button>
+
+                  <div className="text-[14px] font-medium text-[var(--c-text-secondary)] px-1 mt-0 mb-2">
+                    General
+                  </div>
+                  <div className="rounded-[30px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] divide-y divide-[var(--c-border)] dark:divide-[var(--c-border-hairline)] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => openSettingsTab("preferences")}
+                      className="w-full flex items-center gap-3 px-4 h-[54px] text-left hover:bg-[var(--ca-hover)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        person
+                      </span>
+                      <span className="flex-1 truncate text-[15px] font-medium text-[var(--c-text-primary)]">
+                        Account & Preferences
+                      </span>
+                      <span className="material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] leading-none select-none">
+                        chevron_right
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openSettingsTab("typography")}
+                      className="w-full flex items-center gap-3 px-4 h-[54px] text-left hover:bg-[var(--ca-hover)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        text_fields
+                      </span>
+                      <span className="flex-1 truncate text-[15px] font-medium text-[var(--c-text-primary)]">
+                        Typography & Editor
+                      </span>
+                      <span className="material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] leading-none select-none">
+                        chevron_right
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="text-[14px] font-medium text-[var(--c-text-secondary)] px-1 mt-7 mb-2">
+                    Workspace
+                  </div>
+                  <div className="rounded-[30px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] divide-y divide-[var(--c-border)] dark:divide-[var(--c-border-hairline)] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => openSettingsTab("privacy")}
+                      className="w-full flex items-center gap-3 px-4 h-[54px] text-left hover:bg-[var(--ca-hover)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        shield
+                      </span>
+                      <span className="flex-1 truncate text-[15px] font-medium text-[var(--c-text-primary)]">
+                        Privacy & Data
+                      </span>
+                      <span className="material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] leading-none select-none">
+                        chevron_right
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openSettingsTab("ai")}
+                      className="w-full flex items-center gap-3 px-4 h-[54px] text-left hover:bg-[var(--ca-hover)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        auto_awesome
+                      </span>
+                      <span className="flex-1 truncate text-[15px] font-medium text-[var(--c-text-primary)]">
+                        KagZ AI
+                      </span>
+                      <span className="material-symbols-outlined text-[18px] text-[var(--c-icon-secondary)] leading-none select-none">
+                        chevron_right
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="mt-auto pt-10">
+                    <button
+                      type="button"
+                      onClick={() => setShowLogoutConfirm(true)}
+                      className="w-full flex items-center gap-3 px-4 h-[54px] rounded-[16px] text-left text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)] active:bg-[var(--ca-selected)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[20px] leading-none select-none">
+                        logout
+                      </span>
+                      <span className="text-[15px] font-medium">Log out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Left Sidebar Nav */}
-          <div className="w-[240px] bg-[var(--c-surface-elevated)] border-r border-[var(--c-border-hairline)] flex flex-col py-3.5 px-2.5 shrink-0 select-none">
+          <div className="hidden md:flex w-[240px] bg-[var(--c-surface-elevated)] border-r border-[var(--c-border-hairline)] flex-col py-3.5 px-2.5 shrink-0 select-none">
             {/* Search settings */}
             <div className="mb-2 px-0.5">
               <div className="flex items-center gap-2 h-8 px-2.5 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-[8px] text-[var(--c-icon-secondary)] focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
@@ -1406,7 +1693,7 @@ const Sidebar = () => {
                   }`}
                 >
                   <HugeiconsIcon
-                    icon={MessageCircleIcon}
+                    icon={Shield01Icon}
                     size={15}
                     strokeWidth={1.8}
                     className="shrink-0"
@@ -1449,43 +1736,80 @@ const Sidebar = () => {
           </div>
 
           {/* Right Content */}
-          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-12 py-8 relative bg-[var(--c-surface)]">
+          <div
+            className={`${showMobileMenu ? "hidden md:flex" : "flex"} flex-1 min-h-0 flex-col overflow-y-auto custom-scrollbar px-0 py-0 md:px-12 md:py-8 relative bg-[var(--c-surface)]`}
+          >
+            {/* Mobile subpage top bar */}
+            <div className="md:hidden sticky top-0 z-30 flex items-center h-14 px-2 bg-[var(--c-surface)]/95 backdrop-blur-md border-b border-[var(--c-border-hairline)] shrink-0">
+              <button
+                type="button"
+                onClick={handleMobileBack}
+                aria-label="Back to settings"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--c-text-primary)] hover:bg-[var(--ca-hover)] active:scale-95 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[22px] leading-none select-none">
+                  arrow_back
+                </span>
+              </button>
+              <span className="absolute left-1/2 -translate-x-1/2 text-[16px] font-semibold text-[var(--c-text-primary)] max-w-[55%] truncate">
+                {activeSettingsTitle}
+              </span>
+              {settingsTab === "ai" && !settingsSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={handleSaveAiPrefs}
+                  disabled={
+                    isSavingAiPrefs ||
+                    !hasAiPrefsChanged ||
+                    countWords(aiCustomInstructions) > 100
+                  }
+                  className="ml-auto mr-2 h-9 px-2 text-[14px] font-semibold text-[var(--c-brand)] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity cursor-pointer"
+                >
+                  {isSavingAiPrefs ? "Saving..." : "Save"}
+                </button>
+              ) : (
+                <span className="w-10 ml-auto" />
+              )}
+            </div>
+
+            <div className="px-4 pb-10 pt-4 md:px-0 md:pb-0 md:pt-0 md:flex md:flex-col md:flex-1">
             {/* Account & Preferences Tab */}
             {settingsTab === "preferences" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[19px] font-semibold text-[var(--c-text-primary)] tracking-tight">
+                <h2 className="hidden md:block text-[19px] font-semibold text-[var(--c-text-primary)] tracking-tight">
                   Account & Preferences
                 </h2>
-                <p className="text-[13px] text-[var(--c-text-secondary)] mt-0.5 mb-7">
+                <p className="hidden md:block text-[13px] text-[var(--c-text-secondary)] mt-0.5 mb-7">
                   Manage your personal profile, credentials, and app preferences
                 </p>
 
                 <div className="flex flex-col gap-7">
                   {/* Account Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5 max-md:normal-case max-md:tracking-normal max-md:px-1 max-md:text-[14px] max-md:text-[var(--c-text-secondary)]">
                       Account
                     </h3>
 
-                    <div className="rounded-[10px] bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] divide-y divide-[var(--c-border-hairline)] overflow-hidden">
+                    <div className="rounded-[10px] max-md:rounded-[22px] bg-[var(--c-surface-elevated)] max-md:bg-[var(--c-surface-well)] dark:max-md:bg-[var(--c-surface-elevated)] border border-[var(--c-border-hairline)] max-md:border-0 divide-y divide-[var(--c-border-hairline)] max-md:divide-[var(--c-border)] dark:max-md:divide-[var(--c-border-hairline)] overflow-hidden">
                       {/* Identity Row */}
-                      <div className="flex items-center gap-3.5 p-3.5">
+                      <div className="relative flex items-center gap-3.5 p-3.5 max-md:p-4 overflow-hidden">
+                        <div className="md:hidden pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-[var(--c-brand)]/10 blur-2xl" />
                         {avatar ? (
                           <img
                             src={avatar}
                             alt="Avatar"
-                            className="w-11 h-11 rounded-full object-cover shrink-0 border border-[var(--c-border-hairline)]"
+                            className="relative w-11 h-11 rounded-full object-cover shrink-0 border border-[var(--c-border-hairline)] max-md:border-0 max-md:w-12 max-md:h-12 max-md:ring-2 max-md:ring-[var(--c-brand)]/20"
                           />
                         ) : (
-                          <div className="w-11 h-11 rounded-full bg-[var(--c-brand-subtle)] text-[var(--c-brand)] border border-[var(--c-brand)]/20 flex items-center justify-center font-medium text-base shrink-0 select-none">
+                          <div className="relative w-11 h-11 rounded-full bg-[var(--c-brand-subtle)] text-[var(--c-brand)] border border-[var(--c-brand)]/20 flex items-center justify-center font-medium text-base shrink-0 select-none max-md:border-0 max-md:ring-1 max-md:ring-[var(--c-brand)]/25 max-md:font-semibold max-md:text-[18px]">
                             {displayName.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-medium text-[var(--c-text-primary)] text-[14px] leading-tight truncate">
+                        <div className="relative flex flex-col min-w-0">
+                          <span className="font-medium text-[var(--c-text-primary)] text-[14px] leading-tight truncate max-md:font-semibold max-md:text-[15px]">
                             {displayName}
                           </span>
-                          <span className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5 truncate">
+                          <span className="text-[12.5px] text-[var(--c-text-secondary)] mt-0.5 truncate max-md:text-[13px]">
                             {user?.email || "No email"}
                           </span>
                         </div>
@@ -1537,23 +1861,26 @@ const Sidebar = () => {
 
                   {/* Appearance Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5 max-md:normal-case max-md:tracking-normal max-md:px-1 max-md:text-[14px] max-md:text-[var(--c-text-secondary)]">
                       Appearance
                     </h3>
 
-                    <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] border-y border-[var(--c-border-hairline)]">
+                    <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] max-md:rounded-[14px] max-md:border max-md:border-[var(--c-border-hairline)] max-md:bg-[var(--c-surface-elevated)] max-md:px-4 md:border-y md:border-[var(--c-border-hairline)]">
                       {/* Theme Dropdown */}
-                      <div className="flex items-center justify-between py-3">
-                        <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                      <div className="flex items-center justify-between gap-3 py-3 max-md:flex-wrap max-md:gap-y-0">
+                        <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                          dark_mode
+                        </span>
+                        <div className="flex flex-col pr-4 max-md:flex-1 max-md:pr-0">
+                          <span className="text-[13px] max-md:text-[15px] font-medium text-[var(--c-text-primary)] leading-snug">
                             Theme
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 max-md:hidden">
                             Choose your interface theme for this device
                           </span>
                         </div>
 
-                        <div className="relative shrink-0">
+                        <div className="relative shrink-0 max-md:w-full max-md:mt-2">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1563,7 +1890,7 @@ const Sidebar = () => {
                               setShowFontDropdown(false);
                               setShowPersonaDropdown(false);
                             }}
-                            className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)]"
+                            className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] max-md:w-full max-md:h-11 max-md:min-w-0 max-md:rounded-[14px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3.5 max-md:text-[14px]"
                           >
                             <span>
                               {theme === "system"
@@ -1573,14 +1900,14 @@ const Sidebar = () => {
                                   : "Dark"}
                             </span>
                             <span
-                              className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showThemeDropdown ? "rotate-180" : ""}`}
+                              className={`material-symbols-outlined text-[15px] max-md:text-[19px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showThemeDropdown ? "rotate-180" : ""}`}
                             >
                               expand_more
                             </span>
                           </button>
                           {showThemeDropdown && (
                             <div
-                              className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                              className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:left-0 max-md:right-0 max-md:mt-1.5 max-md:w-auto max-md:rounded-[16px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[14px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)] dark:max-md:shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {[
@@ -1595,11 +1922,11 @@ const Sidebar = () => {
                                     setTheme(opt.id);
                                     setShowThemeDropdown(false);
                                   }}
-                                  className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                                  className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-11 max-md:rounded-[10px] max-md:px-3"
                                 >
                                   <span>{opt.label}</span>
                                   {theme === opt.id && (
-                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                    <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none">
                                       check
                                     </span>
                                   )}
@@ -1611,12 +1938,15 @@ const Sidebar = () => {
                       </div>
 
                       {/* High Contrast */}
-                      <div className="flex items-center justify-between py-3">
-                        <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                          light_mode
+                        </span>
+                        <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                          <span className="text-[13px] max-md:text-[15px] font-medium text-[var(--c-text-primary)] leading-snug">
                             High contrast
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                             Increase interface contrast and borders for improved
                             visibility
                           </span>
@@ -1626,14 +1956,14 @@ const Sidebar = () => {
                           role="switch"
                           aria-checked={extraContrast}
                           onClick={() => setExtraContrast(!extraContrast)}
-                          className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
+                          className={`w-9 h-5 max-md:w-11 max-md:h-[26px] max-md:p-[3px] rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
                             extraContrast
                               ? "bg-[var(--c-brand)]"
                               : "bg-black/15 dark:bg-white/15"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`}
+                            className={`w-4 h-4 max-md:w-5 max-md:h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4 max-md:translate-x-[18px]" : "translate-x-0"}`}
                           />
                         </button>
                       </div>
@@ -1642,24 +1972,29 @@ const Sidebar = () => {
 
                   {/* Input options Section */}
                   <div>
-                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5">
+                    <h3 className="text-[12px] font-medium text-[var(--c-text-tertiary)] uppercase tracking-[0.04em] mb-2.5 max-md:normal-case max-md:tracking-normal max-md:px-1 max-md:text-[14px] max-md:text-[var(--c-text-secondary)]">
                       Input & Interaction
                     </h3>
 
-                    <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] border-y border-[var(--c-border-hairline)]">
+                    <div className="flex flex-col divide-y divide-[var(--c-border-hairline)] max-md:rounded-[14px] max-md:border max-md:border-[var(--c-border-hairline)] max-md:bg-[var(--c-surface-elevated)] max-md:px-4 md:border-y md:border-[var(--c-border-hairline)]">
                       {/* On Startup & Reload Dropdown */}
-                      <div className="flex items-center justify-between py-3">
-                        <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
-                            On startup & reload
+                      <div className="flex items-center justify-between gap-3 py-3 max-md:flex-col max-md:items-stretch max-md:gap-0">
+                        <div className="flex items-start gap-3">
+                          <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none mt-0.5">
+                            history
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 max-w-[420px]">
-                            {chatStartupMode === "resume"
-                              ? "Resumes previous chat session on reload"
-                              : "Opens fresh on a clean new chat"}
-                          </span>
+                          <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                            <span className="text-[13px] max-md:text-[15px] font-medium text-[var(--c-text-primary)] leading-snug">
+                              On startup & reload
+                            </span>
+                            <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 max-w-[420px] max-md:hidden">
+                              {chatStartupMode === "resume"
+                                ? "Resumes previous chat session on reload"
+                                : "Opens fresh on a clean new chat"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="relative shrink-0">
+                        <div className="relative shrink-0 max-md:mt-3 max-md:ml-0 max-md:w-full">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1669,7 +2004,7 @@ const Sidebar = () => {
                               setShowFontDropdown(false);
                               setShowPersonaDropdown(false);
                             }}
-                            className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)]"
+                            className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] font-medium rounded-[6px] border border-[var(--c-border)] bg-[var(--c-surface)] hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] max-md:w-full max-md:h-11 max-md:min-w-0 max-md:rounded-[14px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3.5 max-md:text-[14px]"
                           >
                             <span>
                               {chatStartupMode === "resume"
@@ -1677,14 +2012,14 @@ const Sidebar = () => {
                                 : "Fresh new chat"}
                             </span>
                             <span
-                              className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showStartupDropdown ? "rotate-180" : ""}`}
+                              className={`material-symbols-outlined text-[15px] max-md:text-[19px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showStartupDropdown ? "rotate-180" : ""}`}
                             >
                               expand_more
                             </span>
                           </button>
                           {showStartupDropdown && (
                             <div
-                              className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                              className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:left-0 max-md:right-0 max-md:mt-1.5 max-md:w-auto max-md:rounded-[16px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[14px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)] dark:max-md:shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {[
@@ -1698,11 +2033,11 @@ const Sidebar = () => {
                                     setChatStartupMode(opt.id);
                                     setShowStartupDropdown(false);
                                   }}
-                                  className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                                  className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-11 max-md:rounded-[10px] max-md:px-3"
                                 >
                                   <span>{opt.label}</span>
                                   {chatStartupMode === opt.id && (
-                                    <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                    <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none">
                                       check
                                     </span>
                                   )}
@@ -1714,12 +2049,15 @@ const Sidebar = () => {
                       </div>
 
                       {/* Reasoning Process Toggle */}
-                      <div className="flex items-center justify-between py-3">
-                        <div className="flex flex-col pr-4">
-                          <span className="text-[13px] font-medium text-[var(--c-text-primary)] leading-snug">
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                          hub
+                        </span>
+                        <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                          <span className="text-[13px] max-md:text-[15px] font-medium text-[var(--c-text-primary)] leading-snug">
                             Reasoning process
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                             Show step-by-step thinking orb animation when
                             responding
                           </span>
@@ -1729,14 +2067,14 @@ const Sidebar = () => {
                           role="switch"
                           aria-checked={isThinking}
                           onClick={() => setIsThinking(!isThinking)}
-                          className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
+                          className={`w-9 h-5 max-md:w-11 max-md:h-[26px] max-md:p-[3px] rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
                             isThinking
                               ? "bg-[var(--c-brand)]"
                               : "bg-black/15 dark:bg-white/15"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isThinking ? "translate-x-4" : "translate-x-0"}`}
+                            className={`w-4 h-4 max-md:w-5 max-md:h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${isThinking ? "translate-x-4 max-md:translate-x-[18px]" : "translate-x-0"}`}
                           />
                         </button>
                       </div>
@@ -1749,10 +2087,10 @@ const Sidebar = () => {
             {/* Dedicated Tab: Typography & Editor */}
             {settingsTab === "typography" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                <h2 className="hidden md:block text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
                   Typography & Editor
                 </h2>
-                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
+                <p className="hidden md:block text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Customize your reading and writing experience across notes and
                   documents
                 </p>
@@ -1760,21 +2098,24 @@ const Sidebar = () => {
                 <div className="flex flex-col gap-6">
                   {/* Editor typography */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1 max-md:px-1 max-md:text-[14px] max-md:font-medium max-md:text-[var(--c-text-secondary)]">
                       Editor typography
                     </h3>
 
                     {/* Font Family */}
-                    <div className="flex items-center justify-between py-2.5 border-b border-[var(--c-border-hairline)]">
-                      <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                    <div className="flex items-center justify-between gap-3 py-2.5 max-md:py-3 max-md:flex-wrap max-md:gap-y-0 border-b border-[var(--c-border-hairline)]">
+                      <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        text_fields
+                      </span>
+                      <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                        <span className="text-[13.5px] max-md:text-[15px] font-medium text-[var(--c-text-primary)]">
                           Font family
                         </span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                        <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                           Choose the default typeface
                         </span>
                       </div>
-                      <div className="relative shrink-0">
+                      <div className="relative shrink-0 max-md:w-full max-md:mt-2">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1784,19 +2125,19 @@ const Sidebar = () => {
                             setShowStartupDropdown(false);
                             setShowPersonaDropdown(false);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal max-md:w-full max-md:h-11 max-md:min-w-0 max-md:rounded-[14px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3.5 max-md:text-[14px] max-md:font-medium"
                         >
                           <span className="capitalize">
                             {fontFamily === "sans"
-                              ? "Montserrat (Default)"
+                              ? "Inter (Default)"
                               : fontFamily === "serif"
-                                ? "Serif"
+                                ? "Source Serif 4 (Serif)"
                                 : fontFamily === "system"
                                   ? "System Default"
-                                  : "Monospace"}
+                                  : "JetBrains Mono (Monospace)"}
                           </span>
                           <span
-                            className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}
+                            className={`material-symbols-outlined text-[15px] max-md:text-[19px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}
                           >
                             expand_more
                           </span>
@@ -1804,13 +2145,13 @@ const Sidebar = () => {
 
                         {showFontDropdown && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-44 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:left-0 max-md:right-0 max-md:mt-1.5 max-md:w-auto max-md:rounded-[16px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[14px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)] dark:max-md:shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
-                              { id: "sans", label: "Montserrat (Default)" },
-                              { id: "serif", label: "Serif" },
-                              { id: "mono", label: "Monospace" },
+                              { id: "sans", label: "Inter (Default)" },
+                              { id: "serif", label: "Source Serif 4 (Serif)" },
+                              { id: "mono", label: "JetBrains Mono (Monospace)" },
                               { id: "system", label: "System Default" },
                             ].map((f) => (
                               <button
@@ -1820,11 +2161,11 @@ const Sidebar = () => {
                                   setFontFamily(f.id);
                                   setShowFontDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-11 max-md:rounded-[10px] max-md:px-3"
                               >
                                 <span>{f.label}</span>
                                 {fontFamily === f.id && (
-                                  <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none">
+                                  <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none">
                                     check
                                   </span>
                                 )}
@@ -1836,32 +2177,35 @@ const Sidebar = () => {
                     </div>
 
                     {/* Font Size */}
-                    <div className="flex items-center justify-between py-2.5">
-                      <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                    <div className="flex items-center justify-between gap-3 py-2.5 max-md:py-3">
+                      <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        format_size
+                      </span>
+                      <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                        <span className="text-[13.5px] max-md:text-[15px] font-medium text-[var(--c-text-primary)]">
                           Font size
                         </span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                        <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                           Adjust interface and editor text size ({fontSize}px)
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0">
+                      <div className="flex items-center gap-1 text-[var(--c-text-secondary)] bg-transparent rounded-[6px] border border-[var(--c-border)] px-1 h-8 shrink-0 max-md:h-11 max-md:gap-1.5 max-md:rounded-full max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-1.5">
                         <button
                           type="button"
                           onClick={() => handleFontSizeChange(-1)}
                           disabled={fontSize <= 12}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100 max-md:w-9 max-md:h-9 max-md:rounded-full max-md:text-[18px]"
                         >
                           -
                         </button>
-                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)]">
+                        <span className="text-[12px] w-7 text-center font-mono font-medium text-[var(--c-text-primary)] max-md:text-[14px] max-md:w-9">
                           {fontSize}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleFontSizeChange(1)}
                           disabled={fontSize >= 24}
-                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100"
+                          className="w-6 h-6 flex items-center justify-center hover:bg-[var(--ca-hover)] rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-sm transition-colors duration-100 max-md:w-9 max-md:h-9 max-md:rounded-full max-md:text-[18px]"
                         >
                           +
                         </button>
@@ -1869,19 +2213,22 @@ const Sidebar = () => {
                     </div>
                   </div>
 
-                  <div className="border-t border-[var(--c-border-hairline)] my-1" />
+                  <div className="border-t border-[var(--c-border-hairline)] my-1 max-md:hidden" />
 
                   {/* Writing assistance */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1 max-md:px-1 max-md:text-[14px] max-md:font-medium max-md:text-[var(--c-text-secondary)]">
                       Writing assistance
                     </h3>
-                    <div className="flex items-center justify-between py-2.5">
-                      <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                    <div className="flex items-center justify-between gap-3 py-2.5 max-md:py-3">
+                      <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        spellcheck
+                      </span>
+                      <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                        <span className="text-[13.5px] max-md:text-[15px] font-medium text-[var(--c-text-primary)]">
                           Spell check
                         </span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                        <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                           Enable browser spell checker in notes
                         </span>
                       </div>
@@ -1890,10 +2237,10 @@ const Sidebar = () => {
                         role="switch"
                         aria-checked={spellCheck}
                         onClick={() => setSpellCheck(!spellCheck)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
+                        className={`w-8 h-[18px] max-md:w-11 max-md:h-[26px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
                         <div
-                          className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`}
+                          className={`absolute top-[2px] left-[2px] max-md:top-[3px] max-md:left-[3px] w-3.5 h-3.5 max-md:w-5 max-md:h-5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5 max-md:translate-x-[18px]" : ""}`}
                         />
                       </button>
                     </div>
@@ -1905,28 +2252,32 @@ const Sidebar = () => {
             {/* Dedicated Tab: Privacy & Data */}
             {settingsTab === "privacy" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                <h2 className="hidden md:block text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
                   Privacy & Data
                 </h2>
-                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
+                <p className="hidden md:block text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Manage cookies, storage quotas, and local data persistence
                 </p>
 
                 <div className="flex flex-col gap-6">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1">
+                    <h3 className="text-[14px] font-semibold text-[var(--c-text-primary)] mb-1 max-md:px-1 max-md:text-[14px] max-md:font-medium max-md:text-[var(--c-text-secondary)]">
                       Cookies & Storage
                     </h3>
-                    <div className="py-2.5 border-b border-[var(--c-border-hairline)]">
+                    <div>
+                    <div className="py-2.5 max-md:py-3 border-b border-[var(--c-border-hairline)]">
                       <div
                         className="flex items-center justify-between cursor-pointer group"
                         onClick={() => setShowCookiePanel(!showCookiePanel)}
                       >
-                        <div className="flex flex-col pr-4">
-                          <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                        <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                          cookie
+                        </span>
+                        <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                          <span className="text-[13.5px] max-md:text-[15px] font-medium text-[var(--c-text-primary)]">
                             Cookie preferences
                           </span>
-                          <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                          <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                             Manage optional analytics and tracking cookies
                           </span>
                         </div>
@@ -1975,10 +2326,10 @@ const Sidebar = () => {
                                 type="button"
                                 onClick={() => handleCookieToggle(cookie.key)}
                                 disabled={cookie.locked}
-                                className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
+                                className={`w-8 h-[18px] max-md:w-11 max-md:h-[26px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${cookie.locked ? "opacity-60 cursor-not-allowed" : ""} ${cookiePrefs[cookie.key] ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                               >
                                 <div
-                                  className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${cookiePrefs[cookie.key] ? "translate-x-3.5" : ""}`}
+                                  className={`absolute top-[2px] left-[2px] max-md:top-[3px] max-md:left-[3px] w-3.5 h-3.5 max-md:w-5 max-md:h-5 rounded-full bg-white transition-transform duration-200 ${cookiePrefs[cookie.key] ? "translate-x-3.5 max-md:translate-x-[18px]" : ""}`}
                                 />
                               </button>
                             </div>
@@ -1987,12 +2338,15 @@ const Sidebar = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between py-2.5">
-                      <div className="flex flex-col pr-4">
-                        <span className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
+                    <div className="flex items-center justify-between gap-3 py-2.5 max-md:py-3">
+                      <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        database
+                      </span>
+                      <div className="flex flex-1 flex-col pr-4 max-md:pr-0">
+                        <span className="text-[13.5px] max-md:text-[15px] font-medium text-[var(--c-text-primary)]">
                           Local storage cache
                         </span>
-                        <span className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
+                        <span className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
                           {storageUsage} used of local device quota
                         </span>
                       </div>
@@ -2004,6 +2358,7 @@ const Sidebar = () => {
                         Clear local data
                       </button>
                     </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2013,7 +2368,7 @@ const Sidebar = () => {
             {settingsTab === "ai" && !settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto select-none">
                 {/* 1. KagZ AI Brand Header */}
-                <div className="flex items-center justify-between pb-5 border-b border-[var(--c-border-hairline)]">
+                <div className="hidden md:flex items-center justify-between pb-5 border-b border-[var(--c-border-hairline)]">
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-[16px] bg-black/[0.03] dark:bg-white/[0.05] p-2 flex items-center justify-center shrink-0">
                       <img
@@ -2062,19 +2417,24 @@ const Sidebar = () => {
                 </div>
 
                 {/* 2. Personality & Tone */}
-                <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
-                  <div>
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
-                      Personality & Tone
-                    </h3>
-                    <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
-                      {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)
-                        ?.desc ||
-                        "Set how conversational or direct the AI responds"}
-                    </p>
+                <div className="flex items-center justify-between py-4 max-md:flex-col max-md:items-stretch md:border-b md:border-[var(--c-border-hairline)]">
+                  <div className="flex items-start gap-3">
+                    <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none mt-0.5">
+                      person
+                    </span>
+                    <div>
+                      <h3 className="text-[13.5px] max-md:text-[16px] font-medium text-[var(--c-text-primary)]">
+                        Personality & Tone
+                      </h3>
+                      <p className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
+                        {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)
+                          ?.desc ||
+                          "Set how conversational or direct the AI responds"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 max-md:mt-3 max-md:ml-0 max-md:w-full">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2084,14 +2444,14 @@ const Sidebar = () => {
                         setShowStartupDropdown(false);
                         setShowFontDropdown(false);
                       }}
-                      className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-medium"
+                      className="flex items-center justify-between gap-2 min-w-[150px] h-8 px-2.5 text-[12.5px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-medium max-md:w-full max-md:h-11 max-md:min-w-0 max-md:rounded-[14px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3.5 max-md:text-[14px]"
                     >
                       <span className="truncate">
                         {AI_PERSONA_OPTIONS.find((opt) => opt.id === aiPersona)
                           ?.label || "Professional"}
                       </span>
                       <span
-                        className={`material-symbols-outlined text-[15px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showPersonaDropdown ? "rotate-180" : ""}`}
+                        className={`material-symbols-outlined text-[15px] max-md:text-[19px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showPersonaDropdown ? "rotate-180" : ""}`}
                       >
                         expand_more
                       </span>
@@ -2099,7 +2459,7 @@ const Sidebar = () => {
 
                     {showPersonaDropdown && (
                       <div
-                        className="absolute right-0 top-full mt-1.5 w-64 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                        className="absolute right-0 top-full mt-1.5 w-64 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:left-0 max-md:right-0 max-md:mt-1.5 max-md:w-auto max-md:rounded-[16px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[14px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)] dark:max-md:shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {AI_PERSONA_OPTIONS.map((opt) => (
@@ -2110,23 +2470,23 @@ const Sidebar = () => {
                               setAiPersona(opt.id);
                               setShowPersonaDropdown(false);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                            className="w-full flex items-center justify-between px-3 py-2 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:rounded-[10px] max-md:px-3 max-md:py-3"
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-medium text-[var(--c-text-primary)]">
                                   {opt.label}
                                 </span>
-                                <span className="text-[10px] text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1 py-0.2 rounded-[3px]">
+                                <span className="text-[10px] text-[var(--c-text-tertiary)] bg-[var(--ca-hover)] px-1 py-0.2 rounded-[3px] max-md:rounded-[5px] max-md:px-1.5 max-md:py-0.5 max-md:text-[11px]">
                                   {opt.badge}
                                 </span>
                               </div>
-                              <span className="text-[11px] text-[var(--c-text-tertiary)] mt-0.5 leading-snug">
+                              <span className="text-[11px] text-[var(--c-text-tertiary)] mt-0.5 leading-snug max-md:mt-1 max-md:text-[12px]">
                                 {opt.desc}
                               </span>
                             </div>
                             {aiPersona === opt.id && (
-                              <span className="material-symbols-outlined text-[15px] text-[var(--c-brand)] select-none shrink-0 ml-2">
+                              <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none shrink-0 ml-2">
                                 check
                               </span>
                             )}
@@ -2138,13 +2498,18 @@ const Sidebar = () => {
                 </div>
 
                 {/* 3. Custom Instructions */}
-                <div className="py-4 border-b border-[var(--c-border-hairline)] flex flex-col">
+                <div className="py-4 flex flex-col md:border-b md:border-[var(--c-border-hairline)]">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
-                      Custom instructions
-                    </h3>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none">
+                        description
+                      </span>
+                      <h3 className="text-[13.5px] max-md:text-[16px] font-medium text-[var(--c-text-primary)]">
+                        Custom instructions
+                      </h3>
+                    </div>
                     <span
-                      className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-[3px] ${
+                      className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-[3px] max-md:bg-transparent max-md:px-0 max-md:text-[12.5px] max-md:font-sans max-md:text-[var(--c-text-secondary)] ${
                         countWords(aiCustomInstructions) > 100
                           ? "bg-red-500/10 text-red-500 font-semibold"
                           : countWords(aiCustomInstructions) > 85
@@ -2152,21 +2517,21 @@ const Sidebar = () => {
                             : "bg-[var(--ca-hover)] text-[var(--c-text-tertiary)]"
                       }`}
                     >
-                      {countWords(aiCustomInstructions)} / 100 words
+                      {countWords(aiCustomInstructions)} / 100<span className="max-md:hidden"> words</span>
                     </span>
                   </div>
-                  <p className="text-[12px] text-[var(--c-text-secondary)] mb-3">
+                  <p className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mb-3 max-md:pl-8">
                     Tell KagZ AI how you want it to behave, format code, or
                     structure answers.
                   </p>
 
-                  <div className="rounded-[8px] bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100">
+                  <div className="rounded-[8px] max-md:rounded-[12px] bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 max-md:p-3.5 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100 max-md:ml-8 max-md:border-[var(--c-border-hairline)]">
                     <textarea
                       value={aiCustomInstructions}
                       onChange={(e) => setAiCustomInstructions(e.target.value)}
                       placeholder="e.g. Always format summaries with bullet points. Call me Dave. Never use conversational filler."
                       rows={3}
-                      className="w-full bg-transparent border-0 outline-none text-[13px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] leading-normal resize-none custom-scrollbar min-h-[62px]"
+                      className="w-full bg-transparent border-0 outline-none text-[13px] max-md:text-[16px] text-[var(--c-text-primary)] placeholder:text-[var(--c-text-tertiary)] leading-normal resize-none custom-scrollbar min-h-[62px]"
                     />
                     {countWords(aiCustomInstructions) > 100 && (
                       <p className="text-[11.5px] text-red-500 flex items-center gap-1 mt-2 shrink-0">
@@ -2181,25 +2546,30 @@ const Sidebar = () => {
                 </div>
 
                 {/* 4. Session Continuity (Resume last vs Fresh start) */}
-                <div className="py-4 border-b border-[var(--c-border-hairline)] flex items-center justify-between">
-                  <div>
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
-                      Session Continuity
-                    </h3>
-                    <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5">
-                      {chatStartupMode === "resume"
-                        ? "Resumes your previous conversation state on reload"
-                        : "Starts with a clean empty chat on reload"}
-                    </p>
+                <div className="flex items-center justify-between py-4 max-md:flex-col max-md:items-stretch md:border-b md:border-[var(--c-border-hairline)]">
+                  <div className="flex items-start gap-3">
+                    <span className="flex md:hidden material-symbols-outlined text-[20px] text-[var(--c-text-primary)] leading-none select-none mt-0.5">
+                      sync
+                    </span>
+                    <div>
+                      <h3 className="text-[13.5px] max-md:text-[16px] font-medium text-[var(--c-text-primary)]">
+                        Session Continuity
+                      </h3>
+                      <p className="text-[12px] max-md:text-[12.5px] text-[var(--c-text-secondary)] mt-0.5">
+                        {chatStartupMode === "resume"
+                          ? "Resumes your previous conversation state on reload"
+                          : "Starts with a clean empty chat on reload"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="inline-flex p-0.5 rounded-[6px] bg-[var(--c-surface-input)] border border-[var(--c-border-hairline)] shrink-0">
+                  <div className="inline-flex p-0.5 max-md:p-1 rounded-[6px] max-md:rounded-[14px] bg-[var(--c-surface-input)] border border-[var(--c-border-hairline)] shrink-0 max-md:mt-3 max-md:w-full max-md:border-0 max-md:bg-[var(--c-surface-well)] dark:max-md:bg-[var(--c-surface-elevated)]">
                     <button
                       type="button"
                       onClick={() => setChatStartupMode("resume")}
-                      className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
+                      className={`px-3 py-1 rounded-[4px] max-md:rounded-[10px] text-[12px] max-md:text-[13.5px] font-medium transition-colors duration-100 cursor-pointer max-md:flex-1 max-md:h-9 ${
                         chatStartupMode === "resume"
-                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm"
+                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm max-md:bg-white dark:max-md:bg-[var(--c-surface-well)]"
                           : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]"
                       }`}
                     >
@@ -2208,9 +2578,9 @@ const Sidebar = () => {
                     <button
                       type="button"
                       onClick={() => setChatStartupMode("fresh")}
-                      className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition-colors duration-100 cursor-pointer ${
+                      className={`px-3 py-1 rounded-[4px] max-md:rounded-[10px] text-[12px] max-md:text-[13.5px] font-medium transition-colors duration-100 cursor-pointer max-md:flex-1 max-md:h-9 ${
                         chatStartupMode === "fresh"
-                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm"
+                          ? "bg-[var(--c-surface)] text-[var(--c-text-primary)] shadow-sm max-md:bg-white dark:max-md:bg-[var(--c-surface-well)]"
                           : "text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)]"
                       }`}
                     >
@@ -2219,55 +2589,169 @@ const Sidebar = () => {
                   </div>
                 </div>
 
-                {/* 5. AI Memory Status */}
-                <div className="py-4 flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[13.5px] font-medium text-[var(--c-text-primary)]">
-                      AI Memory
-                    </h3>
-                    <span
-                      className={`text-[12.5px] font-mono font-medium ${
-                        memoryStatus?.isFull ||
-                        (memoryStatus?.usagePercent ?? 0) >= 85
-                          ? "text-red-500/80 dark:text-red-400/80"
-                          : (memoryStatus?.usagePercent ?? 0) >= 60
-                            ? "text-amber-500/80 dark:text-amber-400/80"
-                            : "text-[var(--c-text-secondary)]"
-                      }`}
-                    >
-                      {memoryStatus
-                        ? `${memoryStatus.usagePercent ?? 0}%`
-                        : "0%"}
-                    </span>
-                  </div>
+                {/* 5. AI Memory Card */}
+                {memoryStatus &&
+                  (() => {
+                    const usedWords = Number(memoryStatus.usedWords);
+                    const maxWords = Number(memoryStatus.maxWords);
+                    const hasWordData =
+                      Number.isFinite(usedWords) &&
+                      Number.isFinite(maxWords) &&
+                      maxWords > 0;
 
-                  {/* Frosted blur rounded progress bar (light 50% opacity) */}
-                  <div className="w-full h-3.5 rounded-full backdrop-blur-md bg-black/[0.025] dark:bg-white/[0.04] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 opacity-50 ${
-                        memoryStatus?.isFull ||
-                        (memoryStatus?.usagePercent ?? 0) >= 85
-                          ? "bg-[#eb5757]"
-                          : (memoryStatus?.usagePercent ?? 0) >= 60
-                            ? "bg-amber-500"
-                            : "bg-[#2383e2] dark:bg-[#4fa7ff]"
-                      }`}
-                      style={{
-                        width: `${Math.min(memoryStatus?.usagePercent ?? 0, 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+                    const usagePercent =
+                      memoryStatus.usagePercent != null
+                        ? Number(memoryStatus.usagePercent)
+                        : hasWordData
+                          ? Math.round((usedWords / maxWords) * 100)
+                          : memoryStatus.remainingPercent != null
+                            ? 100 - Number(memoryStatus.remainingPercent)
+                            : null;
+
+                    if (!Number.isFinite(usagePercent)) return null;
+
+                    const clampedUsage = Math.max(
+                      0,
+                      Math.min(100, usagePercent)
+                    );
+                    const barWidth = clampedUsage;
+                    const isLow = clampedUsage >= 80;
+                    const isCritical =
+                      Boolean(memoryStatus.isFull) || clampedUsage >= 92;
+
+                    const resetSubtitle = memoryStatus.resetDate
+                      ? `Resets ${new Date(memoryStatus.resetDate).getDate()} ${new Date(memoryStatus.resetDate).toLocaleString("en-US", { month: "long" })}`
+                      : null;
+
+                    const factCount = Number(memoryStatus.factCount);
+
+                    return (
+                      <div className="mt-5 max-md:mt-6 mb-2 select-none">
+                        {/* Mobile: memory summary card */}
+                        <div className="md:hidden rounded-[20px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-[var(--c-brand)]/10 text-[var(--c-brand)] shrink-0">
+                                <span className="material-symbols-outlined text-[19px] leading-none select-none">
+                                  layers
+                                </span>
+                              </span>
+                              <div className="min-w-0">
+                                <h3 className="text-[15.5px] font-medium text-[var(--c-text-primary)] leading-tight">
+                                  Memory
+                                </h3>
+                                <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 truncate">
+                                  What KagZ remembers about you
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div
+                                className={`text-[18px] font-semibold leading-none tabular-nums ${
+                                  isCritical
+                                    ? "text-rose-500 dark:text-rose-400"
+                                    : isLow
+                                      ? "text-amber-500 dark:text-amber-400"
+                                      : "text-[var(--c-text-primary)]"
+                                }`}
+                              >
+                                {clampedUsage}%
+                              </div>
+                              <div className="text-[11px] text-[var(--c-text-tertiary)] mt-1">
+                                used
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            role="progressbar"
+                            aria-label="Memory usage"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow={clampedUsage}
+                            className="relative w-full h-2 mt-4 rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden"
+                          >
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isCritical
+                                  ? "bg-gradient-to-r from-rose-500 to-rose-400"
+                                  : isLow
+                                    ? "bg-gradient-to-r from-amber-500 to-amber-400"
+                                    : "bg-gradient-to-r from-[#6f8ff5] to-[#a5b4fc]"
+                              }`}
+                              style={{
+                                width:
+                                  clampedUsage > 0
+                                    ? `${Math.max(clampedUsage, 2)}%`
+                                    : "0%",
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 mt-2.5 text-[12px]">
+                            <span className="text-[var(--c-text-secondary)] tabular-nums">
+                              {hasWordData
+                                ? `${usedWords.toLocaleString()} / ${maxWords.toLocaleString()} words`
+                                : `${clampedUsage}% used`}
+                            </span>
+                            <span className="text-[var(--c-text-tertiary)]">
+                              {Number.isFinite(factCount) && factCount > 0
+                                ? `${factCount} ${factCount === 1 ? "fact" : "facts"}`
+                                : resetSubtitle || ""}
+                            </span>
+                          </div>
+
+                          {resetSubtitle && factCount > 0 && (
+                            <div className="mt-1 text-[11.5px] text-[var(--c-text-tertiary)]">
+                              {resetSubtitle}
+                            </div>
+                          )}
+
+                          {memoryStatus.isFull && (
+                            <div className="mt-2 text-[12px] text-rose-500 dark:text-rose-400">
+                              Memory is full — older details may be trimmed.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Desktop: pill with header + bar */}
+                        <div className="hidden md:block rounded-[22px] bg-[#2f2f32] dark:bg-[#2f2f32] px-4 py-3.5">
+                          <div className="flex items-baseline justify-between">
+                            <h3 className="text-[14px] font-medium text-white">
+                              Memory
+                            </h3>
+                            <span className="text-[12.5px] text-[#b4b4ba]">
+                              {clampedUsage}% used
+                            </span>
+                          </div>
+
+                          <div className="relative w-full h-[4px] mt-3 rounded-full bg-[#48484d] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#7c9cf8] transition-all duration-300"
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Reset subtitle, outside the pill (desktop) */}
+                        {resetSubtitle && (
+                          <div className="hidden md:block mt-1.5 px-1 text-[12px] text-[var(--c-text-secondary)]">
+                            {resetSubtitle}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
               </div>
             )}
 
             {/* Real-time Search Results View */}
             {settingsSearchQuery && (
               <div className="flex flex-col max-w-[680px] w-full mx-auto">
-                <h2 className="text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
+                <h2 className="hidden md:block text-[24px] font-semibold text-[var(--c-text-primary)] tracking-tight leading-[1.3]">
                   Search Results
                 </h2>
-                <p className="text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
+                <p className="hidden md:block text-[13px] text-[var(--c-text-secondary)] mt-1 mb-6">
                   Settings matching &ldquo;{settingsSearchQuery}&rdquo;
                 </p>
 
@@ -2289,7 +2773,7 @@ const Sidebar = () => {
                             e.stopPropagation();
                             setShowThemeDropdown(!showThemeDropdown);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer max-md:h-10 max-md:rounded-[12px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3 max-md:text-[13.5px]"
                         >
                           <span>
                             {theme === "system"
@@ -2304,7 +2788,7 @@ const Sidebar = () => {
                         </button>
                         {showThemeDropdown && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:mt-1.5 max-md:rounded-[14px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[13.5px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -2319,7 +2803,7 @@ const Sidebar = () => {
                                   setTheme(opt.id);
                                   setShowThemeDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-10 max-md:rounded-[8px] max-md:px-3"
                               >
                                 <span>{opt.label}</span>
                                 {theme === opt.id && (
@@ -2351,14 +2835,14 @@ const Sidebar = () => {
                         role="switch"
                         aria-checked={extraContrast}
                         onClick={() => setExtraContrast(!extraContrast)}
-                        className={`w-9 h-5 rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
+                        className={`w-9 h-5 max-md:w-11 max-md:h-[26px] max-md:p-[3px] rounded-full p-0.5 relative transition-colors duration-200 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-brand)] ${
                           extraContrast
                             ? "bg-[var(--c-brand)]"
                             : "bg-black/15 dark:bg-white/15"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4" : "translate-x-0"}`}
+                          className={`w-4 h-4 max-md:w-5 max-md:h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${extraContrast ? "translate-x-4 max-md:translate-x-[18px]" : "translate-x-0"}`}
                         />
                       </button>
                     </div>
@@ -2381,7 +2865,7 @@ const Sidebar = () => {
                             e.stopPropagation();
                             setShowStartupDropdown(!showStartupDropdown);
                           }}
-                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer"
+                          className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer max-md:h-10 max-md:rounded-[12px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3 max-md:text-[13.5px]"
                         >
                           <span>
                             {chatStartupMode === "resume"
@@ -2394,7 +2878,7 @@ const Sidebar = () => {
                         </button>
                         {showStartupDropdown && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px]"
+                            className="absolute right-0 top-full mt-1 w-48 py-1 bg-[var(--c-surface-elevated)] border border-[var(--c-border)] rounded-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-50 text-[12.5px] max-md:mt-1.5 max-md:rounded-[14px] max-md:border-[var(--c-border-hairline)] max-md:p-1.5 max-md:text-[13.5px] max-md:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.3)]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
@@ -2408,7 +2892,7 @@ const Sidebar = () => {
                                   setChatStartupMode(opt.id);
                                   setShowStartupDropdown(false);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left"
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-10 max-md:rounded-[8px] max-md:px-3"
                               >
                                 <span>{opt.label}</span>
                                 {chatStartupMode === opt.id && (
@@ -2497,10 +2981,10 @@ const Sidebar = () => {
                         role="switch"
                         aria-checked={spellCheck}
                         onClick={() => setSpellCheck(!spellCheck)}
-                        className={`w-8 h-[18px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
+                        className={`w-8 h-[18px] max-md:w-11 max-md:h-[26px] rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${spellCheck ? "bg-[var(--c-brand)]" : "bg-black/15 dark:bg-white/15"}`}
                       >
                         <div
-                          className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5" : ""}`}
+                          className={`absolute top-[2px] left-[2px] max-md:top-[3px] max-md:left-[3px] w-3.5 h-3.5 max-md:w-5 max-md:h-5 rounded-full bg-white transition-transform duration-200 ${spellCheck ? "translate-x-3.5 max-md:translate-x-[18px]" : ""}`}
                         />
                       </button>
                     </div>
@@ -2556,6 +3040,7 @@ const Sidebar = () => {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -2733,7 +3218,7 @@ const Sidebar = () => {
                   <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-500 dark:text-[#9e9b95]">
                     {node.type === "workspace" ? (
                       <HugeiconsIcon
-                        icon={Blockchain04Icon}
+                        icon={LibrariesIcon}
                         size={15}
                         className="shrink-0 text-current select-none"
                       />
@@ -2925,7 +3410,7 @@ const Sidebar = () => {
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-[14.5px] font-medium text-gray-950 dark:text-gray-100 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
                 >
                   <HugeiconsIcon
-                    icon={MessageCircleIcon}
+                    icon={BubbleChatNotificationIcon}
                     size={17}
                     strokeWidth={1.8}
                     className="text-gray-500 dark:text-gray-400 shrink-0 select-none"
@@ -3050,7 +3535,7 @@ const Sidebar = () => {
                 Recents
               </span>
               <span
-                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90 !opacity-60" : ""}`}
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["recent-section"] ? "rotate-90" : ""}`}
               >
                 chevron_right
               </span>
@@ -3143,7 +3628,7 @@ const Sidebar = () => {
                 Workspaces
               </span>
               <span
-                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90 !opacity-60" : ""}`}
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["workspaces-section"] ? "rotate-90" : ""}`}
               >
                 chevron_right
               </span>
@@ -3207,7 +3692,7 @@ const Sidebar = () => {
                 Favorites
               </span>
               <span
-                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90 !opacity-60" : ""}`}
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["favorites-section"] ? "rotate-90" : ""}`}
               >
                 chevron_right
               </span>
@@ -3262,7 +3747,7 @@ const Sidebar = () => {
                 Chat History
               </span>
               <span
-                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90 !opacity-60" : ""}`}
+                className={`material-symbols-outlined text-[11px] leading-none select-none shrink-0 transition-transform duration-200 text-gray-400 opacity-0 group-hover:opacity-60 ${debouncedSearchQuery || expandedFolders["chat-history-section"] ? "rotate-90" : ""}`}
               >
                 chevron_right
               </span>
@@ -3276,7 +3761,7 @@ const Sidebar = () => {
               }}
             >
               <HugeiconsIcon
-                icon={MessageCircleIcon}
+                icon={BubbleChatNotificationIcon}
                 size={14}
                 className="select-none leading-none"
               />
@@ -3296,7 +3781,7 @@ const Sidebar = () => {
               >
                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                   <HugeiconsIcon
-                    icon={MessageCircleIcon}
+                    icon={BubbleChatNotificationIcon}
                     size={15}
                     className="select-none leading-none"
                   />
@@ -3340,7 +3825,7 @@ const Sidebar = () => {
                               <div className="flex items-center gap-2 overflow-hidden w-full">
                                 <div className="w-[18px] h-[18px] flex items-center justify-center shrink-0 text-gray-500 dark:text-[#9e9b95]">
                                   <HugeiconsIcon
-                                    icon={MessageCircleIcon}
+                                    icon={BubbleChatNotificationIcon}
                                     size={15}
                                     strokeWidth={1.8}
                                     className="leading-none text-current select-none"

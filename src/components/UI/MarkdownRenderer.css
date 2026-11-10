@@ -64,6 +64,8 @@
 
 .questionText {
   color: inherit;
+  font-family: var(--font-quote, "Lora", serif);
+  font-style: italic;
   font-size: 15px;
   font-weight: 400;
   line-height: 1.68;
