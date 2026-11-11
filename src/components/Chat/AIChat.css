@@ -503,6 +503,33 @@
   display: inline-block;
 }
 
+/* Muted charcoal label with a subtle darkening on the trailing characters */
+.worked-muted-shade {
+  background: linear-gradient(
+    90deg,
+    #8e8e93 0%,
+    #8e8e93 65%,
+    #3f3f46 100%
+  );
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
+:root:not(.dark) .worked-muted-shade {
+  background: linear-gradient(
+    90deg,
+    #5f5e59 0%,
+    #5f5e59 65%,
+    #3f3f46 100%
+  );
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  display: inline-block;
+}
+
 /* --- Sources Peanut Capsule Pill & Popover --- */
 .sources-peanut-btn {
   display: inline-flex;

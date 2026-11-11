@@ -2615,52 +2615,21 @@ const Sidebar = () => {
                       Math.min(100, usagePercent)
                     );
                     const barWidth = clampedUsage;
-                    const isLow = clampedUsage >= 80;
-                    const isCritical =
-                      Boolean(memoryStatus.isFull) || clampedUsage >= 92;
-
                     const resetSubtitle = memoryStatus.resetDate
                       ? `Resets ${new Date(memoryStatus.resetDate).getDate()} ${new Date(memoryStatus.resetDate).toLocaleString("en-US", { month: "long" })}`
                       : null;
 
-                    const factCount = Number(memoryStatus.factCount);
-
                     return (
                       <div className="mt-5 max-md:mt-6 mb-2 select-none">
-                        {/* Mobile: memory summary card */}
-                        <div className="md:hidden rounded-[20px] bg-[var(--c-surface-well)] dark:bg-[var(--c-surface-elevated)] px-4 py-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="flex items-center justify-center w-9 h-9 rounded-[12px] bg-[var(--c-brand)]/10 text-[var(--c-brand)] shrink-0">
-                                <span className="material-symbols-outlined text-[19px] leading-none select-none">
-                                  layers
-                                </span>
-                              </span>
-                              <div className="min-w-0">
-                                <h3 className="text-[15.5px] font-medium text-[var(--c-text-primary)] leading-tight">
-                                  Memory
-                                </h3>
-                                <p className="text-[12px] text-[var(--c-text-secondary)] mt-0.5 truncate">
-                                  What KagZ remembers about you
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div
-                                className={`text-[18px] font-semibold leading-none tabular-nums ${
-                                  isCritical
-                                    ? "text-rose-500 dark:text-rose-400"
-                                    : isLow
-                                      ? "text-amber-500 dark:text-amber-400"
-                                      : "text-[var(--c-text-primary)]"
-                                }`}
-                              >
-                                {clampedUsage}%
-                              </div>
-                              <div className="text-[11px] text-[var(--c-text-tertiary)] mt-1">
-                                used
-                              </div>
-                            </div>
+                        {/* Memory pill — identical design on mobile & desktop, scaled to screen */}
+                        <div className="rounded-[20px] md:rounded-[22px] bg-[#2f2f32] px-4 py-4 md:py-3.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <h3 className="text-[15px] md:text-[14px] font-medium text-white">
+                              Memory
+                            </h3>
+                            <span className="text-[13px] md:text-[12.5px] text-[#b4b4ba] tabular-nums">
+                              {clampedUsage}% used
+                            </span>
                           </div>
 
                           <div
@@ -2669,63 +2638,8 @@ const Sidebar = () => {
                             aria-valuemin="0"
                             aria-valuemax="100"
                             aria-valuenow={clampedUsage}
-                            className="relative w-full h-2 mt-4 rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden"
+                            className="relative w-full h-[5px] md:h-[4px] mt-3 rounded-full bg-[#48484d] overflow-hidden"
                           >
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isCritical
-                                  ? "bg-gradient-to-r from-rose-500 to-rose-400"
-                                  : isLow
-                                    ? "bg-gradient-to-r from-amber-500 to-amber-400"
-                                    : "bg-gradient-to-r from-[#6f8ff5] to-[#a5b4fc]"
-                              }`}
-                              style={{
-                                width:
-                                  clampedUsage > 0
-                                    ? `${Math.max(clampedUsage, 2)}%`
-                                    : "0%",
-                              }}
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between gap-3 mt-2.5 text-[12px]">
-                            <span className="text-[var(--c-text-secondary)] tabular-nums">
-                              {hasWordData
-                                ? `${usedWords.toLocaleString()} / ${maxWords.toLocaleString()} words`
-                                : `${clampedUsage}% used`}
-                            </span>
-                            <span className="text-[var(--c-text-tertiary)]">
-                              {Number.isFinite(factCount) && factCount > 0
-                                ? `${factCount} ${factCount === 1 ? "fact" : "facts"}`
-                                : resetSubtitle || ""}
-                            </span>
-                          </div>
-
-                          {resetSubtitle && factCount > 0 && (
-                            <div className="mt-1 text-[11.5px] text-[var(--c-text-tertiary)]">
-                              {resetSubtitle}
-                            </div>
-                          )}
-
-                          {memoryStatus.isFull && (
-                            <div className="mt-2 text-[12px] text-rose-500 dark:text-rose-400">
-                              Memory is full — older details may be trimmed.
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Desktop: pill with header + bar */}
-                        <div className="hidden md:block rounded-[22px] bg-[#2f2f32] dark:bg-[#2f2f32] px-4 py-3.5">
-                          <div className="flex items-baseline justify-between">
-                            <h3 className="text-[14px] font-medium text-white">
-                              Memory
-                            </h3>
-                            <span className="text-[12.5px] text-[#b4b4ba]">
-                              {clampedUsage}% used
-                            </span>
-                          </div>
-
-                          <div className="relative w-full h-[4px] mt-3 rounded-full bg-[#48484d] overflow-hidden">
                             <div
                               className="h-full rounded-full bg-[#7c9cf8] transition-all duration-300"
                               style={{ width: `${barWidth}%` }}
@@ -2733,9 +2647,8 @@ const Sidebar = () => {
                           </div>
                         </div>
 
-                        {/* Reset subtitle, outside the pill (desktop) */}
                         {resetSubtitle && (
-                          <div className="hidden md:block mt-1.5 px-1 text-[12px] text-[var(--c-text-secondary)]">
+                          <div className="mt-1.5 px-1 text-[12px] text-[var(--c-text-secondary)]">
                             {resetSubtitle}
                           </div>
                         )}

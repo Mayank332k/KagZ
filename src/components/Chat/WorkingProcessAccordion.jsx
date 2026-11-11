@@ -522,27 +522,49 @@ const WorkingProcessAccordion = ({
     return null;
   }, [isResponseStreaming, visibleSteps, thoughts, isStreaming]);
 
-  // Preserved thought: Stays accessible inside expanded accordion even after final response starts streaming
-  const persistedThought = useMemo(() => {
-    const thoughtStep = visibleSteps.slice().reverse().find((s) => s?.type === 'thought' || s?.isThought);
-    if (thoughtStep?.text && typeof thoughtStep.text === 'string' && thoughtStep.text.trim()) {
-      return thoughtStep.text.trim();
-    }
-    if (Array.isArray(thoughts) && thoughts.length > 0) {
-      const activeThought = thoughts[thoughts.length - 1];
-      if (typeof activeThought === 'string' && activeThought.trim() && !activeThought.trim().startsWith('```')) {
-        return activeThought.trim();
-      }
-    }
-    if (latestThoughtRef.current) {
-      return latestThoughtRef.current;
-    }
-    return null;
-  }, [visibleSteps, thoughts]);
-
   const toolSteps = useMemo(() => {
     return visibleSteps.filter((s) => s?.type !== 'thought' && !s?.isThought);
   }, [visibleSteps]);
+
+  // Full execution timeline: thoughts and tool steps interleaved in arrival order.
+  const timelineSteps = useMemo(() => {
+    const list = [];
+    const seenThoughts = new Set();
+
+    const pushThought = (text) => {
+      const clean = typeof text === 'string' ? text.trim() : '';
+      if (!clean || seenThoughts.has(clean)) return;
+      seenThoughts.add(clean);
+      list.push({ kind: 'thought', text: clean });
+    };
+
+    visibleSteps.forEach((step) => {
+      if (step?.type === 'thought' || step?.isThought) {
+        pushThought(step.text);
+      } else {
+        list.push({ kind: 'tool', step });
+      }
+    });
+
+    // Legacy fallback: show every parsed  thinking thought, not just the last one.
+    if (Array.isArray(thoughts) && thoughts.length > 0) {
+      const legacyThoughts = [];
+      thoughts.forEach((thought) => {
+        const clean = typeof thought === 'string' ? thought.trim() : '';
+        if (!clean || clean.startsWith('```') || seenThoughts.has(clean)) return;
+        seenThoughts.add(clean);
+        legacyThoughts.push({ kind: 'thought', text: clean });
+      });
+      if (legacyThoughts.length > 0) list.unshift(...legacyThoughts);
+    }
+
+    return list;
+  }, [visibleSteps, thoughts]);
+
+  const lastToolIndex = timelineSteps.reduce(
+    (last, item, idx) => (item.kind === 'tool' ? idx : last),
+    -1
+  );
 
   const activeStep = useMemo(() => {
     const running = toolSteps.find((s) => s?.isLive || s?.status === 'running');
@@ -723,12 +745,12 @@ const WorkingProcessAccordion = ({
                 </span>
               )}
 
-              {/* Text with active-tool-shimmer during streaming, trailing-dark-shade on completed 'worked' */}
+              {/* Text with active-tool-shimmer during streaming, muted charcoal when finished */}
               <span
                 className={`inline-block font-normal tracking-[-0.01em] ${
                   isStreaming && !isResponseStreaming
                     ? 'active-tool-shimmer'
-                    : 'trailing-dark-shade group-hover/toggle:opacity-90'
+                    : 'worked-muted-shade group-hover/toggle:opacity-90'
                 }`}
               >
                 {activeToolMeta.label}
@@ -760,29 +782,31 @@ const WorkingProcessAccordion = ({
               ref={scrollContainerRef}
               className="border-l-2 border-black/[0.08] dark:border-white/10 ml-1.5 pl-3 py-1.5 flex flex-col gap-2 max-h-[220px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar text-[13px]"
             >
-              {/* Preserved thought at top with Thought Icon on left */}
-              {persistedThought && (
-                <div className="flex items-start gap-2 text-neutral-600 dark:text-neutral-400 pb-0.5 mb-1">
-                  <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-0.5">
-                    <HugeiconsIcon icon={ThoughtBubbleIcon} size={15} strokeWidth={1.8} />
-                  </div>
-                  <span
-                    style={{ fontFamily: 'var(--font-quote)' }}
-                    className="italic text-[13.5px] leading-relaxed text-neutral-700 dark:text-neutral-300 select-text"
-                  >
-                    {persistedThought}
-                  </span>
-                </div>
-              )}
+              {timelineSteps.map((item, idx) => {
+                if (item.kind === 'thought') {
+                  return (
+                    <div key={`thought-${idx}`} className="flex items-start gap-2 text-neutral-600 dark:text-neutral-400 pb-0.5 mb-1">
+                      <div className="shrink-0 w-[18px] h-[18px] flex items-center justify-center text-neutral-400 dark:text-[#8e8b86] mt-0.5">
+                        <HugeiconsIcon icon={ThoughtBubbleIcon} size={15} strokeWidth={1.8} />
+                      </div>
+                      <span
+                        style={{ fontFamily: 'var(--font-quote)' }}
+                        className="italic text-[13.5px] leading-relaxed text-neutral-700 dark:text-neutral-300 select-text"
+                      >
+                        {item.text}
+                      </span>
+                    </div>
+                  );
+                }
 
-              {toolSteps.map((step, sIdx) => {
+                const step = item.step;
                 const text = typeof step === 'string' ? step : step?.text || '';
                 const action = getStepAction(step);
                 const isClickable = Boolean(action);
-                const isLive = isStreaming && sIdx === toolSteps.length - 1 && step?.isLive !== false;
+                const isLive = isStreaming && idx === lastToolIndex && step?.isLive !== false;
                 return (
                   <div
-                    key={step.url || step.query || step.text || sIdx}
+                    key={step?.url || step?.query || step?.text || idx}
                     onClick={isClickable ? (e) => handleStepClick(e, action) : undefined}
                     className={`flex items-center gap-2 text-neutral-600 dark:text-neutral-400 ${
                       isClickable ? 'cursor-pointer hover:text-black dark:hover:text-white group' : ''

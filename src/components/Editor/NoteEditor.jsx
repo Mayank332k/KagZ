@@ -13,7 +13,17 @@ import {
   Delete02Icon,
   ArrowDown01Icon,
   ArrowUp01Icon,
+  TextIcon,
+  Heading01Icon,
+  Heading02Icon,
+  Heading03Icon,
+  TextBoldIcon,
+  Table01Icon,
+  SparklesIcon,
+  AiEditingIcon,
+  CleanIcon,
 } from "@hugeicons/core-free-icons";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { pagesAPI, chatAPI } from "../../services/api";
 import ActionModal from "../UI/ActionModal";
@@ -143,6 +153,7 @@ const NoteEditor = () => {
   const [saveStatus, setSaveStatus] = useState("idle"); // 'idle' | 'saving' | 'saved' | 'error'
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const canDeletePage = Boolean(pageId) && pageId !== "new" && !isNewPage;
     const [globalSpellCheck, setGlobalSpellCheck] = useState(
     () => localStorage.getItem("noema-spellcheck") === "true",
   );
@@ -1108,6 +1119,11 @@ const NoteEditor = () => {
 
   // Delete page — triggered by custom modal confirm
   const handleDeleteConfirmed = async () => {
+    // Guard against deleting a page that was never saved (new page / no id).
+    if (!canDeletePage) {
+      setShowDeleteModal(false);
+      return;
+    }
     try {
       await pagesAPI.delete(pageId);
       window.dispatchEvent(
@@ -1129,7 +1145,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Text",
       description: "Just start typing with plain text.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_paragraph</span>,
+      icon: <HugeiconsIcon icon={TextIcon} size={16} strokeWidth={1.8} />,
       keywords: ["text", "paragraph", "plain", "normal", "p"],
     },
     {
@@ -1137,7 +1153,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Heading 1",
       description: "Big section heading.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h1</span>,
+      icon: <HugeiconsIcon icon={Heading01Icon} size={16} strokeWidth={1.8} />,
       keywords: ["h1", "heading 1", "title", "header 1"],
     },
     {
@@ -1145,7 +1161,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Heading 2",
       description: "Medium section heading.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h2</span>,
+      icon: <HugeiconsIcon icon={Heading02Icon} size={16} strokeWidth={1.8} />,
       keywords: ["h2", "heading 2", "subtitle", "header 2"],
     },
     {
@@ -1153,7 +1169,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Heading 3",
       description: "Small section heading.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h3</span>,
+      icon: <HugeiconsIcon icon={Heading03Icon} size={16} strokeWidth={1.8} />,
       keywords: ["h3", "heading 3", "subheading", "header 3"],
     },
     {
@@ -1161,7 +1177,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Heading 4",
       description: "Sub-section heading.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_h4</span>,
+      icon: <HugeiconsIcon icon={Heading03Icon} size={15} strokeWidth={1.8} />,
       keywords: ["h4", "heading 4", "header 4"],
     },
     {
@@ -1169,7 +1185,7 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Bold",
       description: "Bold emphasis styling.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">format_bold</span>,
+      icon: <HugeiconsIcon icon={TextBoldIcon} size={16} strokeWidth={1.8} />,
       keywords: ["bold", "b", "strong"],
     },
     {
@@ -1177,16 +1193,16 @@ const NoteEditor = () => {
       group: "Basic Blocks",
       label: "Table",
       description: "Insert a 3×3 grid table with header.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">table</span>,
+      icon: <HugeiconsIcon icon={Table01Icon} size={16} strokeWidth={1.8} />,
       keywords: ["table", "grid", "rows", "columns", "tabular"],
     },
-    // AI Tools (existing)
+    // AI Tools
     {
       id: "write",
       group: "AI Tools",
       label: "Ask AI to write...",
       description: "Generate copy, draft ideas, or brainstorm.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">edit_document</span>,
+      icon: <HugeiconsIcon icon={SparklesIcon} size={16} strokeWidth={1.8} className="text-purple-500 dark:text-purple-400" />,
       keywords: ["ai", "write", "generate", "draft"],
     },
     {
@@ -1194,7 +1210,7 @@ const NoteEditor = () => {
       group: "AI Tools",
       label: "Summarize Selection",
       description: "Create a concise summary of text.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">close_fullscreen</span>,
+      icon: <HugeiconsIcon icon={AiEditingIcon} size={16} strokeWidth={1.8} className="text-blue-500 dark:text-blue-400" />,
       keywords: ["summarize", "summary", "shorten", "ai"],
     },
     {
@@ -1202,7 +1218,7 @@ const NoteEditor = () => {
       group: "AI Tools",
       label: "Fix Grammar",
       description: "Correct spelling and grammar issues.",
-      icon: <span className="material-symbols-outlined text-[17px] leading-none select-none">brush</span>,
+      icon: <HugeiconsIcon icon={CleanIcon} size={16} strokeWidth={1.8} className="text-emerald-500 dark:text-emerald-400" />,
       keywords: ["grammar", "spell", "fix", "ai"],
     },
   ];
@@ -1812,22 +1828,16 @@ const NoteEditor = () => {
                           onClick: toggleFavorite
                         },
                         {
-                          id: "copy-link",
-                          label: "Copy link to page",
-                          icon: "link",
-                          shortcut: "⌘⌃L",
-                          onClick: () => {
-                            navigator.clipboard?.writeText(window.location.href);
-                            showToast("Link copied to clipboard", "success");
-                          }
-                        },
-                        {
                           id: "delete",
                           label: "Delete Page",
                           icon: "delete",
                           shortcut: "Del",
                           isDanger: true,
-                          onClick: () => setShowDeleteModal(true)
+                          disabled: !canDeletePage,
+                          onClick: () => {
+                            if (!canDeletePage) return;
+                            setShowDeleteModal(true);
+                          }
                         }
                       ]
                     },
@@ -1962,131 +1972,79 @@ const NoteEditor = () => {
           )}
 
           {/* Floating Slash Command Menu */}
-          {slashMenu.isOpen && (
-            <div
-              ref={slashMenuRef}
-              role="listbox"
-              id="slash-command-menu"
-              aria-label="Slash commands"
-              style={{
-                position: "absolute",
-                top: `${slashMenu.y}px`,
-                left: `${slashMenu.x}px`,
-              }}
-              className="w-72 max-h-[340px] bg-white dark:bg-[#202020] border border-gray-200/80 dark:border-[#333333] shadow-xl rounded-[6px] p-1.5 z-[1000] text-sm flex flex-col font-sans"
-            >
-              {/* Top Search Bar (like sidebar search) */}
-              <div className="p-1 pb-1.5 border-b border-black/[0.06] dark:border-white/[0.08] mb-1">
-                <div className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[8px] border border-black/[0.12] dark:border-white/[0.12] bg-black/[0.02] dark:bg-white/[0.03] transition-colors">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="material-symbols-outlined text-[15px] leading-none select-none text-gray-400 dark:text-[#7d7a75] shrink-0" aria-hidden="true">
-                      search
-                    </span>
-                    <input
-                      type="text"
-                      role="combobox"
-                      aria-expanded={slashMenu.isOpen}
-                      aria-autocomplete="list"
-                      aria-controls="slash-command-menu"
-                      aria-label="Search blocks or commands"
-                      value={slashMenu.search}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSlashMenu((prev) => ({ ...prev, search: val, index: 0 }));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "ArrowDown") {
-                          e.preventDefault();
-                          if (slashMenuItems.length > 0) {
-                            setSlashMenu((prev) => ({
-                              ...prev,
-                              index: (prev.index + 1) % slashMenuItems.length,
-                            }));
-                          }
-                        } else if (e.key === "ArrowUp") {
-                          e.preventDefault();
-                          if (slashMenuItems.length > 0) {
-                            setSlashMenu((prev) => ({
-                              ...prev,
-                              index:
-                                (prev.index - 1 + slashMenuItems.length) %
-                                slashMenuItems.length,
-                            }));
-                          }
-                        } else if (e.key === "Enter") {
-                          e.preventDefault();
-                          const item = slashMenuItems[slashMenu.index];
-                          if (item) {
-                            handleSelectSlashItem(item);
-                          }
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          setSlashMenu((prev) => ({ ...prev, isOpen: false }));
-                          editor?.commands.focus();
-                        }
-                      }}
-                      placeholder="Search blocks or commands..."
-                      className="w-full bg-transparent text-[12.5px] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-[#7d7a75] outline-none border-none p-0 leading-tight"
-                    />
+          <AnimatePresence>
+            {slashMenu.isOpen && (
+              <motion.div
+                ref={slashMenuRef}
+                role="listbox"
+                id="slash-command-menu"
+                aria-label="Slash commands"
+                initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  position: "absolute",
+                  top: `${slashMenu.y}px`,
+                  left: `${slashMenu.x}px`,
+                }}
+                className="w-72 max-h-[320px] bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] shadow-[0_16px_40px_rgba(0,0,0,0.14)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.55)] rounded-[14px] p-1.5 z-[1000] text-sm flex flex-col font-sans select-none"
+              >
+                {slashMenuItems.length === 0 ? (
+                  <div className="py-6 px-3 text-center text-[12px] text-neutral-400 dark:text-[#7d7a75] select-none">
+                    No matching commands
                   </div>
-                  <kbd className="text-[10px] font-sans font-medium text-gray-400 dark:text-[#6e6b66] bg-transparent border border-black/[0.08] dark:border-white/[0.1] rounded px-1.5 py-0.5 leading-none select-none shrink-0 ml-1.5">
-                    Esc
-                  </kbd>
-                </div>
-              </div>
-
-              {slashMenuItems.length === 0 ? (
-                <div className="py-6 px-3 text-center text-xs text-gray-400 dark:text-[#7d7a75] select-none">
-                  No blocks or commands found
-                </div>
-              ) : (
-                <div className="flex flex-col overflow-y-auto max-h-[260px] custom-scrollbar">
-                  {slashMenuItems.map((item, idx) => {
-                    const showGroupHeader =
-                      idx === 0 || item.group !== slashMenuItems[idx - 1].group;
-                    return (
-                      <Fragment key={item.id}>
-                        {showGroupHeader && (
-                          <div className="px-2 pt-2 pb-1 text-[10.5px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider select-none uppercase">
-                            {item.group}
-                          </div>
-                        )}
-                        <button
-                          role="option"
-                          aria-selected={slashMenu.index === idx}
-                          aria-label={item.label}
-                          data-active={slashMenu.index === idx ? "true" : "false"}
-                          onClick={() => handleSelectSlashItem(item)}
-                          onMouseEnter={() =>
-                            setSlashMenu((prev) => ({ ...prev, index: idx }))
-                          }
-                          className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors rounded-[7px] cursor-pointer ${
-                            slashMenu.index === idx
-                              ? "bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-                          }`}
-                        >
-                          <div className="w-[26px] h-[26px] rounded-[6px] bg-black/[0.03] dark:bg-white/[0.05] flex items-center justify-center shrink-0 text-gray-600 dark:text-gray-300" aria-hidden="true">
-                            {item.icon}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-[13px] leading-tight text-gray-900 dark:text-gray-100">
-                              {item.label}
-                            </span>
-                            {item.description && (
-                              <span className="text-[11px] text-gray-400 dark:text-[#7d7a75] truncate leading-tight mt-0.5">
-                                {item.description}
+                ) : (
+                  <div className="flex flex-col overflow-y-auto max-h-[290px] custom-scrollbar">
+                    {slashMenuItems.map((item, idx) => {
+                      const showGroupHeader =
+                        idx === 0 || item.group !== slashMenuItems[idx - 1].group;
+                      const isSelected = slashMenu.index === idx;
+                      return (
+                        <Fragment key={item.id}>
+                          {showGroupHeader && (
+                            <div className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-neutral-400 dark:text-[#7d7a75] tracking-wide select-none">
+                              {item.group}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            aria-label={item.label}
+                            data-active={isSelected ? "true" : "false"}
+                            onClick={() => handleSelectSlashItem(item)}
+                            onMouseEnter={() =>
+                              setSlashMenu((prev) => ({ ...prev, index: idx }))
+                            }
+                            className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2.5 transition-colors rounded-[9px] cursor-pointer ${
+                              isSelected
+                                ? "bg-black/[0.055] dark:bg-white/[0.07] text-neutral-900 dark:text-[#f0efed]"
+                                : "text-neutral-700 dark:text-[#d1d0cb] hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                            }`}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center shrink-0 text-neutral-500 dark:text-[#a09e99]">
+                              {item.icon}
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="font-medium text-[13px] leading-tight text-neutral-900 dark:text-[#f0efed]">
+                                {item.label}
                               </span>
-                            )}
-                          </div>
-                        </button>
-                      </Fragment>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                              {item.description && (
+                                <span className="text-[11.5px] text-neutral-400 dark:text-[#8e8b86] truncate leading-tight mt-0.5">
+                                  {item.description}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Floating Prompt Input (Ask AI to write...) */}
           {showPromptInput && (
