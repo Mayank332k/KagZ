@@ -141,16 +141,62 @@ const Sidebar = () => {
     setIsMobileSidebarOpen,
     isSidebarCollapsed,
     setIsSidebarCollapsed,
+    isSidebarPeeking,
+    setIsSidebarPeeking,
+    peekSidebar,
+    suppressSidebarPeek,
   } = useContext(EditorContext);
   const isCollapsed = isSidebarCollapsed;
   const setIsCollapsed = setIsSidebarCollapsed;
 
-  // Auto-close mobile drawer on route changes
+  // Desktop hover-peek: sidebar slides in on hover, hides shortly after the
+  // pointer leaves. A click inside pins it open like before.
+  const peekCloseTimerRef = useRef(null);
+  const clearPeekCloseTimer = useCallback(() => {
+    if (peekCloseTimerRef.current) {
+      clearTimeout(peekCloseTimerRef.current);
+      peekCloseTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => () => clearPeekCloseTimer(), [clearPeekCloseTimer]);
+
+  const openSidebarPeek = useCallback(() => {
+    if (!isCollapsed) return;
+    clearPeekCloseTimer();
+    peekSidebar();
+  }, [isCollapsed, clearPeekCloseTimer, peekSidebar]);
+
+  const scheduleSidebarPeekClose = useCallback(() => {
+    if (!isCollapsed) return;
+    clearPeekCloseTimer();
+    peekCloseTimerRef.current = setTimeout(() => {
+      setIsSidebarPeeking(false);
+      peekCloseTimerRef.current = null;
+    }, 140);
+  }, [isCollapsed, clearPeekCloseTimer, setIsSidebarPeeking]);
+
+  const pinSidebarFromPeek = useCallback(() => {
+    if (!isSidebarPeeking || !isCollapsed) return;
+    clearPeekCloseTimer();
+    setIsSidebarPeeking(false);
+    setIsSidebarCollapsed(false);
+  }, [
+    isSidebarPeeking,
+    isCollapsed,
+    clearPeekCloseTimer,
+    setIsSidebarPeeking,
+    setIsSidebarCollapsed,
+  ]);
+
+  // Auto-close mobile drawer and hover-peek on route changes
   useEffect(() => {
     if (setIsMobileSidebarOpen) {
       setIsMobileSidebarOpen(false);
     }
-  }, [location.pathname, setIsMobileSidebarOpen]);
+    if (setIsSidebarPeeking) {
+      setIsSidebarPeeking(false);
+    }
+  }, [location.pathname, setIsMobileSidebarOpen, setIsSidebarPeeking]);
   const [activeMenu, setActiveMenu] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [expandedFolders, setExpandedFolders] = useState({
@@ -245,11 +291,14 @@ const Sidebar = () => {
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
-    const onChange = () => setIsSettingsMobile(mq.matches);
+    const onChange = () => {
+      setIsSettingsMobile(mq.matches);
+      if (mq.matches) setIsSidebarPeeking?.(false);
+    };
     onChange();
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
+  }, [setIsSidebarPeeking]);
 
   useEffect(() => {
     if (showSettingsCard && isSettingsMobile) {
@@ -1071,13 +1120,22 @@ const Sidebar = () => {
     return false;
   };
 
-  if (isCollapsed && !isMobileSidebarOpen) {
+  if (isCollapsed && !isMobileSidebarOpen && !isSidebarPeeking) {
     return (
-      <SearchPalette
-        isOpen={isSearchActive}
-        onClose={() => setIsSearchActive(false)}
-        recentPages={mockRecent}
-      />
+      <>
+        <SearchPalette
+          isOpen={isSearchActive}
+          onClose={() => setIsSearchActive(false)}
+          recentPages={mockRecent}
+        />
+        {/* Thin left-edge hover target: reveals the collapsed sidebar on desktop */}
+        <div
+          data-sidebar-peek-trigger
+          aria-hidden="true"
+          className="fixed left-0 top-0 bottom-0 w-2.5 z-[80] hidden md:block"
+          onMouseEnter={openSidebarPeek}
+        />
+      </>
     );
   }
 
@@ -3251,16 +3309,24 @@ const Sidebar = () => {
       )}
 
       <div
+        onMouseEnter={openSidebarPeek}
+        onMouseLeave={scheduleSidebarPeekClose}
+        onClick={pinSidebarFromPeek}
         className={`h-screen flex flex-col border-r border-black/[0.06] dark:border-white/[0.07] font-sans shrink-0 transition-colors bg-[#f9f8f7] dark:bg-[#202020] ${
           isMobileSidebarOpen
             ? "fixed inset-y-0 left-0 z-[100] w-[84vw] max-w-[310px] shadow-2xl md:relative md:inset-auto md:z-40 md:shadow-none"
-            : "hidden md:flex relative z-40"
+            : isSidebarPeeking
+              ? "sidebar-peek-enter fixed inset-y-0 left-0 z-[95] hidden md:flex shadow-2xl"
+              : "hidden md:flex relative z-40"
         }`}
         style={{ width: isMobileSidebarOpen && (typeof window !== 'undefined' && window.innerWidth < 768) ? undefined : sidebarWidth }}
       >
         {/* Resizer Handle (Desktop only) */}
         <div
-          onMouseDown={handleMouseDown}
+          onMouseDown={(e) => {
+            pinSidebarFromPeek();
+            handleMouseDown(e);
+          }}
           className="absolute top-0 right-[-4px] w-[8px] h-full cursor-col-resize z-50 hover:bg-gray-300/50 transition-colors hidden md:block"
         />
         {/* Top Header, Search Bar & Quick Actions */}
@@ -3268,10 +3334,13 @@ const Sidebar = () => {
           {/* Top Controls Row */}
           <div className="flex items-center justify-between">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (isMobileSidebarOpen) {
                   setIsMobileSidebarOpen(false);
                 } else {
+                  clearPeekCloseTimer();
+                  suppressSidebarPeek();
                   setIsCollapsed(true);
                 }
               }}
@@ -3806,7 +3875,12 @@ const Sidebar = () => {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={() => setIsCollapsed(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              clearPeekCloseTimer();
+              suppressSidebarPeek();
+              setIsCollapsed(true);
+            }}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:text-[#7d7a75] dark:hover:text-gray-200 transition-colors shrink-0"
             title="Collapse sidebar"
             aria-label="Collapse sidebar"

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { chatAPI, invalidateCache } from '../services/api';
 import { useToast } from './ToastContext';
-import { validateAiInput } from '../utils/aiValidation';
 import { createStreamPacer } from '../utils/streamPacer';
 
 import { ChatContext } from './ChatContextDefinition';
@@ -120,13 +119,6 @@ export const ChatProvider = ({ children }) => {
 
   const sendMessage = async (userQuery, historyOverride = null, pageContext = null, options = {}) => {
     if (!userQuery.trim() || isStreaming) return;
-
-    // Validate chat input before proceeding
-    const validation = validateAiInput('chat', userQuery);
-    if (!validation.valid) {
-      showToast(validation.message, "warning");
-      return;
-    }
 
     setChatError(null);
     setQuery('');
@@ -348,23 +340,36 @@ export const ChatProvider = ({ children }) => {
                 if (lastMsg.role !== 'assistant') return prev;
 
                 const prevSteps = Array.isArray(lastMsg.workingSteps) ? [...lastMsg.workingSteps] : [];
+                const completionEvent = typeof event.event === 'string' ? event.event.trim() : '';
+
                 const updatedSteps = prevSteps.map((s) => {
                   if (s.tool === event.tool && s.isLive) {
-                    return { ...s, isLive: false, status: event.status || 'success', error: event.error };
+                    return {
+                      ...s,
+                      isLive: false,
+                      status: event.status || 'success',
+                      error: event.error,
+                      completionEvent: completionEvent || s.completionEvent,
+                    };
                   }
                   return s;
                 });
 
-                // Completion thought event
-                const completionThought = typeof event.event === 'string' ? event.event.trim() : '';
-                if (completionThought && !updatedSteps.some((s) => s.text === completionThought)) {
-                  updatedSteps.push({
-                    type: 'thought',
-                    text: completionThought,
-                    tool: event.tool,
-                    status: event.status || 'success',
-                    timestamp: Date.now(),
-                  });
+                // Attach completionEvent to the last step of this tool if not already attached
+                if (completionEvent) {
+                  const lastToolStep = [...updatedSteps].reverse().find((s) => s.tool === event.tool);
+                  if (lastToolStep && !lastToolStep.completionEvent) {
+                    lastToolStep.completionEvent = completionEvent;
+                  }
+                  if (!updatedSteps.some((s) => s.text === completionEvent)) {
+                    updatedSteps.push({
+                      type: 'tool_completion',
+                      text: completionEvent,
+                      tool: event.tool,
+                      status: event.status || 'success',
+                      timestamp: Date.now(),
+                    });
+                  }
                 }
 
                 return [
@@ -522,8 +527,11 @@ export const ChatProvider = ({ children }) => {
               await pacer.drain();
               break;
             } else if (event.type === 'error') {
-              const errText = event.error || event.data || "An error occurred.";
-              throw new Error(errText);
+              const errText = event.error || event.data || "Failed to generate response. Please try again.";
+              streamError = true;
+              setChatError({ message: errText, query: userQuery });
+              showToast(errText, "error");
+              break;
             }
           }
 
@@ -602,6 +610,7 @@ export const ChatProvider = ({ children }) => {
       if (abortControllerRef.current?.signal === signal) {
         abortControllerRef.current = null;
       }
+      const stoppedByUser = signal.aborted && !completedSuccessfully;
       setIsStreaming(false);
       setMessages((prev) => {
         const msgs = [...prev];
@@ -614,7 +623,7 @@ export const ChatProvider = ({ children }) => {
               if (signal.aborted) {
                 // User intentionally stopped / paused generation - never treat as failure
                 if (last.workingSteps && last.workingSteps.length > 0) {
-                  return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration }];
+                  return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration, stoppedByUser: true }];
                 }
                 msgs.pop();
                 return msgs;
@@ -634,7 +643,7 @@ export const ChatProvider = ({ children }) => {
               }
               return msgs;
             }
-            return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration }];
+            return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration, stoppedByUser }];
           }
         }
         return msgs;

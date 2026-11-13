@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo, useCallback } from 'react';
 import { ChevronRight, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContextDefinition';
@@ -367,7 +367,7 @@ const MessageActions = ({ content, timestamp, isLatest, sources }) => {
       {/* Copy */}
       <button
         onClick={handleCopy}
-        className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+        className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-black dark:text-[#b4b4bc] hover:text-black dark:hover:text-white transition-colors cursor-pointer"
         title={copied ? "Copied!" : "Copy"}
         aria-label="Copy"
       >
@@ -390,7 +390,7 @@ const MessageActions = ({ content, timestamp, isLatest, sources }) => {
               handleCreateNewPage();
             }
           }}
-          className={`w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer ${showAddMenu ? 'bg-black/10 dark:bg-white/10 text-black dark:text-white' : ''}`}
+          className={`w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-black dark:text-[#b4b4bc] hover:text-black dark:hover:text-white transition-colors cursor-pointer ${showAddMenu ? 'bg-black/10 dark:bg-white/10 text-black dark:text-white' : ''}`}
           title={isPageOpen ? 'Add options' : 'Create new page with this note'}
           aria-label="Add to page"
         >
@@ -460,7 +460,7 @@ const MessageActions = ({ content, timestamp, isLatest, sources }) => {
             const formattedSources = sources.map(formatSource);
             openSources(formattedSources);
           }}
-          className="w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer"
+          className="w-6.5 h-6.5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 text-black dark:text-[#b4b4bc] hover:text-black dark:hover:text-white transition-colors cursor-pointer"
           title={`View ${sources.length} sources`}
           aria-label="View sources"
         >
@@ -788,7 +788,7 @@ const ChatMessageItem = React.memo(({
   }, [msg.sources, msg.researchData, msg.workingSteps]);
 
   const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
-  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user');
+  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
   const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
   const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
 
@@ -802,9 +802,7 @@ const ChatMessageItem = React.memo(({
   );
 
   if (msg.role === 'user') {
-    const prevMsg = idx > 0 && messages ? messages[idx - 1] : null;
-    const isPrevChoice = prevMsg?.role === 'assistant' && Boolean(parseInteractiveChoice(prevMsg?.content));
-    const isChoiceResp = Boolean(msg.isChoiceResponse || isPrevChoice);
+    const isChoiceResp = Boolean(msg.isChoiceResponse);
 
     if (isChoiceResp) {
       return null;
@@ -880,6 +878,7 @@ const ChatMessageItem = React.memo(({
                 thoughts={thoughts}
                 finalContent={finalContent}
                 onOpenSources={openSources}
+                stoppedByUser={Boolean(msg.stoppedByUser)}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (
@@ -932,22 +931,7 @@ const ChatMessageItem = React.memo(({
           </div>
         )}
 
-        {/* Inline Active Choice Card */}
-        {isChoiceActive && (
-          <div className="mt-3 w-full">
-            <InteractiveChoiceCard
-              question={choiceData.question}
-              options={choiceData.options}
-              selectedIndex={choiceSelectedIndex}
-              onSelectedIndexChange={onSelectedIndexChange}
-              onSelect={(chosen) => onSelectChoice && onSelectChoice(chosen, { id: promptId, question: choiceData.question })}
-              onSkip={() => onSkipChoice && onSkipChoice(promptId)}
-              onDismiss={() => onSkipChoice && onSkipChoice(promptId)}
-            />
-          </div>
-        )}
-
-        {finalContent && !(finalContent === '' && isLatestStreaming) && (
+        {finalContent && !isLatestStreaming && (
           <MessageActions
             content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
@@ -1009,7 +993,7 @@ const RightPanelMessageItem = React.memo(({
   }, [msg.sources, msg.researchData, msg.workingSteps]);
 
   const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
-  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user');
+  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
   const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
   const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
 
@@ -1023,9 +1007,7 @@ const RightPanelMessageItem = React.memo(({
   );
 
   if (msg.role === 'user') {
-    const prevMsg = idx > 0 && messages ? messages[idx - 1] : null;
-    const isPrevChoice = prevMsg?.role === 'assistant' && Boolean(parseInteractiveChoice(prevMsg?.content));
-    const isChoiceResp = Boolean(msg.isChoiceResponse || isPrevChoice);
+    const isChoiceResp = Boolean(msg.isChoiceResponse);
 
     if (isChoiceResp) {
       return null;
@@ -1101,6 +1083,7 @@ const RightPanelMessageItem = React.memo(({
                 thoughts={thoughts}
                 finalContent={finalContent}
                 onOpenSources={openSources}
+                stoppedByUser={Boolean(msg.stoppedByUser)}
               />
             </motion.div>
           ) : finalContent === '' && isLatestStreaming ? (
@@ -1153,22 +1136,7 @@ const RightPanelMessageItem = React.memo(({
           </div>
         )}
 
-        {/* Inline Active Choice Card */}
-        {isChoiceActive && (
-          <div className="mt-3 w-full">
-            <InteractiveChoiceCard
-              question={choiceData.question}
-              options={choiceData.options}
-              selectedIndex={choiceSelectedIndex}
-              onSelectedIndexChange={onSelectedIndexChange}
-              onSelect={(chosen) => onSelectChoice && onSelectChoice(chosen, { id: promptId, question: choiceData.question })}
-              onSkip={() => onSkipChoice && onSkipChoice(promptId)}
-              onDismiss={() => onSkipChoice && onSkipChoice(promptId)}
-            />
-          </div>
-        )}
-
-        {finalContent && !(finalContent === '' && isLatestStreaming) && (
+        {finalContent && !isLatestStreaming && (
           <MessageActions
             content={finalContent || msg.content}
             timestamp={msg.createdAt || msg.timestamp}
@@ -1461,6 +1429,15 @@ const ChatComposer = ({
       ...parsed,
     };
   }, [messages, isStreaming, dismissedChoiceId]);
+
+  // True only when assistant response text has actually started streaming (not during thinking/tools)
+  const isResponseWriting = useMemo(() => {
+    if (!isStreaming || !messages || messages.length === 0) return false;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant') return false;
+    const { finalContent, isThinkingTagActive } = parseThoughtAndContent(lastMsg.content || '');
+    return Boolean(!isThinkingTagActive && finalContent && finalContent.trim().length > 0);
+  }, [isStreaming, messages]);
 
   const handleSelectChoice = (chosenAnswer) => {
     if (activeChoicePrompt?.id && setDismissedChoiceId) {
@@ -1887,6 +1864,23 @@ const ChatComposer = ({
         )}
       </AnimatePresence>
 
+      {/* Active Interactive Choice Card docked directly above composer with exact width */}
+      <AnimatePresence>
+        {activeChoicePrompt && (
+          <div className="mb-2 w-full">
+            <InteractiveChoiceCard
+              question={activeChoicePrompt.question}
+              options={activeChoicePrompt.options}
+              selectedIndex={choiceSelectedIndex}
+              onSelectedIndexChange={setChoiceSelectedIndex}
+              onSelect={handleSelectChoice}
+              onSkip={handleSkipChoice}
+              onDismiss={handleSkipChoice}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
       {isReplyMode ? (
         /* Reply Mode (Rounded rectangle matching Claude when conversation has messages) */
         <form onSubmit={onFormSubmit} className="flex flex-col w-full mx-auto">
@@ -1978,21 +1972,43 @@ const ChatComposer = ({
               }
               rows={1}
               autoFocus
-              className="flex-1 bg-transparent resize-none outline-none border-0 m-0 text-[14.5px] leading-[23px] font-normal text-gray-900 dark:text-[#edece8] placeholder-[#9c9a94] dark:placeholder-[#7e7c76] px-0 py-0 custom-scrollbar min-h-[23px] max-h-[180px] self-center"
+              className="flex-1 bg-transparent resize-none outline-none border-0 m-0 text-[14.5px] leading-[23px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-0 py-0 custom-scrollbar min-h-[23px] max-h-[180px] self-center"
               style={{ height: '23px' }}
             />
 
             {/* Action Icon on right inside box */}
             <div className={`shrink-0 ml-2 flex items-center justify-center ${isMultiLine ? 'self-end mb-0.5' : 'self-center'}`}>
               {isStreaming ? (
-                <button
-                  type="button"
-                  onClick={stopGeneration}
-                  className="w-[28px] h-[28px] flex items-center justify-center rounded-[6px] text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                  title="Stop generation"
-                >
-                  <div className="w-4 h-4 bg-current rounded-[3.5px]" />
-                </button>
+                isResponseWriting ? (
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="group/stop relative w-[28px] h-[28px] flex items-center justify-center rounded-[6px] text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Stop generation"
+                  >
+                    {/* Normal state: Animated Feather/Quill with writing sway */}
+                    <span className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out opacity-100 group-hover/stop:opacity-0 text-[#8e8e93] dark:text-[#a09d96]">
+                      <span className="quill-writing-animation">
+                        <HugeiconsIcon icon={QuillWrite01Icon} size={16} strokeWidth={1.8} />
+                      </span>
+                    </span>
+
+                    {/* Hover state: Stop Button */}
+                    <span className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out opacity-0 group-hover/stop:opacity-100 text-gray-900 dark:text-white">
+                      <div className="w-3.5 h-3.5 bg-black dark:bg-white rounded-[2.5px]" />
+                    </span>
+                  </button>
+                ) : (
+                  /* Thinking / Tool phase: Direct Stop Button (No feather writing animation) */
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="w-[28px] h-[28px] flex items-center justify-center rounded-[6px] text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Stop generation"
+                  >
+                    <div className="w-3.5 h-3.5 bg-black dark:bg-white rounded-[2.5px]" />
+                  </button>
+                )
               ) : (
                 <button
                   type="submit"
@@ -2089,7 +2105,6 @@ const ChatComposer = ({
           >
             {activeTool && (
               <div className="inline-flex items-center gap-1.5 py-1 select-none shrink-0 text-[16px] leading-[1.5]">
-                <span className="text-gray-400 dark:text-neutral-500 font-normal select-none">-</span>
                 {activeTool.icon && (
                   <HugeiconsIcon 
                     icon={activeTool.icon} 
@@ -2165,7 +2180,7 @@ const ChatComposer = ({
                 }
                 rows={1}
                 autoFocus
-                className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-gray-900 dark:text-[#f0efed] placeholder-[var(--text-muted)] px-1 py-1 custom-scrollbar min-h-[28px]"
+                className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-1 py-1 custom-scrollbar min-h-[28px]"
                 style={{ maxHeight: '250px' }}
               />
             </div>
@@ -2224,14 +2239,36 @@ const ChatComposer = ({
               {renderModelDropdown()}
 
               {isStreaming ? (
-                <button
-                  type="button"
-                  onClick={stopGeneration}
-                  className="w-[38px] h-[38px] rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm ml-1 cursor-pointer"
-                  title="Stop generation"
-                >
-                  <div className="w-3.5 h-3.5 bg-white rounded-[2px]" />
-                </button>
+                isResponseWriting ? (
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="group/stop relative w-[38px] h-[38px] rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-gray-900 dark:text-white transition-colors shadow-sm ml-1 cursor-pointer"
+                    title="Stop generation"
+                  >
+                    {/* Normal state: Animated Feather/Quill with writing sway */}
+                    <span className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out opacity-100 group-hover/stop:opacity-0 text-[#8e8e93] dark:text-[#a09d96]">
+                      <span className="quill-writing-animation">
+                        <HugeiconsIcon icon={QuillWrite01Icon} size={18} strokeWidth={1.8} />
+                      </span>
+                    </span>
+
+                    {/* Hover state: Stop Button */}
+                    <span className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 ease-out opacity-0 group-hover/stop:opacity-100 text-gray-900 dark:text-white">
+                      <div className="w-4 h-4 bg-black dark:bg-white rounded-[3px]" />
+                    </span>
+                  </button>
+                ) : (
+                  /* Thinking / Tool phase: Direct Stop Button (No feather writing animation) */
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="w-[38px] h-[38px] rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-gray-900 dark:text-white transition-colors shadow-sm ml-1 cursor-pointer"
+                    title="Stop generation"
+                  >
+                    <div className="w-4 h-4 bg-black dark:bg-white rounded-[3px]" />
+                  </button>
+                )
               ) : (
                 <button
                   type="submit"
@@ -2249,24 +2286,6 @@ const ChatComposer = ({
             </div>
           </div>
         </form>
-      )}
-
-      {/* Subtle Bottom Keyboard Helper (matching Linear / Apple native spec) */}
-      {activeChoicePrompt && (
-        <div className="flex items-center justify-center gap-2 mt-2.5 text-[12px] text-[#8E8B86] dark:text-[#777777] select-none font-sans">
-          <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↑</kbd>
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↓</kbd>
-            <span>to navigate</span>
-          </span>
-          <span>·</span>
-          <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 rounded-[5px] bg-white border border-[#D4D3CF] text-[11px] text-[#5F5E59] dark:bg-[#1c1c1c] dark:border-[#3A3A3A] dark:text-[#999999] font-mono leading-none">↵</kbd>
-            <span>to select</span>
-          </span>
-          <span>·</span>
-          <span>or type below</span>
-        </div>
       )}
     </div>
   );
@@ -2287,7 +2306,7 @@ const AIChat = ({ isRightPanel = false }) => {
     loadSession,
     sessionId
   } = useContext(ChatContext);
-  const { toggleSidebar, isSidebarCollapsed, isMobileSidebarOpen } = useContext(EditorContext) || {};
+  const { toggleSidebar, isSidebarCollapsed, isMobileSidebarOpen, peekSidebar } = useContext(EditorContext) || {};
   const { user } = useAuth();
   
   const textareaRef = useRef(null);
@@ -2603,6 +2622,9 @@ const AIChat = ({ isRightPanel = false }) => {
                 <button
                   type="button"
                   onClick={toggleSidebar}
+                  onMouseEnter={() => {
+                    if (isSidebarCollapsed) peekSidebar?.();
+                  }}
                   className={`w-8 h-8 items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0 ${
                     !isMobileSidebarOpen ? 'flex' : 'hidden'
                   } ${isSidebarCollapsed ? 'md:flex' : 'md:hidden'}`}

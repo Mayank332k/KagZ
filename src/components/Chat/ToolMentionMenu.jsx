@@ -34,7 +34,7 @@ export const AVAILABLE_TOOLS = [
     description: 'For detailed answers',
     icon: Brain03Icon,
     emoji: '🧠',
-    iconColor: '#FFFFFF',
+    iconColor: '#8E8B86',
   },
   {
     id: 'workspace',
@@ -101,10 +101,10 @@ const ToolMentionMenu = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.16, ease: "easeOut" }}
-      className="claude-composer-box absolute bottom-full left-0 right-0 mb-1.5 w-full border shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] z-[9999] overflow-hidden rounded-[14.5px] p-2 select-none"
+      className="claude-composer-box absolute bottom-full left-0 right-0 mb-1.5 w-full border z-[9999] overflow-hidden rounded-[14.5px] p-2 select-none"
     >
       {/* Section Header */}
-      <div className="px-3 pt-1.5 pb-1 text-[12px] leading-[16px] font-medium text-[#7d7a75] dark:text-[#ada9a3]">
+      <div className="px-3 pt-1.5 pb-1 text-[12px] leading-[16px] font-medium text-[var(--c-text-secondary)]">
         Plugins & Tools
       </div>
 
@@ -125,8 +125,8 @@ const ToolMentionMenu = ({
               }}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-[12px] text-left transition-colors cursor-pointer w-full group ${
                 isSelected
-                  ? 'bg-black/[0.055] dark:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'
-                  : 'hover:bg-black/[0.031] dark:hover:bg-white/[0.055] text-[#2c2c2b] dark:text-[#f0efed]'
+                  ? 'bg-[var(--ca-selected)] text-[var(--c-text-primary)]'
+                  : 'hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)]'
               }`}
             >
               {/* Minimalist icon without any background wrapper */}
@@ -139,10 +139,10 @@ const ToolMentionMenu = ({
 
               {/* Title & Subtitle inline */}
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <span className="text-[14px] leading-[16.8px] font-medium text-[#2c2c2b] dark:text-[#f0efed] shrink-0">
+                <span className="text-[14px] leading-[16.8px] font-medium text-[var(--c-text-primary)] shrink-0">
                   {tool.label}
                 </span>
-                <span className="text-[12px] leading-[15px] text-[#7d7a75] dark:text-[#ada9a3] truncate">
+                <span className="text-[12px] leading-[15px] text-[var(--c-text-secondary)] truncate">
                   {tool.description}
                 </span>
               </div>

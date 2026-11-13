@@ -24,8 +24,26 @@ export const EditorProvider = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // Desktop sidebar collapsed state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Desktop hover-peek state: sidebar slides in on hover and hides on mouse leave
+  const [isSidebarPeeking, setIsSidebarPeeking] = useState(false);
+  const sidebarPeekSuppressedUntilRef = useRef(0);
+
+  // Open the hover-peek sidebar. Suppressed briefly after an explicit close so
+  // the "Open sidebar" icon that appears under the cursor doesn't instantly
+  // re-open it.
+  const peekSidebar = useCallback(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
+    if (Date.now() < sidebarPeekSuppressedUntilRef.current) return;
+    setIsSidebarPeeking(true);
+  }, []);
+
+  const suppressSidebarPeek = useCallback((duration = 700) => {
+    sidebarPeekSuppressedUntilRef.current = Date.now() + duration;
+    setIsSidebarPeeking(false);
+  }, []);
 
   const toggleSidebar = useCallback(() => {
+    setIsSidebarPeeking(false);
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setIsMobileSidebarOpen((prev) => !prev);
     } else {
@@ -200,6 +218,10 @@ export const EditorProvider = ({ children }) => {
         setIsMobileSidebarOpen,
         isSidebarCollapsed,
         setIsSidebarCollapsed,
+        isSidebarPeeking,
+        setIsSidebarPeeking,
+        peekSidebar,
+        suppressSidebarPeek,
         toggleSidebar,
         refreshSidebarTrigger,
         triggerSidebarRefresh,

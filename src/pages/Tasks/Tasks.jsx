@@ -292,7 +292,6 @@ const Tasks = () => {
     setTaskToDelete(null);
     try {
       await tasksAPI.deleteTask(taskId);
-      showToast("Task deleted", "info", 2000, { position: 'center' });
     } catch (error) {
       console.error("Failed to delete task", error);
       showToast("Failed to delete task", "error", 2500, { position: 'center' });

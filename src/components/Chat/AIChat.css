@@ -565,3 +565,32 @@
   box-shadow: var(--sources-shadow);
   border-radius: 30px;
 }
+
+/* --- Quill Writing Sway Animation --- */
+@keyframes writing-sway {
+  0% {
+    transform: rotate(0deg) translate(0px, 0px);
+  }
+  25% {
+    transform: rotate(-6deg) translate(-0.8px, -0.6px);
+  }
+  50% {
+    transform: rotate(2.5deg) translate(0.6px, 0.4px);
+  }
+  75% {
+    transform: rotate(-4.5deg) translate(-0.5px, -0.4px);
+  }
+  100% {
+    transform: rotate(0deg) translate(0px, 0px);
+  }
+}
+
+.quill-writing-animation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: 18% 85%;
+  animation: writing-sway 3.8s ease-in-out infinite;
+  will-change: transform;
+}
+

@@ -1,28 +1,21 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { marked } from 'marked';
 
 /**
  * InteractiveChoiceCard
  *
- * Compact, sleek question card:
- * - Rounded surface with a quiet header (question + dismiss)
- * - Numbered option rows with title/description and inset hairline dividers
- * - Footer with "Something else" custom input and a Skip pill
- * - Theme-aware: light surfaces by default, original dark palette under `.dark`
- *
- * @param {Object} props
- * @param {string} props.question - Primary prompt/question (supports inline markdown: **bold**, *italic*, `code`)
- * @param {Array<{ title: string, description?: string }>} props.options - Choices
- * @param {Function} props.onSelect - Callback with chosen text
- * @param {Function} [props.onSkip] - Callback when user skips
- * @param {Function} [props.onDismiss] - Callback when user closes (X)
+ * Matching the reference UI (media_1794554782821_0a64b5a2.png):
+ * - Exact textarea width matching the composer
+ * - Quiet header with question text on left, 'close' (X) on right
+ * - Numbered option rows (1, 2, 3...) with title and subtitle
+ * - Selection / hover shows background highlight and '→' arrow on the right
+ * - Footer with inline 'Something else' custom input and 'Skip' button on the right
  */
 
 // Parse inline markdown (bold, italic, code) without block elements
 export const parseInlineMarkdown = (text) => {
   if (!text || typeof text !== 'string') return text;
-  // Configure marked for inline-only parsing
   return marked.parseInline(text);
 };
 
@@ -61,17 +54,10 @@ const InteractiveChoiceCard = ({
     ? Math.min(selectedIndex, normalizedOptions.length - 1)
     : -1;
 
-  const [showCustomInput, setShowCustomInput] = useState(false);
   const [customText, setCustomText] = useState('');
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (showCustomInput && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [showCustomInput]);
-
-  // Clear the highlighted option whenever the question changes.
+  // Clear the highlighted option whenever the question changes
   useEffect(() => {
     setSelectedIndex(-1);
   }, [question, setSelectedIndex]);
@@ -88,19 +74,14 @@ const InteractiveChoiceCard = ({
     if (onSelect) onSelect(customText.trim());
   };
 
-  const resetCustomInput = () => {
-    setShowCustomInput(false);
-    setCustomText('');
-  };
-
   // Keyboard navigation: 1-9, ArrowUp/ArrowDown, Enter, Escape
   useEffect(() => {
     const handleKeyDown = (e) => {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
         if (e.key === 'Escape') {
-          if (showCustomInput) {
-            resetCustomInput();
+          if (customText) {
+            setCustomText('');
             e.stopPropagation();
           } else if (onDismiss) {
             onDismiss();
@@ -136,7 +117,7 @@ const InteractiveChoiceCard = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeIndex, normalizedOptions, handleChoose, showCustomInput, onDismiss, setSelectedIndex]);
+  }, [activeIndex, normalizedOptions, handleChoose, customText, onDismiss, setSelectedIndex]);
 
   if (!question && normalizedOptions.length === 0) return null;
 
@@ -146,11 +127,11 @@ const InteractiveChoiceCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.995 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className={`claude-composer-box w-full max-w-[770px] mx-auto mb-1 flex flex-col overflow-hidden rounded-[14.5px] border font-sans text-[#2C2C2B] shadow-[0_18px_50px_-12px_rgba(0,0,0,0.14)] transition-colors duration-200 select-none dark:text-[#E8E8E8] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)] ${className}`}
+      className={`claude-composer-box w-full mx-auto flex flex-col overflow-hidden rounded-[14.5px] border font-sans text-[var(--c-text-primary)] transition-colors duration-200 select-none ${className}`}
     >
-      {/* HEADER */}
-      <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5 sm:px-5">
-        <h3 className="min-w-0 flex-1 truncate text-[14px] font-normal leading-snug tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14.5px]">
+      {/* 1. HEADER (Question on left, Close button on right) */}
+      <div className="flex items-center justify-between gap-3 px-4.5 pb-3 pt-3.5 sm:px-5">
+        <h3 className="min-w-0 flex-1 truncate text-[14px] font-normal leading-snug tracking-[-0.01em] text-[var(--c-text-primary)] sm:text-[14.5px]">
           <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(question) }} />
         </h3>
 
@@ -159,9 +140,9 @@ const InteractiveChoiceCard = ({
             type="button"
             onClick={onDismiss}
             aria-label="Close"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#8E8B86] transition-colors hover:bg-black/[0.04] hover:text-[#5F5E59] dark:text-[#8A8A8A] dark:hover:bg-white/[0.06] dark:hover:text-[#D4D4D4]"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--c-text-secondary)] transition-colors hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px] leading-none select-none">
+            <span className="material-symbols-outlined text-[17px] leading-none select-none">
               close
             </span>
           </button>
@@ -170,7 +151,7 @@ const InteractiveChoiceCard = ({
 
       <div className="h-px w-full bg-black/[0.06] dark:bg-white/[0.08]" />
 
-      {/* OPTIONS */}
+      {/* 2. NUMBERED OPTIONS */}
       <div className="flex flex-col">
         {normalizedOptions.map((opt, idx) => {
           const isSelected = activeIndex === idx;
@@ -185,27 +166,39 @@ const InteractiveChoiceCard = ({
                 handleChoose(opt);
               }}
               onMouseEnter={() => setSelectedIndex(idx)}
-              className={`group relative flex min-h-[58px] cursor-pointer items-center gap-3 px-4.5 py-3 transition-colors duration-150 sm:px-5 ${
+              className={`group relative flex min-h-[56px] cursor-pointer items-center gap-3.5 px-4.5 py-2.5 transition-colors duration-150 sm:px-5 ${
                 isSelected
-                  ? 'bg-black/[0.04] dark:bg-white/[0.05]'
-                  : 'bg-transparent hover:bg-black/[0.025] dark:hover:bg-white/[0.035]'
+                  ? 'bg-[var(--ca-selected)]'
+                  : 'bg-transparent hover:bg-[var(--ca-hover)]'
               }`}
             >
-              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] text-[13px] font-medium leading-none text-[#8E8B86] dark:text-[#E0E0E0] transition-colors duration-150 group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.12]">
+              {/* Rounded square number badge */}
+              <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--ca-selected)] text-[13px] font-medium leading-none text-[var(--c-text-secondary)] transition-colors duration-150 group-hover:bg-[var(--ca-pressed)]">
                 {idx + 1}
               </div>
 
+              {/* Title & Description */}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-normal leading-tight tracking-[-0.01em] text-[#2C2C2B] dark:text-[#E8E8E8] sm:text-[14.5px]">
+                <div className="truncate text-[14px] font-medium leading-tight tracking-[-0.01em] text-[var(--c-text-primary)] sm:text-[14.5px]">
                   <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.title) }} />
                 </div>
                 {opt.description && (
-                  <p className="mt-0.5 truncate text-[12.5px] font-normal leading-tight text-[#8E8B86] dark:text-[#8A8A8A] sm:text-[13px]">
+                  <p className="mt-1 truncate text-[12.5px] font-normal leading-tight text-[var(--c-text-secondary)]">
                     <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(opt.description) }} />
                   </p>
                 )}
               </div>
 
+              {/* Arrow on right for selected / hovered item */}
+              <span
+                className={`text-[var(--c-text-secondary)] text-[16px] leading-none font-normal shrink-0 transition-opacity duration-150 ${
+                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                →
+              </span>
+
+              {/* Inset hairline divider between options */}
               {idx < normalizedOptions.length - 1 && (
                 <span
                   aria-hidden="true"
@@ -217,81 +210,42 @@ const InteractiveChoiceCard = ({
         })}
       </div>
 
-      {/* FOOTER */}
-      <div className="relative flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+      {/* 3. FOOTER ("Something else" input on left, "Skip" on right) */}
+      <div className="relative flex items-center justify-between gap-3 px-4.5 py-2.5 sm:px-5">
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-4 right-4 top-0 h-px bg-black/[0.06] dark:bg-white/[0.08] sm:left-5 sm:right-5"
         />
 
-        <AnimatePresence mode="wait" initial={false}>
-          {!showCustomInput ? (
-            <div
-              key="custom-trigger"
-              role="button"
-              tabIndex={0}
-              onClick={() => setShowCustomInput(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setShowCustomInput(true);
-                }
-              }}
-              className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3"
-            >
-              <div className="flex h-[28px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] transition-colors duration-150 group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.12]">
-                <span className="material-symbols-outlined text-[15px] leading-none text-[#8E8B86] select-none dark:text-[#E0E0E0]">
-                  edit
-                </span>
-              </div>
-              <span className="truncate text-[14px] font-normal text-[#8E8B86] transition-colors duration-150 group-hover:text-[#2C2C2B] dark:text-[#8A8A8A] dark:group-hover:text-[#E0E0E0] sm:text-[14.5px]">
-                Something else
-              </span>
-            </div>
-          ) : (
-            <motion.form
-              key="custom-form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              onSubmit={handleCustomSubmit}
-              className="flex min-w-0 flex-1 items-center gap-2"
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
-                placeholder="Type custom response..."
-                className="h-8 w-full min-w-0 rounded-[9px] border border-[#D4D3CF] bg-[#F4F3F3] px-3 text-[12.5px] text-[#2C2C2B] outline-none transition-colors placeholder-[#A19E99] focus:border-[#A19E99] dark:border-[#3A3A3A] dark:bg-[#151515] dark:text-[#E8E8E8] dark:placeholder-[#777777] dark:focus:border-[#555555]"
-              />
-              <button
-                type="submit"
-                disabled={!customText.trim()}
-                className="h-8 shrink-0 rounded-[9px] bg-[#2C2C2B] px-3 text-[12.5px] font-medium text-white transition-colors duration-150 hover:bg-black disabled:opacity-30 dark:bg-[#EDEDED] dark:text-[#1E1E1E] dark:hover:bg-white"
-              >
-                Send
-              </button>
-              <button
-                type="button"
-                onClick={resetCustomInput}
-                aria-label="Cancel custom response"
-                className="flex h-8 w-7 shrink-0 items-center justify-center rounded-[8px] text-[#8E8B86] transition-colors duration-150 hover:bg-black/[0.04] hover:text-[#5F5E59] dark:text-[#8A8A8A] dark:hover:bg-white/[0.06] dark:hover:text-[#D4D4D4]"
-              >
-                <span className="material-symbols-outlined text-[16px] leading-none select-none">
-                  close
-                </span>
-              </button>
-            </motion.form>
-          )}
-        </AnimatePresence>
+        {/* Custom text input */}
+        <form onSubmit={handleCustomSubmit} className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--ca-selected)] transition-colors duration-150 text-[var(--c-text-secondary)]">
+            <span className="material-symbols-outlined text-[15px] leading-none select-none">
+              edit
+            </span>
+          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCustomSubmit();
+              }
+            }}
+            placeholder="Something else"
+            className="w-full bg-transparent text-[14px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] outline-none border-0 p-0 m-0 custom-scrollbar"
+          />
+        </form>
 
-        {onSkip && !showCustomInput && (
+        {/* Skip button */}
+        {onSkip && (
           <button
             type="button"
             onClick={onSkip}
-            className="shrink-0 rounded-[10px] bg-black/[0.05] px-4 py-2 text-[13px] font-medium text-[#2C2C2B] transition-colors duration-150 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-[#F0F0F0] dark:hover:bg-white/[0.12]"
+            className="shrink-0 rounded-[9px] bg-[var(--ca-selected)] hover:bg-[var(--ca-pressed)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--c-text-primary)] transition-colors cursor-pointer select-none"
           >
             Skip
           </button>
