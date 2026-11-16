@@ -215,8 +215,8 @@
 }
 
 .claude-composer-box {
-  background-color: #f0eee6;
-  border-color: rgba(0, 0, 0, 0.06);
+  background-color: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 :where(.dark, .dark *) .claude-composer-box {

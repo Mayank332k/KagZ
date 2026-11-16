@@ -359,6 +359,7 @@ export function getPhaseToolSummary(tools = [], isLive = false) {
   }
 
   let hasWebSearch = false;
+  let hasDeepResearch = false;
   let hasMemory = false;
   let hasNotes = false;
   let hasPage = false;
@@ -376,6 +377,14 @@ export function getPhaseToolSummary(tools = [], isLive = false) {
 
     if (st === 'reconnecting' || lower.includes('reconnect') || lower.includes('trying to reconnect')) {
       hasReconnect = true;
+    } else if (
+      st === 'deep_research' ||
+      tool === 'deep_research' ||
+      lower.includes('deep research') ||
+      lower.includes('researching') ||
+      lower.includes('synthesizing')
+    ) {
+      hasDeepResearch = true;
     } else if (
       st === 'memory' ||
       st === 'remembering' ||
@@ -423,8 +432,14 @@ export function getPhaseToolSummary(tools = [], isLive = false) {
 
   const actions = [];
 
-  // 1. Web search
-  if (hasWebSearch) {
+  // 1. Deep Research
+  if (hasDeepResearch) {
+    if (hasPage && pageCount > 0) {
+      actions.push(isLive ? `Conducting deep research across ${pageCount} sources` : `Researched deeply across ${pageCount} sources`);
+    } else {
+      actions.push(isLive ? 'Conducting deep research' : 'Researched deeply');
+    }
+  } else if (hasWebSearch) {
     actions.push(isLive ? 'Searching the web' : 'Searched the web');
   }
 
@@ -548,7 +563,22 @@ export function getPhaseActiveToolMeta(phase, isPhaseLive = false) {
         };
       }
 
-      // 8. General search
+      // 8. Deep Research step (e.g. "Conducting deep research", "Refining research query", etc.)
+      if (
+        active.stateType === 'deep_research' ||
+        active.tool === 'deep_research' ||
+        lower.includes('research') ||
+        lower.includes('analyzing') ||
+        lower.includes('synthesizing')
+      ) {
+        return {
+          key: `deep-research-${active.id || rawText}`,
+          label: rawText.replace(/>\s*$/, '').trim() || 'Conducting deep research',
+          icon: <HugeiconsIcon icon={Search01Icon} size={14.5} strokeWidth={1.8} />,
+        };
+      }
+
+      // 9. General search
       return {
         key: `searching-${rawText}`,
         label: rawText.replace(/>\s*$/, '').trim() || 'Searching the web',
@@ -612,8 +642,6 @@ const WorkingProcessAccordion = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [isStreaming, startedAt]);
-
-  const displaySeconds = duration || elapsed;
 
   // Aggregate visible steps
   const visibleSteps = useMemo(() => {
@@ -684,6 +712,35 @@ const WorkingProcessAccordion = ({
     return visibleSteps.some((s) => s?.isLive || s?.status === 'running');
   }, [visibleSteps]);
 
+  // Response has arrived when text content exists or streaming has finished
+  const hasResponseArrived = Boolean(
+    hasVisibleContent ||
+    (finalContent && finalContent.trim().length > 0) ||
+    (!isStreaming && visibleSteps.length > 0)
+  );
+
+  const frozenElapsedRef = useRef(null);
+
+  useEffect(() => {
+    if (hasResponseArrived && frozenElapsedRef.current === null) {
+      frozenElapsedRef.current = elapsed;
+    }
+  }, [hasResponseArrived, elapsed]);
+
+  const displaySeconds = duration || frozenElapsedRef.current || elapsed;
+
+  const isResearch = useMemo(() => {
+    if (stateType === 'deep_research' || stateType === 'research') return true;
+    if (Boolean(researchData)) return true;
+    return visibleSteps.some(
+      (s) =>
+        s?.stateType === 'deep_research' ||
+        s?.stateType === 'research' ||
+        s?.domain === 'deep_research' ||
+        (typeof s?.text === 'string' && /deep\s+research/i.test(s.text))
+    );
+  }, [stateType, researchData, visibleSteps]);
+
   // Group steps and thoughts into chronological narrative phases
   const narrativePhases = useMemo(() => {
     const phases = [];
@@ -735,8 +792,16 @@ const WorkingProcessAccordion = ({
           // If current phase has no tools, update or initialize with this thought
           if (!currentPhase) {
             currentPhase = { id: `phase-0`, thought: text, tools: [] };
-          } else {
+          } else if (!currentPhase.thought) {
             currentPhase.thought = text;
+          } else if (currentPhase.thought !== text) {
+            if (/^(?:I am|Main|We are)\b/i.test(text) && !/^(?:I am|Main|We are)\b/i.test(currentPhase.thought)) {
+              currentPhase.thought = text;
+            } else if (!/^(?:I am|Main|We are)\b/i.test(text) && /^(?:I am|Main|We are)\b/i.test(currentPhase.thought)) {
+              // Keep existing rich companion thought
+            } else {
+              startPhase(text);
+            }
           }
         }
       } else {
@@ -787,13 +852,6 @@ const WorkingProcessAccordion = ({
 
     return phases;
   }, [visibleSteps, thoughts, status, stateType, isStreaming]);
-
-  // Response has arrived when text content exists or streaming has finished
-  const hasResponseArrived = Boolean(
-    hasVisibleContent ||
-    (finalContent && finalContent.trim().length > 0) ||
-    (!isStreaming && visibleSteps.length > 0)
-  );
 
   const handleStepClick = (e, action) => {
     if (!action) return;
@@ -954,87 +1012,48 @@ const WorkingProcessAccordion = ({
 
   return (
     <div className="w-full my-1.5 select-none font-sans text-left">
-      <AnimatePresence mode="wait">
-        {hasResponseArrived ? (
-          /* Response arrived: Smoothly collapsed into "Worked for {N}s >" */
-          <motion.div
-            key="collapsed-worked-container"
-            initial={{ opacity: 0, y: 3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -3 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full"
+      {hasResponseArrived ? (
+        <div className="w-full">
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6]"
+            title={isExpanded ? 'Click to collapse' : 'Click to expand'}
           >
-            <button
-              type="button"
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] dark:text-[#8e8e93] hover:text-[#5a5a5e] dark:hover:text-[#d1d1d6]"
-              title={isExpanded ? 'Click to collapse steps' : 'Click to expand steps'}
-            >
-              <span className="font-normal tracking-[-0.01em]">
-                {stoppedByUser
-                  ? "You stopped KagZ's response"
-                  : `Worked for ${formatDuration(displaySeconds)}`}
-              </span>
-              <ChevronRight
-                size={13.5}
-                className={`ml-1.5 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#5a5a5e] dark:text-[#8e8e93] dark:group-hover/toggle:text-[#d1d1d6] transition-all duration-150 ease-out ${
-                  isExpanded
-                    ? 'opacity-100 rotate-90'
-                    : 'opacity-0 group-hover/toggle:opacity-100'
-                }`}
-              />
-            </button>
+            <span className="font-normal tracking-[-0.01em]">
+              {stoppedByUser
+                ? "You stopped KagZ's response"
+                : isResearch
+                ? `Researched for ${formatDuration(displaySeconds)}`
+                : `Worked for ${formatDuration(displaySeconds)}`}
+            </span>
+            <ChevronRight
+              size={14}
+              className={`ml-1.5 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#5a5a5e] dark:text-[#8e8e93] dark:group-hover/toggle:text-[#d1d1d6] transition-transform duration-150 ease-out ${
+                isExpanded ? 'rotate-90' : ''
+              }`}
+            />
+          </button>
 
-            {/* Expanded narrative flow when user clicks "Worked for {N}s >" */}
-            <AnimatePresence initial={false}>
-              {isExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden mt-2.5 mb-1.5"
-                >
-                  <div className="space-y-3.5 pl-0.5 border-l border-black/[0.06] dark:border-white/[0.08] ml-1 pl-3.5 py-1">
-                    {renderNarrativePhases(false)}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
-          /* Live Mode: Active research narrative while working before response arrives */
-          <motion.div
-            key="live-narrative-container"
-            initial={{ opacity: 0, y: 3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full space-y-3.5"
-          >
-            {renderNarrativePhases(true)}
-
-            {/* Active Thinking below the last completed event until next event or response arrives */}
-            <AnimatePresence>
-              {isStreaming && !hasResponseArrived && !hasActiveRunningStep && (
-                <motion.div
-                  key="live-inter-thinking"
-                  initial={{ opacity: 0, y: 3 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -3 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="inline-flex items-center text-[14.5px] sm:text-[15px] font-normal text-[#8e8e93] dark:text-[#98989f] select-none my-1"
-                >
-                  <span className="active-tool-shimmer font-normal tracking-[-0.01em]">
-                    Thinking...
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence initial={false}>
+            {isExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden mt-2.5 space-y-3.5"
+              >
+                {renderNarrativePhases(false)}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="w-full space-y-3.5">
+          {renderNarrativePhases(true)}
+        </div>
+      )}
     </div>
   );
 };

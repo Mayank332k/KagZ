@@ -14,9 +14,25 @@ import { marked } from 'marked';
  */
 
 // Parse inline markdown (bold, italic, code) without block elements
-export const parseInlineMarkdown = (text) => {
-  if (!text || typeof text !== 'string') return text;
-  return marked.parseInline(text);
+export const parseInlineMarkdown = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+  let text = raw.trim();
+  // Strip markdown header markers (##, ###, #)
+  text = text.replace(/^#+\s+/gm, '');
+  // Sanitize spaced bold delimiters: "** text **" -> "**text**"
+  text = text.replace(/\*\*\s+([^*]+?)\s+\*\*/g, '**$1**');
+  // Clean escaped asterisks: "\*" -> "*"
+  text = text.replace(/\\\*/g, '*');
+  // Auto-heal unclosed bold delimiters
+  const count = (text.match(/\*\*/g) || []).length;
+  if (count % 2 !== 0) text = text + '**';
+  // Replace multi-linebreaks with space for inline rendering
+  text = text.replace(/\n+/g, ' ');
+  try {
+    return marked.parseInline(text);
+  } catch {
+    return text.replace(/\*\*/g, '');
+  }
 };
 
 const normalizeOption = (opt) => {

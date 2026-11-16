@@ -107,7 +107,6 @@
   background-color: #1e1e1e;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -122,7 +121,6 @@
 .light .codeBlockContainer,
 .codeBlockContainer.codeBlockLight {
   background-color: #f4f4f5;
-  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .codeHeader {
@@ -186,6 +184,7 @@
   width: 100%;
   overflow-x: auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   -ms-overflow-style: none;
   filter: none !important;
@@ -200,38 +199,6 @@
 .codeContentCollapsed {
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
-}
-
-.codeExpandBar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 16px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-:root:not(.dark) .codeExpandBar,
-.light .codeExpandBar {
-  background-color: rgba(0, 0, 0, 0.03);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.codeExpandBtn {
-  background: transparent;
-  border: none;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--c-brand, #2383e2);
-  cursor: pointer;
-  padding: 2px 10px;
-  border-radius: 6px;
-  transition: opacity 0.15s ease;
-}
-
-.codeExpandBtn:hover {
-  opacity: 0.85;
-  text-decoration: underline;
 }
 
 .codeContent pre,

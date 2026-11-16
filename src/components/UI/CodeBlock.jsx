@@ -7,7 +7,6 @@ const LINE_COLLAPSE_THRESHOLD = 25;
 
 const CodeBlock = React.memo(({ language, value }) => {
   const [copied, setCopied] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef(null);
   const { theme, resolvedTheme } = useTheme();
 
@@ -91,10 +90,10 @@ const CodeBlock = React.memo(({ language, value }) => {
         </button>
       </div>
       <div
-        className={`codeContent ${isLongCode && !isExpanded ? "codeContentCollapsed" : ""}`}
+        className={`codeContent ${isLongCode ? "codeContentCollapsed" : ""}`}
         ref={scrollRef}
         style={{
-          maxHeight: isLongCode && !isExpanded ? "320px" : isExpanded ? "none" : "420px",
+          maxHeight: isLongCode ? "320px" : "420px",
         }}
       >
         <SyntaxHighlighter
@@ -115,21 +114,6 @@ const CodeBlock = React.memo(({ language, value }) => {
           {codeString}
         </SyntaxHighlighter>
       </div>
-      {isLongCode && (
-        <div className="codeExpandBar">
-          <button
-            type="button"
-            className="codeExpandBtn"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? (
-              <span>Collapse code ({lineCount} lines)</span>
-            ) : (
-              <span>Expand code ({lineCount} lines)</span>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 });

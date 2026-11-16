@@ -12,6 +12,7 @@ export function useChatScroll({
   chatScrollRef,
   messages,
   isStreaming,
+  streamingMessage,
   isRightPanel,
   isLoadingMore,
   hasMore,
@@ -132,24 +133,10 @@ export function useChatScroll({
           scrollRafIdRef.current = null;
           if (!container || !isPinnedToBottomRef.current || isTransitioningRef.current) return;
 
-          const assistantNodes = container.querySelectorAll('[data-role="assistant"]');
-          const latestAssistant = assistantNodes.length > 0 ? assistantNodes[assistantNodes.length - 1] : null;
-          if (!latestAssistant) return;
-
-          // Target actual text content rather than outer min-height spacer box
-          const contentEl = latestAssistant.querySelector('.markdown-content') ||
-                            latestAssistant.querySelector('.message-bubble-assistant') ||
-                            latestAssistant.firstElementChild ||
-                            latestAssistant;
-
-          const containerRect = container.getBoundingClientRect();
-          const contentRect = contentEl.getBoundingClientRect();
-          const bottomPadding = isRightPanel ? 40 : 80;
-
-          // Only follow if content is actually overflowing the visible container area
-          const overflow = contentRect.bottom - (containerRect.bottom - bottomPadding);
-          if (overflow > 0) {
-            container.scrollTop += Math.min(overflow, 35);
+          // Pure scroll metrics: Zero DOM queries & Zero synchronous reflows (no getBoundingClientRect)
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          if (maxScroll > container.scrollTop) {
+            container.scrollTop = maxScroll;
           }
         });
       }
@@ -162,7 +149,15 @@ export function useChatScroll({
         cancelAnimationFrame(scrollRafIdRef.current);
       }
     };
-  }, [messages, isStreaming, isRightPanel, scrollToNewTurn, chatScrollRef]);
+  }, [
+    messages,
+    isStreaming,
+    streamingMessage?.content?.length,
+    streamingMessage?.workingSteps?.length,
+    isRightPanel,
+    scrollToNewTurn,
+    chatScrollRef,
+  ]);
 
   return {
     showScrollButton,

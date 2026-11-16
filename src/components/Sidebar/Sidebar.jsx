@@ -2583,7 +2583,7 @@ const Sidebar = () => {
                     structure answers.
                   </p>
 
-                  <div className="rounded-[8px] max-md:rounded-[12px] bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 max-md:p-3.5 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100 max-md:ml-8 max-md:border-[var(--c-border-hairline)]">
+                  <div className="rounded-[8px] max-md:rounded-[12px] bg-white dark:bg-[var(--c-surface-input)] border border-[var(--c-border)] p-3 max-md:p-3.5 flex flex-col focus-within:border-[var(--c-border-strong)] transition-colors duration-100 max-md:ml-8 max-md:border-[var(--c-border-hairline)]">
                     <textarea
                       value={aiCustomInstructions}
                       onChange={(e) => setAiCustomInstructions(e.target.value)}
@@ -2676,16 +2676,18 @@ const Sidebar = () => {
                     const resetSubtitle = memoryStatus.resetDate
                       ? `Resets ${new Date(memoryStatus.resetDate).getDate()} ${new Date(memoryStatus.resetDate).toLocaleString("en-US", { month: "long" })}`
                       : null;
+                    const isMemoryFull = clampedUsage >= 100;
+                    const isMemoryEmpty = clampedUsage <= 0;
 
                     return (
                       <div className="mt-5 max-md:mt-6 mb-2 select-none">
                         {/* Memory pill — identical design on mobile & desktop, scaled to screen */}
-                        <div className="rounded-[20px] md:rounded-[22px] bg-[#2f2f32] px-4 py-4 md:py-3.5">
+                        <div className="rounded-[20px] md:rounded-[22px] bg-[var(--c-surface-input)] dark:bg-[#2f2f32] px-4 py-4 md:py-3.5">
                           <div className="flex items-baseline justify-between gap-3">
-                            <h3 className="text-[15px] md:text-[14px] font-medium text-white">
+                            <h3 className="text-[15px] md:text-[14px] font-medium text-[var(--c-text-primary)] dark:text-white">
                               Memory
                             </h3>
-                            <span className="text-[13px] md:text-[12.5px] text-[#b4b4ba] tabular-nums">
+                            <span className="text-[13px] md:text-[12.5px] text-[var(--c-text-secondary)] dark:text-[#b4b4ba] tabular-nums">
                               {clampedUsage}% used
                             </span>
                           </div>
@@ -2696,12 +2698,28 @@ const Sidebar = () => {
                             aria-valuemin="0"
                             aria-valuemax="100"
                             aria-valuenow={clampedUsage}
-                            className="relative w-full h-[5px] md:h-[4px] mt-3 rounded-full bg-[#48484d] overflow-hidden"
+                            className="relative w-full h-[5px] md:h-[4px] mt-3"
                           >
-                            <div
-                              className="h-full rounded-full bg-[#7c9cf8] transition-all duration-300"
-                              style={{ width: `${barWidth}%` }}
-                            />
+                            {!isMemoryEmpty && (
+                              <div
+                                className="absolute inset-y-0 left-0 rounded-full bg-[#2383e2] dark:bg-[#7c9cf8] transition-all duration-300"
+                                style={{
+                                  width: isMemoryFull
+                                    ? "100%"
+                                    : `max(0px, calc(${barWidth}% - 2px))`,
+                                }}
+                              />
+                            )}
+                            {!isMemoryFull && (
+                              <div
+                                className="absolute inset-y-0 right-0 rounded-full bg-[#dcdbd8] dark:bg-[#48484d] transition-all duration-300"
+                                style={{
+                                  left: isMemoryEmpty
+                                    ? "0px"
+                                    : `calc(${barWidth}% + 2px)`,
+                                }}
+                              />
+                            )}
                           </div>
                         </div>
 

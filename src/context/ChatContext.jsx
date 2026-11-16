@@ -4,7 +4,7 @@ import { chatAPI, invalidateCache } from '../services/api';
 import { useToast } from './ToastContext';
 import { createStreamPacer } from '../utils/streamPacer';
 
-import { ChatContext } from './ChatContextDefinition';
+import { ChatContext, ChatStreamContext } from './ChatContextDefinition';
 import { normalizeChatModel } from '../constants/chatModels';
 
 export const ChatProvider = ({ children }) => {
@@ -43,6 +43,19 @@ export const ChatProvider = ({ children }) => {
   
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState(null);
+  const [isResponseWriting, setIsResponseWriting] = useState(false);
+  const streamingMessageRef = useRef(null);
+  const isResponseWritingRef = useRef(false);
+
+  const updateStreamingMessage = (updater) => {
+    setStreamingMessage((prev) => {
+      const current = prev || streamingMessageRef.current;
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      streamingMessageRef.current = next;
+      return next;
+    });
+  };
   
   const [isRightChatOpen, setIsRightChatOpenState] = useState(() => {
     const mode = localStorage.getItem('noema-chat-startup-mode') || 'resume';
@@ -113,8 +126,10 @@ export const ChatProvider = ({ children }) => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-      setIsStreaming(false);
     }
+    setIsStreaming(false);
+    setIsResponseWriting(false);
+    isResponseWritingRef.current = false;
   };
 
   const sendMessage = async (userQuery, historyOverride = null, pageContext = null, options = {}) => {
@@ -150,51 +165,55 @@ export const ChatProvider = ({ children }) => {
         pageContext: pageContext ? { id: pageContext.id, title: pageContext.title } : null,
         isChoiceResponse: Boolean(options?.isChoiceResponse),
       },
-      {
-        role: 'assistant',
-        content: '',
-        sources: [],
-        status: null,
-        stateType: 'thinking',
-        startedAt: Date.now(),
-        workingSteps: [],
-      },
     ]);
+
+    const initialStreamMsg = {
+      role: 'assistant',
+      content: '',
+      sources: [],
+      status: null,
+      stateType: 'thinking',
+      startedAt: Date.now(),
+      workingSteps: [],
+    };
+    streamingMessageRef.current = initialStreamMsg;
+    setStreamingMessage(initialStreamMsg);
     setIsStreaming(true);
+    setIsResponseWriting(false);
+    isResponseWritingRef.current = false;
 
     const activeModel = selectedModel;
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Ultra-smooth, adaptive token pacer via requestAnimationFrame & word-boundary pacing
-    const pacer = createStreamPacer({
+    // Ultra-smooth, bounded-lag token pacer via requestAnimationFrame
+    const makePacer = () => createStreamPacer({
       onFlush: (chunk) => {
-        setMessages((prev) => {
-          const lastIndex = prev.length - 1;
-          if (lastIndex < 0) return prev;
-          const lastMsg = prev[lastIndex];
-          if (lastMsg.role !== 'assistant') return prev;
-          return [
-            ...prev.slice(0, lastIndex),
-            { ...lastMsg, content: lastMsg.content + chunk }
-          ];
+        updateStreamingMessage((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            content: (prev.content || '') + chunk,
+          };
         });
       },
     });
+    let pacer = makePacer();
 
     const enqueueStreamContent = (text, immediate = false) => {
+      if (!isResponseWritingRef.current) {
+        isResponseWritingRef.current = true;
+        setIsResponseWriting(true);
+      }
       if (immediate) {
         pacer.flushImmediately();
-        setMessages((prev) => {
-          const lastIndex = prev.length - 1;
-          if (lastIndex < 0) return prev;
-          const lastMsg = prev[lastIndex];
-          if (lastMsg.role !== 'assistant') return prev;
-          return [
-            ...prev.slice(0, lastIndex),
-            { ...lastMsg, content: lastMsg.content + text }
-          ];
+        updateStreamingMessage((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            content: (prev.content || '') + text,
+          };
         });
         return;
       }
@@ -220,13 +239,10 @@ export const ChatProvider = ({ children }) => {
 
             if (event.type === 'sources') {
               flushQueueImmediately();
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
                 const incomingSources = Array.isArray(event.data) ? event.data : [];
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+                const prevSteps = Array.isArray(prev.workingSteps) ? prev.workingSteps : [];
                 const sourceSteps = incomingSources.map((s) => ({
                   text: s.domain ? `Read ${s.domain}${s.url ? '/' + s.url.replace(/^https?:\/\/[^/]+\/?/, '') : ''}` : `Read ${s.title || s.url}`,
                   domain: s.domain || (s.url ? (() => { try { return new URL(s.url).hostname; } catch { return ''; } })() : ''),
@@ -234,23 +250,16 @@ export const ChatProvider = ({ children }) => {
                   stateType: 'web_search',
                   timestamp: Date.now(),
                 }));
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    sources: incomingSources,
-                    workingSteps: [...prevSteps, ...sourceSteps],
-                  }
-                ];
+                return {
+                  ...prev,
+                  sources: incomingSources,
+                  workingSteps: [...prevSteps, ...sourceSteps],
+                };
               });
             } else if (event.type === 'tool_start') {
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
-
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? [...lastMsg.workingSteps] : [];
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
+                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
                 const newSteps = [];
 
                 // 1. Humanly Thought (if event.event exists)
@@ -322,24 +331,17 @@ export const ChatProvider = ({ children }) => {
                   combinedSteps = [...prevSteps, ...newSteps];
                 }
 
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    status: thoughtText || execText || lastMsg.status,
-                    stateType: event.tool || lastMsg.stateType,
-                    workingSteps: combinedSteps,
-                  }
-                ];
+                return {
+                  ...prev,
+                  status: thoughtText || execText || prev.status,
+                  stateType: event.tool || prev.stateType,
+                  workingSteps: combinedSteps,
+                };
               });
             } else if (event.type === 'tool_end') {
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
-
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? [...lastMsg.workingSteps] : [];
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
+                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
                 const completionEvent = typeof event.event === 'string' ? event.event.trim() : '';
 
                 const updatedSteps = prevSteps.map((s) => {
@@ -372,98 +374,140 @@ export const ChatProvider = ({ children }) => {
                   }
                 }
 
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    workingSteps: updatedSteps,
-                  }
-                ];
+                return {
+                  ...prev,
+                  workingSteps: updatedSteps,
+                };
               });
             } else if (event.type === 'state') {
               const isMemory = event.stateType === 'remembering' || event.stateType === 'memory' || (typeof event.data === 'string' && /remember|yaad/i.test(event.data));
               if (isMemory) {
                 memoryStartedAt = Date.now();
               }
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
                 const stepText = typeof event.data === 'string' ? event.data.trim() : '';
 
                 // Generic thinking stays with native ThinkingOrb, NOT in working steps
                 const isGenericThinking = (!event.stateType || event.stateType === 'thinking') &&
                   (!stepText || /^thinking(\.{1,3})?$/i.test(stepText) || /^reasoning(\.{1,3})?$/i.test(stepText));
 
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
+                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
                 const alreadyExists = prevSteps.some((s) => s.text === stepText);
-                const updatedSteps = (!isGenericThinking && stepText && !alreadyExists)
-                  ? [...prevSteps, { type: 'execution', text: stepText, stateType: event.stateType || 'action', timestamp: Date.now() }]
-                  : prevSteps;
 
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    status: event.data,
-                    stateType: event.stateType || 'thinking',
-                    workingSteps: updatedSteps,
-                  }
-                ];
+                // Recognize companion thoughts (e.g. first-person sentences emitted during research or planning)
+                const isCompanionThought = /^(?:I am|Main|We are)\b/i.test(stepText) || event.stateType === 'thought';
+
+                let updatedSteps = prevSteps;
+                if (!isGenericThinking && stepText && !alreadyExists) {
+                  updatedSteps = [
+                    ...prevSteps,
+                    {
+                      type: isCompanionThought ? 'thought' : 'execution',
+                      text: stepText,
+                      stateType: event.stateType || (prev.stateType === 'deep_research' ? 'deep_research' : 'action'),
+                      timestamp: Date.now(),
+                    },
+                  ];
+                }
+
+                // If currently in deep_research, do not downgrade stateType to generic 'thinking'
+                const nextStateType = (prev.stateType === 'deep_research' && (!event.stateType || event.stateType === 'thinking'))
+                  ? 'deep_research'
+                  : (event.stateType || prev.stateType || 'thinking');
+
+                return {
+                  ...prev,
+                  status: event.data,
+                  stateType: nextStateType,
+                  workingSteps: updatedSteps,
+                };
               });
-            } else if (event.type === 'research_update') {
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
+            } else if (event.type === 'thinking') {
+              const text = typeof event.data === 'string' ? event.data.trim() : '';
+              if (text && !/^thinking(\.{1,3})?$/i.test(text) && !/^reasoning(\.{1,3})?$/i.test(text)) {
+                updateStreamingMessage((prev) => {
+                  if (!prev) return prev;
+                  const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
+                  const alreadyExists = prevSteps.some((s) => s.text === text);
+                  if (alreadyExists) return prev;
+                  return {
+                    ...prev,
+                    workingSteps: [
+                      ...prevSteps,
+                      { type: 'thought', text, timestamp: Date.now() },
+                    ],
+                  };
+                });
+              }
+            } else if (event.type === 'research_update' || event.type === 'research_start') {
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
+                const researchData = event.data || (typeof event.topic === 'string' ? { topic: event.topic } : event);
+                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
 
-                const researchData = event.data;
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
-
-                const researchSteps = [];
+                // 1. Preserve or insert root research topic thought
                 if (researchData?.topic && !prevSteps.some((s) => s.type === 'thought' && s.text.includes(researchData.topic))) {
-                  researchSteps.push({
+                  if (!prevSteps.some((s) => s.type === 'thought')) {
+                    prevSteps.unshift({
+                      type: 'thought',
+                      text: `Researching: ${researchData.topic}`,
+                      timestamp: Date.now(),
+                    });
+                  }
+                }
+
+                // If currentAction is a companion thought (first person sentence), ensure it's recorded as thought
+                if (
+                  researchData?.currentAction &&
+                  /^(?:I am|Main|We are)\b/i.test(researchData.currentAction.trim()) &&
+                  !prevSteps.some((s) => s.text === researchData.currentAction.trim())
+                ) {
+                  prevSteps.push({
                     type: 'thought',
-                    text: `Researching: ${researchData.topic}`,
+                    text: researchData.currentAction.trim(),
                     timestamp: Date.now(),
                   });
                 }
+
+                // 2. In-place merge of structured research steps by ID or title (never wipes out existing thoughts/sources)
                 if (Array.isArray(researchData?.steps) && researchData.steps.length > 0) {
                   researchData.steps.forEach((st) => {
-                    researchSteps.push({
+                    const existingIdx = prevSteps.findIndex(
+                      (s) => s.id === st.id || (s.text === st.title && s.stateType === 'deep_research')
+                    );
+                    const stepItem = {
+                      id: st.id,
                       type: 'execution',
                       text: st.title,
                       stateType: 'deep_research',
                       isLive: st.status === 'in_progress',
                       status: st.status === 'completed' ? 'success' : st.status,
                       timestamp: Date.now(),
-                    });
-                  });
-                } else if (researchData?.currentAction) {
-                  researchSteps.push({
-                    type: 'execution',
-                    text: researchData.currentAction,
-                    stateType: 'deep_research',
-                    isLive: true,
-                    timestamp: Date.now(),
+                    };
+
+                    if (existingIdx >= 0) {
+                      prevSteps[existingIdx] = {
+                        ...prevSteps[existingIdx],
+                        ...stepItem,
+                      };
+                    } else {
+                      prevSteps.push(stepItem);
+                    }
                   });
                 }
 
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    researchData: event.data,
-                    stateType: 'deep_research',
-                    status: researchData?.currentAction || lastMsg.status,
-                    workingSteps: researchSteps.length > 0 ? researchSteps : prevSteps,
-                  }
-                ];
+                return {
+                  ...prev,
+                  researchData: event.data,
+                  stateType: 'deep_research',
+                  status: researchData?.currentAction || prev.status,
+                  workingSteps: prevSteps,
+                };
               });
-            } else if (event.type === 'content') {
-              enqueueStreamContent(event.data);
+            } else if (event.type === 'content' || event.type === 'chunk') {
+              const text = event.data ?? event.chunk ?? event.content ?? '';
+              enqueueStreamContent(text);
             } else if (event.type === 'ask_user') {
               flushQueueImmediately();
               enqueueStreamContent(`\n<interactive_choice>${JSON.stringify(event.data)}</interactive_choice>\n`, true);
@@ -477,22 +521,16 @@ export const ChatProvider = ({ children }) => {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('tasks:refresh'));
               }
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    workingSteps: [
-                      ...prevSteps,
-                      { text: 'Updated tasks and kanban board', stateType: 'task_management', timestamp: Date.now() }
-                    ],
-                  }
-                ];
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
+                const prevSteps = Array.isArray(prev.workingSteps) ? prev.workingSteps : [];
+                return {
+                  ...prev,
+                  workingSteps: [
+                    ...prevSteps,
+                    { text: 'Updated tasks and kanban board', stateType: 'task_management', timestamp: Date.now() }
+                  ],
+                };
               });
             } else if (event.type === 'memory_saved') {
               const savedFact = event.data?.fact || event.data;
@@ -501,26 +539,20 @@ export const ChatProvider = ({ children }) => {
                 window.dispatchEvent(new CustomEvent('auth:memory-updated'));
               }
               const memoryDuration = memoryStartedAt ? Math.max(1, Math.round((Date.now() - memoryStartedAt) / 1000)) : undefined;
-              setMessages((prev) => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex < 0) return prev;
-                const lastMsg = prev[lastIndex];
-                if (lastMsg.role !== 'assistant') return prev;
-                const prevSteps = Array.isArray(lastMsg.workingSteps) ? lastMsg.workingSteps : [];
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...lastMsg,
-                    memorySaved: true,
-                    memoryFact: factText,
-                    memoryDuration,
-                    isNewMemory: true,
-                    workingSteps: [
-                      ...prevSteps,
-                      { type: 'execution', text: `Updated memory: ${factText}`, stateType: 'memory', timestamp: Date.now() }
-                    ],
-                  }
-                ];
+              updateStreamingMessage((prev) => {
+                if (!prev) return prev;
+                const prevSteps = Array.isArray(prev.workingSteps) ? prev.workingSteps : [];
+                return {
+                  ...prev,
+                  memorySaved: true,
+                  memoryFact: factText,
+                  memoryDuration,
+                  isNewMemory: true,
+                  workingSteps: [
+                    ...prevSteps,
+                    { type: 'execution', text: `Updated memory: ${factText}`, stateType: 'memory', timestamp: Date.now() }
+                  ],
+                };
               });
             } else if (event.type === 'done') {
               completedSuccessfully = true;
@@ -549,21 +581,16 @@ export const ChatProvider = ({ children }) => {
             console.warn(`[Chat] Connection error, reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`, err);
 
             pacer.abort();
+            pacer = makePacer();
 
-            setMessages((prev) => {
-              const lastIndex = prev.length - 1;
-              if (lastIndex < 0) return prev;
-              const lastMsg = prev[lastIndex];
-              if (lastMsg.role !== 'assistant') return prev;
-              return [
-                ...prev.slice(0, lastIndex),
-                {
-                  ...lastMsg,
-                  content: '',
-                  status: `${attempt}/${MAX_RECONNECT_ATTEMPTS} trying to reconnect...`,
-                  stateType: 'reconnecting',
-                },
-              ];
+            updateStreamingMessage((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                content: '',
+                status: `${attempt}/${MAX_RECONNECT_ATTEMPTS} trying to reconnect...`,
+                stateType: 'reconnecting',
+              };
             });
 
             // Wait with backoff or wait for 'online' event if offline
@@ -612,42 +639,37 @@ export const ChatProvider = ({ children }) => {
       }
       const stoppedByUser = signal.aborted && !completedSuccessfully;
       setIsStreaming(false);
-      setMessages((prev) => {
-        const msgs = [...prev];
-        const lastIndex = msgs.length - 1;
-        if (lastIndex >= 0) {
-          const last = msgs[lastIndex];
-          if (last.role === 'assistant') {
-            const duration = last.workingDuration || (last.startedAt ? Math.max(1, Math.round((Date.now() - last.startedAt) / 1000)) : 0);
-            if (!last.content.trim()) {
-              if (signal.aborted) {
-                // User intentionally stopped / paused generation - never treat as failure
-                if (last.workingSteps && last.workingSteps.length > 0) {
-                  return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration, stoppedByUser: true }];
-                }
-                msgs.pop();
-                return msgs;
-              }
+      setIsResponseWriting(false);
+      isResponseWritingRef.current = false;
 
-              if (completedSuccessfully) {
-                // If stream completed successfully without text tokens, use status or safe fallback
-                const fallbackContent = last.status || "Completed.";
-                return [...msgs.slice(0, lastIndex), { ...last, content: fallbackContent, workingDuration: duration }];
-              }
-              msgs.pop(); // Remove the empty reply bubble only on genuine unhandled failure
-              if (!streamError && !signal.aborted) {
-                setChatError({ message: "LLM failed to generate a response.", query: userQuery });
-                setTimeout(() => {
-                  showToast("LLM failed to generate a response. Please try again.", "error");
-                }, 10);
-              }
-              return msgs;
+      const finalMsg = streamingMessageRef.current;
+      setStreamingMessage(null);
+      streamingMessageRef.current = null;
+
+      if (finalMsg) {
+        const duration = finalMsg.workingDuration || (finalMsg.startedAt ? Math.max(1, Math.round((Date.now() - finalMsg.startedAt) / 1000)) : 0);
+        if (!finalMsg.content.trim()) {
+          if (signal.aborted) {
+            // User intentionally stopped / paused generation - never treat as failure
+            if (finalMsg.workingSteps && finalMsg.workingSteps.length > 0) {
+              setMessages((prev) => [...prev, { ...finalMsg, workingDuration: duration, stoppedByUser: true }]);
             }
-            return [...msgs.slice(0, lastIndex), { ...last, workingDuration: duration, stoppedByUser }];
+          } else if (completedSuccessfully) {
+            // If stream completed successfully without text tokens, use status or safe fallback
+            const fallbackContent = finalMsg.status || "Completed.";
+            setMessages((prev) => [...prev, { ...finalMsg, content: fallbackContent, workingDuration: duration }]);
+          } else {
+            if (!streamError && !signal.aborted) {
+              setChatError({ message: "LLM failed to generate a response.", query: userQuery });
+              setTimeout(() => {
+                showToast("LLM failed to generate a response. Please try again.", "error");
+              }, 10);
+            }
           }
+        } else {
+          setMessages((prev) => [...prev, { ...finalMsg, workingDuration: duration, stoppedByUser }]);
         }
-        return msgs;
-      });
+      }
     }
   };
 
@@ -759,6 +781,10 @@ export const ChatProvider = ({ children }) => {
   const clearChat = () => {
     stopGeneration();
     setMessages([]);
+    setStreamingMessage(null);
+    streamingMessageRef.current = null;
+    setIsResponseWriting(false);
+    isResponseWritingRef.current = false;
     setQuery('');
     setSessionId(uuidv4());
     setNextCursor(null);
@@ -773,6 +799,7 @@ export const ChatProvider = ({ children }) => {
     query,
     setQuery,
     isStreaming,
+    isResponseWriting,
     isRightChatOpen,
     setIsRightChatOpen,
     selectedModel,
@@ -796,6 +823,7 @@ export const ChatProvider = ({ children }) => {
     messages,
     query,
     isStreaming,
+    isResponseWriting,
     isRightChatOpen,
     selectedModel,
     isThinking,
@@ -813,7 +841,9 @@ export const ChatProvider = ({ children }) => {
 
   return (
     <ChatContext.Provider value={contextValue}>
-      {children}
+      <ChatStreamContext.Provider value={streamingMessage}>
+        {children}
+      </ChatStreamContext.Provider>
     </ChatContext.Provider>
   );
 };

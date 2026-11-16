@@ -366,6 +366,105 @@ const fetchWithRefresh = async (url, options = {}) => {
   return response;
 };
 
+/**
+ * Spec-compliant SSE reader for streaming chat endpoints.
+ *
+ * Handles frames split across network chunks, multi-line `data:` fields,
+ * CRLF/CR line endings, comment/heartbeat lines, the final decoder flush, and
+ * `[DONE]`. Yields `{ event, data }` and cancels the underlying reader when
+ * the consumer stops early so aborted generations do not leave a socket open.
+ */
+async function* readSSEStream(response) {
+  if (!response.body) {
+    throw new Error('Streaming response has no body');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let eventName = '';
+  let dataLines = [];
+
+  const dispatch = () => {
+    if (dataLines.length === 0) {
+      eventName = '';
+      return null;
+    }
+    const frame = {
+      event: eventName || 'message',
+      data: dataLines.join('\n'),
+    };
+    eventName = '';
+    dataLines = [];
+    return frame;
+  };
+
+  const processLine = (line) => {
+    if (line === '') return dispatch();
+    if (line.startsWith(':')) return null;
+
+    const colon = line.indexOf(':');
+    const field = colon === -1 ? line : line.slice(0, colon);
+    let value = colon === -1 ? '' : line.slice(colon + 1);
+    if (value.startsWith(' ')) value = value.slice(1);
+
+    if (field === 'data') dataLines.push(value);
+    else if (field === 'event') eventName = value;
+    // `id` / `retry` are ignored: reconnect/backoff is handled by the caller.
+    return null;
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+
+      let newlineIndex;
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        let line = buffer.slice(0, newlineIndex);
+        buffer = buffer.slice(newlineIndex + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+
+        const frame = processLine(line);
+        if (!frame) continue;
+        if (frame.data === '[DONE]') return;
+        yield frame;
+      }
+    }
+
+    buffer += decoder.decode().replace(/\r\n/g, '\n');
+
+    if (buffer.length > 0) {
+      for (const rawLine of buffer.split('\n')) {
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+        const frame = processLine(line);
+        if (!frame) continue;
+        if (frame.data === '[DONE]') return;
+        yield frame;
+      }
+      buffer = '';
+    }
+
+    const frame = dispatch();
+    if (frame && frame.data !== '[DONE]') {
+      yield frame;
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      // The stream may already be closed or aborted.
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      // Ignore release errors after cancellation.
+    }
+  }
+}
+
 export const chatAPI = {
   /**
    * Streams an inline editor AI response via SSE.
@@ -388,54 +487,16 @@ export const chatAPI = {
       throw new Error(`Chat API error: ${response.status}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+    for await (const frame of readSSEStream(response)) {
+      const dataStr = frame.data.trim();
+      if (!dataStr || dataStr === '[DONE]') continue;
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        let dataStr = line.trim();
-        if (!dataStr) continue;
-
-        if (dataStr.startsWith('data:')) {
-          dataStr = dataStr.slice(5).trim();
-        }
-
-        if (dataStr === '[DONE]') {
-          console.log("askInline: Received [DONE]");
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(dataStr);
-          yield parsed;
-        } catch {
-          // If it fails to parse as JSON, yield it as a raw string chunk
-          // This ensures we don't drop raw text streams.
-          yield { content: dataStr };
-        }
-      }
-    }
-    
-    // Flush remaining buffer
-    let dataStr = buffer.trim();
-    if (dataStr) {
-      if (dataStr.startsWith('data:')) {
-        dataStr = dataStr.slice(5).trim();
-      }
-      if (dataStr && dataStr !== '[DONE]') {
-        try {
-          yield JSON.parse(dataStr);
-        } catch {
-          yield { content: dataStr };
-        }
+      try {
+        yield JSON.parse(dataStr);
+      } catch {
+        // If it fails to parse as JSON, yield it as a raw string chunk
+        // This ensures we don't drop raw text streams.
+        yield { content: dataStr };
       }
     }
   },
@@ -468,52 +529,23 @@ export const chatAPI = {
       throw new Error(`Chat API error: ${response.status}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let doneReceived = false;
+    try {
+      for await (const frame of readSSEStream(response)) {
+        const payload = frame.data.trim();
+        if (!payload || payload === '[DONE]') continue;
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // keep incomplete last line in buffer
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
-        try {
-          const payload = trimmed.slice(5).trim();
-          if (payload === '[DONE]') {
-            doneReceived = true;
-            break;
-          }
-          const parsed = JSON.parse(payload);
-          yield parsed;
-        } catch {
-          // ignore malformed lines
-        }
-      }
-      if (doneReceived) break;
-    }
-
-    const finalLine = buffer.trim();
-    if (finalLine.startsWith('data:')) {
-      const payload = finalLine.slice(5).trim();
-      if (payload && payload !== '[DONE]') {
         try {
           yield JSON.parse(payload);
         } catch {
-          // Ignore an incomplete or malformed final SSE frame.
+          // Ignore malformed frames (keepalive text, partial JSON, etc.).
         }
       }
+    } finally {
+      // Invalidate even when the consumer stops early on `done`/`error`;
+      // the session title and stored history may still have changed.
+      invalidateCache('chat:sessions');
+      invalidateCache(`chat:history:${sessionId}`);
     }
-
-    // Invalidate sessions cache after a new message (title may have changed)
-    invalidateCache('chat:sessions');
-    invalidateCache(`chat:history:${sessionId}`);
   },
 
   getSessions: () =>

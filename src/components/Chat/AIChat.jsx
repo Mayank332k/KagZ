@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo, useCallback } from 'react';
-import { ChevronRight, Plus, Brain } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChatContext } from '../../context/ChatContextDefinition';
+import { ChatContext, ChatStreamContext } from '../../context/ChatContextDefinition';
 import { EditorContext } from '../../context/EditorContext';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -96,7 +96,12 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
   if (!sources || sources.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 z-[150] flex flex-col justify-end pointer-events-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sources"
+      className="absolute inset-0 z-[150] flex flex-col justify-end pointer-events-auto"
+    >
       {/* Backdrop overlay */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -107,7 +112,7 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
         className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-[2px]"
       />
 
-      {/* Sheet Content matching Obsidian / Mobile bottom sheet inspiration */}
+      {/* Sheet — Obsidian-style list sheet */}
       <motion.div
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
@@ -121,75 +126,57 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
             onClose();
           }
         }}
-        className={`relative z-10 bg-[#eeece8] dark:bg-[#161616] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden p-3.5 sm:p-4 ${
+        className={`relative z-10 bg-[#eeece8] dark:bg-[#1b1b1b] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden px-4 pt-1.5 pb-4 ${
           isRightPanel
-            ? 'w-full rounded-t-[33px]'
-            : 'w-full sm:w-[94%] max-w-[560px] mx-auto rounded-t-[37px] sm:rounded-[37px] sm:mb-4'
+            ? 'w-full rounded-t-[37px]'
+            : 'w-[calc(100%_-_12px)] mb-1.5 sm:w-[94%] max-w-[560px] mx-auto rounded-[37px] sm:mb-4'
         }`}
       >
-        {/* Inner nested rounded component with color hierarchy */}
-        <div className="rounded-[25px] bg-white dark:bg-[#2d2d2f] border border-black/[0.06] dark:border-white/[0.06] shadow-sm overflow-hidden flex flex-col max-h-[56vh]">
-          {/* Top header bar */}
-          <div className="px-4.5 py-3 flex items-center justify-between border-b border-black/[0.06] dark:border-[#3c3c3e] shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[14px] font-semibold tracking-tight text-neutral-800 dark:text-neutral-200">
-                Sources
-              </span>
-              <span className="text-[12.5px] font-medium text-neutral-400 dark:text-neutral-500">
-                • {sources.length}
-              </span>
-            </div>
+        {/* Drag handle */}
+        <div className="flex justify-center shrink-0 pb-1.5">
+          <div className="h-1 w-16 rounded-full bg-black/20 dark:bg-[#666666]" />
+        </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Close"
-              aria-label="Close"
-            >
-              <span className="material-symbols-outlined text-[16px] leading-none select-none">close</span>
-            </button>
-          </div>
-
-          {/* Sources List */}
-          <div className="divide-y divide-black/[0.06] dark:divide-[#3c3c3e] overflow-y-auto custom-scrollbar flex-1">
-          {sources.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => {
-                setOpeningIndex(idx);
-                if (item.isWeb && item.url) {
-                  const targetUrl = item.url.startsWith('http://') || item.url.startsWith('https://')
-                    ? item.url
-                    : `https://${item.url}`;
-                  window.open(targetUrl, '_blank', 'noopener,noreferrer');
-                  setTimeout(() => {
-                    setOpeningIndex(null);
-                    onClose();
-                  }, 120);
-                } else {
-                  const targetPageId = item.pageId || item._id || item.id;
-                  if (targetPageId) {
-                    navigate(`/dashboard/page/${targetPageId}`);
+        {/* Sources list panel */}
+        <div className="rounded-t-[37px] rounded-b-[28px] bg-white dark:bg-[#353535] overflow-hidden flex flex-col">
+          <div className="overflow-y-auto overscroll-contain custom-scrollbar flex-1 max-h-[260px]">
+            {sources.map((item, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  setOpeningIndex(idx);
+                  if (item.isWeb && item.url) {
+                    const targetUrl = item.url.startsWith('http://') || item.url.startsWith('https://')
+                      ? item.url
+                      : `https://${item.url}`;
+                    window.open(targetUrl, '_blank', 'noopener,noreferrer');
                     setTimeout(() => {
                       setOpeningIndex(null);
                       onClose();
                     }, 120);
                   } else {
-                    setOpeningIndex(null);
-                    onClose();
+                    const targetPageId = item.pageId || item._id || item.id;
+                    if (targetPageId) {
+                      navigate(`/dashboard/page/${targetPageId}`);
+                      setTimeout(() => {
+                        setOpeningIndex(null);
+                        onClose();
+                      }, 120);
+                    } else {
+                      setOpeningIndex(null);
+                      onClose();
+                    }
                   }
-                }
-              }}
-              className="group flex items-center justify-between px-4 py-3.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.05] active:bg-black/[0.06] dark:active:bg-white/[0.09] transition-colors cursor-pointer select-none"
-            >
-              <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                <div className="w-5 h-5 flex items-center justify-center shrink-0 text-neutral-500 dark:text-[#a0a0a0]">
+                }}
+                className="group relative flex items-center gap-3 px-4 py-3.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors cursor-pointer select-none"
+              >
+                {/* Leading icon */}
+                <div className="w-6 h-6 flex items-center justify-center shrink-0 text-neutral-500 dark:text-[#b3b3b3]">
                   {item.isWeb ? (
                     <img
-                      src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=32`}
+                      src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=64`}
                       alt=""
-                      className="w-4 h-4 rounded-xs object-contain"
+                      className="w-[22px] h-[22px] rounded-[4px] object-contain"
                       onError={(e) => {
                         e.target.style.display = 'none';
                         if (e.target.nextSibling) {
@@ -198,41 +185,37 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
                       }}
                     />
                   ) : (
-                    <span className="material-symbols-outlined text-[19px] leading-none select-none">
+                    <span className="material-symbols-outlined text-[22px] leading-none select-none">
                       description
                     </span>
                   )}
                   {item.isWeb && (
                     <span
                       style={{ display: 'none' }}
-                      className="material-symbols-outlined text-[18px] leading-none select-none"
+                      className="material-symbols-outlined text-[22px] leading-none select-none"
                     >
                       language
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-[15.5px] font-medium text-gray-900 dark:text-[#ececec] truncate leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {item.title}
-                  </span>
-                  <span className="text-[13px] text-gray-400 dark:text-[#9e9ea3] truncate mt-0.5">
-                    {item.isWeb ? item.domain || item.siteName : 'Workspace Note'}
-                  </span>
-                </div>
-              </div>
+                <span className="min-w-0 flex-1 truncate text-[15.5px] font-normal leading-snug text-gray-900 dark:text-[#dadada] transition-colors">
+                  {item.title}
+                </span>
 
-              <div className="shrink-0 text-neutral-400 dark:text-[#6a6a6a] group-hover:text-neutral-700 dark:group-hover:text-neutral-300 transition-colors pl-2 flex items-center justify-center min-w-[20px]">
-                {openingIndex === idx ? (
-                  <div className="w-3.5 h-3.5 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
-                ) : (
-                  <span className="material-symbols-outlined text-[15px] leading-none select-none">
-                    {item.isWeb ? 'arrow_outward' : 'chevron_right'}
-                  </span>
+                {openingIndex === idx && (
+                  <div className="shrink-0 w-4 h-4 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
+                )}
+
+                {/* Inset hairline divider */}
+                {idx < sources.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-black/[0.06] dark:bg-white/[0.12]"
+                  />
                 )}
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </div>
       </motion.div>
@@ -615,6 +598,70 @@ const UserMessageActions = ({ content, timestamp }) => {
   );
 };
 
+const USER_PROMPT_COLLAPSE_HEIGHT = 240;
+
+/**
+ * Long user prompts are clamped to a fixed height with a soft fade and a
+ * chevron toggle, so the conversation stays readable.
+ */
+const CollapsibleUserPrompt = ({ children }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setIsOverflowing(el.scrollHeight > USER_PROMPT_COLLAPSE_HEIGHT + 2);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const isCollapsed = isOverflowing && !isExpanded;
+  const fadeMask = 'linear-gradient(to bottom, #000 calc(100% - 36px), transparent 100%)';
+
+  return (
+    <div>
+      <div
+        className="overflow-hidden"
+        style={{
+          maxHeight: isCollapsed ? `${USER_PROMPT_COLLAPSE_HEIGHT}px` : undefined,
+          maskImage: isCollapsed ? fadeMask : undefined,
+          WebkitMaskImage: isCollapsed ? fadeMask : undefined,
+        }}
+      >
+        <div ref={contentRef}>{children}</div>
+      </div>
+
+      {isOverflowing && (
+        <div className="flex justify-center mt-1">
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? 'Collapse message' : 'Expand message'}
+            title={isExpanded ? 'Collapse message' : 'Expand message'}
+            className="w-7 h-7 -mb-1 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-neutral-400 dark:hover:text-neutral-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+          >
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const parseUserToolMessage = (content) => {
   if (!content || typeof content !== 'string') {
     return { tool: null, cleanContent: content || '' };
@@ -744,7 +791,8 @@ const ChatMessageItem = React.memo(({
   idx,
   isLatest,
   isStreaming,
-  messages,
+  isChoiceResolved = false,
+  resolvedAnswer = null,
   onSelectChoice,
   onSkipChoice,
   dismissedChoiceId,
@@ -787,9 +835,6 @@ const ChatMessageItem = React.memo(({
     return [];
   }, [msg.sources, msg.researchData, msg.workingSteps]);
 
-  const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
-  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
-  const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
   const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
 
   const promptId = msg.id || msg._id || `${msg.createdAt || msg.timestamp || idx}`;
@@ -826,22 +871,24 @@ const ChatMessageItem = React.memo(({
               <span className="truncate max-w-[220px]">{msg.pageContext.title}</span>
             </div>
           )}
-          {tool ? (
-            <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
-              <span
-                className="inline-flex items-center gap-1 font-medium select-none shrink-0"
-                style={{ color: tool.iconColor || '#007AFF' }}
-              >
-                {tool.icon && (
-                  <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
-                )}
-                <span>{tool.label}</span>
-              </span>
-              <MarkdownRenderer content={cleanContent} />
-            </div>
-          ) : (
-            <MarkdownRenderer content={msg.content} />
-          )}
+          <CollapsibleUserPrompt>
+            {tool ? (
+              <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
+                <span
+                  className="inline-flex items-center gap-1 font-medium select-none shrink-0"
+                  style={{ color: tool.iconColor || '#007AFF' }}
+                >
+                  {tool.icon && (
+                    <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
+                  )}
+                  <span>{tool.label}</span>
+                </span>
+                <MarkdownRenderer content={cleanContent} />
+              </div>
+            ) : (
+              <MarkdownRenderer content={msg.content} />
+            )}
+          </CollapsibleUserPrompt>
         </div>
         <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </motion.div>
@@ -926,7 +973,9 @@ const ChatMessageItem = React.memo(({
                 <span className="material-symbols-outlined text-[13px] leading-none font-bold select-none">check</span>
               </div>
               <span className="text-[#8E8B86] dark:text-[#8A8A8A] text-[12.5px] font-normal">Selected:</span>
-              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">{displayAnswer}</span>
+              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">
+                <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(displayAnswer) }} />
+              </span>
             </div>
           </div>
         )}
@@ -949,7 +998,8 @@ const RightPanelMessageItem = React.memo(({
   idx,
   isLatest,
   isStreaming,
-  messages,
+  isChoiceResolved = false,
+  resolvedAnswer = null,
   onSelectChoice,
   onSkipChoice,
   dismissedChoiceId,
@@ -992,9 +1042,6 @@ const RightPanelMessageItem = React.memo(({
     return [];
   }, [msg.sources, msg.researchData, msg.workingSteps]);
 
-  const nextMsg = messages && idx < messages.length - 1 ? messages[idx + 1] : null;
-  const isChoiceResolved = Boolean(choiceData && nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
-  const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
   const displayAnswer = resolvedAnswer ? resolvedAnswer.replace(/^Delete task:\s*/i, '') : '';
 
   const promptId = msg.id || msg._id || `${msg.createdAt || msg.timestamp || idx}`;
@@ -1031,22 +1078,24 @@ const RightPanelMessageItem = React.memo(({
               <span className="truncate max-w-[220px]">{msg.pageContext.title}</span>
             </div>
           )}
-          {tool ? (
-            <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
-              <span
-                className="inline-flex items-center gap-1 font-medium select-none shrink-0"
-                style={{ color: tool.iconColor || '#007AFF' }}
-              >
-                {tool.icon && (
-                  <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
-                )}
-                <span>{tool.label}</span>
-              </span>
-              <MarkdownRenderer content={cleanContent} />
-            </div>
-          ) : (
-            <MarkdownRenderer content={msg.content} />
-          )}
+          <CollapsibleUserPrompt>
+            {tool ? (
+              <div className="flex flex-wrap items-baseline gap-x-1.5 [&_p]:inline [&_p]:mb-0">
+                <span
+                  className="inline-flex items-center gap-1 font-medium select-none shrink-0"
+                  style={{ color: tool.iconColor || '#007AFF' }}
+                >
+                  {tool.icon && (
+                    <HugeiconsIcon icon={tool.icon} size={14} strokeWidth={2} className="shrink-0" />
+                  )}
+                  <span>{tool.label}</span>
+                </span>
+                <MarkdownRenderer content={cleanContent} />
+              </div>
+            ) : (
+              <MarkdownRenderer content={msg.content} />
+            )}
+          </CollapsibleUserPrompt>
         </div>
         <UserMessageActions content={cleanContent || msg.content} timestamp={msg.createdAt || msg.timestamp} />
       </motion.div>
@@ -1131,7 +1180,9 @@ const RightPanelMessageItem = React.memo(({
                 <span className="material-symbols-outlined text-[13px] leading-none font-bold select-none">check</span>
               </div>
               <span className="text-[#8E8B86] dark:text-[#8A8A8A] text-[12.5px] font-normal">Selected:</span>
-              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">{displayAnswer}</span>
+              <span className="font-medium text-[13px] text-[#2C2C2B] dark:text-[#E8E8E8]">
+                <span dangerouslySetInnerHTML={{ __html: parseInlineMarkdown(displayAnswer) }} />
+              </span>
             </div>
           </div>
         )}
@@ -1208,7 +1259,7 @@ function parseInteractiveChoice(content) {
   const isDeleteConfirmation = /(delete\s+(?:karna\s+chahte|kardun|karu|karein|karoon|this|these|task)|sure\s+you\s+want\s+to\s+delete|confirm\s+deletion)/i.test(content);
   if (isDeleteConfirmation && content.length < 350) {
     return {
-      question: content.trim(),
+      question: content.replace(/^#+\s+/gm, '').trim(),
       options: [
         { title: 'Yes, delete', description: 'Confirm and proceed with deletion' },
         { title: 'Cancel', description: 'Keep task and cancel deletion' },
@@ -1242,7 +1293,7 @@ function parseInteractiveChoice(content) {
           });
         }
       } else if (choices.length === 0 && (line.includes('?') || line.endsWith(':'))) {
-        questionLine = line.replace(/\*+/g, '').trim();
+        questionLine = line.replace(/^#+\s*/g, '').replace(/\*+/g, '').trim();
       }
     }
 
@@ -1361,6 +1412,7 @@ const ChatComposer = ({
     chatError,
     clearChatError,
     retryLastMessage,
+    isResponseWriting,
   } = useContext(ChatContext);
   const { activePage } = useContext(EditorContext);
   const { showToast } = useToast();
@@ -1429,15 +1481,6 @@ const ChatComposer = ({
       ...parsed,
     };
   }, [messages, isStreaming, dismissedChoiceId]);
-
-  // True only when assistant response text has actually started streaming (not during thinking/tools)
-  const isResponseWriting = useMemo(() => {
-    if (!isStreaming || !messages || messages.length === 0) return false;
-    const lastMsg = messages[messages.length - 1];
-    if (!lastMsg || lastMsg.role !== 'assistant') return false;
-    const { finalContent, isThinkingTagActive } = parseThoughtAndContent(lastMsg.content || '');
-    return Boolean(!isThinkingTagActive && finalContent && finalContent.trim().length > 0);
-  }, [isStreaming, messages]);
 
   const handleSelectChoice = (chosenAnswer) => {
     if (activeChoicePrompt?.id && setDismissedChoiceId) {
@@ -1907,7 +1950,7 @@ const ChatComposer = ({
 
           {/* Claude Composer Box */}
           <div 
-            className={`claude-composer-box relative flex ${isMultiLine ? 'items-end' : 'items-center'} w-full min-h-[45px] px-3.5 py-2 rounded-[14.5px] border focus-within:border-black/[0.14] dark:focus-within:border-[rgb(70,70,70)] shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all duration-200 cursor-text`}
+            className={`claude-composer-box relative flex ${isMultiLine ? 'items-end' : 'items-center'} w-full min-h-[46.5px] px-3.5 py-2 rounded-[14.5px] border focus-within:border-black/[0.14] dark:focus-within:border-[rgb(70,70,70)] shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all duration-200 cursor-text`}
             onClick={() => textareaRef?.current?.focus()}
           >
             {activeTool && (
@@ -1933,7 +1976,7 @@ const ChatComposer = ({
                 const val = e.target.value;
                 setQuery(val);
                 if (textareaRef.current) {
-                  textareaRef.current.style.height = '23px';
+                  textareaRef.current.style.height = '24.5px';
                   if (val.trim() !== '') {
                     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
                   }
@@ -1972,8 +2015,8 @@ const ChatComposer = ({
               }
               rows={1}
               autoFocus
-              className="flex-1 bg-transparent resize-none outline-none border-0 m-0 text-[14.5px] leading-[23px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-0 py-0 custom-scrollbar min-h-[23px] max-h-[180px] self-center"
-              style={{ height: '23px' }}
+              className="flex-1 bg-transparent resize-none outline-none border-0 m-0 text-[14.5px] leading-[23px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-0 py-0 custom-scrollbar min-h-[24.5px] max-h-[180px] self-center"
+              style={{ height: '24.5px' }}
             />
 
             {/* Action Icon on right inside box */}
@@ -2180,7 +2223,7 @@ const ChatComposer = ({
                 }
                 rows={1}
                 autoFocus
-                className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-1 py-1 custom-scrollbar min-h-[28px]"
+                className="w-full bg-transparent resize-none outline-none border-0 m-0 text-[15px] leading-[22px] font-normal text-[var(--c-text-primary)] placeholder-[var(--c-text-tertiary)] px-1 py-1 custom-scrollbar min-h-[31.5px]"
                 style={{ maxHeight: '250px' }}
               />
             </div>
@@ -2306,6 +2349,7 @@ const AIChat = ({ isRightPanel = false }) => {
     loadSession,
     sessionId
   } = useContext(ChatContext);
+  const streamingMessage = useContext(ChatStreamContext);
   const { toggleSidebar, isSidebarCollapsed, isMobileSidebarOpen, peekSidebar } = useContext(EditorContext) || {};
   const { user } = useAuth();
   
@@ -2404,7 +2448,7 @@ const AIChat = ({ isRightPanel = false }) => {
   useEffect(() => {
     if (textareaRef.current) {
       if (messages.length > 0) {
-        textareaRef.current.style.height = '23px';
+        textareaRef.current.style.height = '24.5px';
         if (query.trim() !== '') {
           textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
         }
@@ -2425,6 +2469,7 @@ const AIChat = ({ isRightPanel = false }) => {
     chatScrollRef,
     messages,
     isStreaming,
+    streamingMessage,
     isRightPanel,
     isLoadingMore,
     hasMore,
@@ -2525,7 +2570,7 @@ const AIChat = ({ isRightPanel = false }) => {
           {/* Messages Scroll Area */}
           <div className="flex-1 overflow-y-auto px-4 pb-4 pt-[18px] custom-scrollbar space-y-4" ref={chatScrollRef} onScroll={handleScroll}>
             {isLoadingMore && <MessageSkeletonLoader />}
-            {messages.length === 0 ? (
+            {messages.length === 0 && !streamingMessage ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
                 <div className="relative w-full h-[28px] mb-1">
                   <AnimatePresence mode="wait">
@@ -2543,21 +2588,45 @@ const AIChat = ({ isRightPanel = false }) => {
                 </div>
               </div>
             ) : (
-              messages.map((msg, idx) => (
-                <ChatMessageItem
-                  key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
-                  msg={msg}
-                  idx={idx}
-                  isLatest={idx === messages.length - 1}
-                  isStreaming={isStreaming}
-                  messages={messages}
-                  onSelectChoice={handleSelectChoice}
-                  onSkipChoice={handleSkipChoice}
-                  dismissedChoiceId={dismissedChoiceId}
-                  choiceSelectedIndex={choiceSelectedIndex}
-                  onSelectedIndexChange={setChoiceSelectedIndex}
-                />
-              ))
+              <>
+                {messages.map((msg, idx) => {
+                  const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                  const isChoiceResolved = Boolean(nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
+                  const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
+                  return (
+                    <ChatMessageItem
+                      key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
+                      msg={msg}
+                      idx={idx}
+                      isLatest={idx === messages.length - 1 && !streamingMessage}
+                      isStreaming={false}
+                      isChoiceResolved={isChoiceResolved}
+                      resolvedAnswer={resolvedAnswer}
+                      onSelectChoice={handleSelectChoice}
+                      onSkipChoice={handleSkipChoice}
+                      dismissedChoiceId={dismissedChoiceId}
+                      choiceSelectedIndex={choiceSelectedIndex}
+                      onSelectedIndexChange={setChoiceSelectedIndex}
+                    />
+                  );
+                })}
+                {streamingMessage && (
+                  <ChatMessageItem
+                    key="active-streaming-message"
+                    msg={streamingMessage}
+                    idx={messages.length}
+                    isLatest={true}
+                    isStreaming={true}
+                    isChoiceResolved={false}
+                    resolvedAnswer={null}
+                    onSelectChoice={handleSelectChoice}
+                    onSkipChoice={handleSkipChoice}
+                    dismissedChoiceId={dismissedChoiceId}
+                    choiceSelectedIndex={choiceSelectedIndex}
+                    onSelectedIndexChange={setChoiceSelectedIndex}
+                  />
+                )}
+              </>
             )}
           </div>
 
@@ -2729,7 +2798,7 @@ const AIChat = ({ isRightPanel = false }) => {
             </div>
           </div>
 
-          {messages.length === 0 ? (
+          {messages.length === 0 && !streamingMessage ? (
             <>
               <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-3 sm:px-4 mt-[-6vh] sm:mt-[-10vh] z-10 relative">
                 {/* Logo Doodle */}
@@ -2791,21 +2860,43 @@ const AIChat = ({ isRightPanel = false }) => {
               <div className="chat-scroll-area custom-scrollbar" ref={chatScrollRef} onScroll={handleScroll}>
                 {isLoadingMore && <MessageSkeletonLoader isRightPanel={true} />}
                 <div className="message-list">
-                  {messages.map((msg, idx) => (
+                  {messages.map((msg, idx) => {
+                    const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                    const isChoiceResolved = Boolean(nextMsg && nextMsg.role === 'user' && nextMsg.isChoiceResponse);
+                    const resolvedAnswer = isChoiceResolved ? nextMsg.content : null;
+                    return (
+                      <RightPanelMessageItem
+                        key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
+                        msg={msg}
+                        idx={idx}
+                        isLatest={idx === messages.length - 1 && !streamingMessage}
+                        isStreaming={false}
+                        isChoiceResolved={isChoiceResolved}
+                        resolvedAnswer={resolvedAnswer}
+                        onSelectChoice={handleSelectChoice}
+                        onSkipChoice={handleSkipChoice}
+                        dismissedChoiceId={dismissedChoiceId}
+                        choiceSelectedIndex={choiceSelectedIndex}
+                        onSelectedIndexChange={setChoiceSelectedIndex}
+                      />
+                    );
+                  })}
+                  {streamingMessage && (
                     <RightPanelMessageItem
-                      key={msg.id || msg._id || `${msg.role}-${msg.createdAt || msg.timestamp || idx}`}
-                      msg={msg}
-                      idx={idx}
-                      isLatest={idx === messages.length - 1}
-                      isStreaming={isStreaming}
-                      messages={messages}
+                      key="active-streaming-message"
+                      msg={streamingMessage}
+                      idx={messages.length}
+                      isLatest={true}
+                      isStreaming={true}
+                      isChoiceResolved={false}
+                      resolvedAnswer={null}
                       onSelectChoice={handleSelectChoice}
                       onSkipChoice={handleSkipChoice}
                       dismissedChoiceId={dismissedChoiceId}
                       choiceSelectedIndex={choiceSelectedIndex}
                       onSelectedIndexChange={setChoiceSelectedIndex}
                     />
-                  ))}
+                  )}
                 </div>
               </div>
 
