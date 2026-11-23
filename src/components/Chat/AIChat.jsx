@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo, useCallback } from 'react';
 import { ChevronRight, ChevronDown, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon, Attachment01Icon, Globe02Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext, ChatStreamContext } from '../../context/ChatContextDefinition';
@@ -81,7 +81,41 @@ const SourcesSheetContext = React.createContext({
   openSources: () => {},
 });
 
-const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
+const cleanSourceTitle = (title, domain) => {
+  if (!title) return domain || 'Source';
+  let clean = String(title).trim();
+
+  // Extract from quotes if search query
+  const searchMatch = clean.match(/^Search(?:ing)?(?:\s+web)?\s+for\s+["'“](.*?)["'”]/i);
+  if (searchMatch) return searchMatch[1];
+
+  const noteMatch = clean.match(/^Search(?:ing)?\s+notes\s+for\s+["'“](.*?)["'”]/i);
+  if (noteMatch) return noteMatch[1];
+
+  // Strip prefix words like "Looking into ...", "Read ...", "Checking ..."
+  clean = clean.replace(/^(?:Looking into|Read|Checking|Reviewing|Searched|Searching)\s+/i, '');
+  clean = clean.replace(/^\s*["']|["']\s*$/g, '').trim();
+
+  // If title is a full URL, extract clean slug or domain
+  if (/^https?:\/\//i.test(clean)) {
+    try {
+      const u = new URL(clean);
+      const slug = u.pathname.replace(/^\/|\/$/g, '').split('/').pop() || '';
+      if (slug && slug.length > 2) {
+        clean = slug.replace(/[-_]+/g, ' ');
+        clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+      } else {
+        clean = u.hostname.replace(/^www\./, '');
+      }
+    } catch {
+      // keep clean
+    }
+  }
+
+  return clean || domain || 'Source';
+};
+
+const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
   const navigate = useNavigate();
   const [openingIndex, setOpeningIndex] = useState(null);
 
@@ -95,131 +129,188 @@ const SourcesBottomSheet = ({ sources, onClose, isRightPanel }) => {
 
   if (!sources || sources.length === 0) return null;
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Sources"
-      className="absolute inset-0 z-[150] flex flex-col justify-end pointer-events-auto"
-    >
-      {/* Backdrop overlay */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-[2px]"
-      />
+  const handleOpenItem = (item, idx) => {
+    setOpeningIndex(idx);
+    if (item.isWeb && item.url) {
+      const targetUrl = item.url.startsWith('http://') || item.url.startsWith('https://')
+        ? item.url
+        : `https://${item.url}`;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => setOpeningIndex(null), 150);
+    } else {
+      const targetPageId = item.pageId || item._id || item.id;
+      if (targetPageId) {
+        navigate(`/dashboard/page/${targetPageId}`);
+        setTimeout(() => {
+          setOpeningIndex(null);
+          onClose();
+        }, 150);
+      } else {
+        setOpeningIndex(null);
+      }
+    }
+  };
 
-      {/* Sheet — Obsidian-style list sheet */}
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 32, stiffness: 380 }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={{ top: 0, bottom: 0.5 }}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 60 || info.velocity.y > 220) {
-            onClose();
-          }
-        }}
-        className={`relative z-10 bg-[#eeece8] dark:bg-[#1b1b1b] shadow-[0_-16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.65)] flex flex-col max-h-[80%] overflow-hidden px-4 pt-1.5 pb-4 ${
-          isRightPanel
-            ? 'w-full rounded-t-[37px]'
-            : 'w-[calc(100%_-_12px)] mb-1.5 sm:w-[94%] max-w-[560px] mx-auto rounded-[37px] sm:mb-4'
-        }`}
+  const getItemIcon = (item) => {
+    if (item.isUpload || item.type === 'upload' || item.type === 'attachment') {
+      return <HugeiconsIcon icon={Attachment01Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+    }
+    if (item.domain === 'memory' || item.type === 'memory' || item.stateType === 'memory') {
+      return <HugeiconsIcon icon={Brain03Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+    }
+    if (!item.isWeb && (item.domain === 'workspace' || item.pageId || item.type === 'note')) {
+      return <HugeiconsIcon icon={File02Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+    }
+    // Web search: Clean web globe icon
+    return <HugeiconsIcon icon={Globe02Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+  };
+
+  const renderItemRow = (item, idx) => {
+    const displayTitle = cleanSourceTitle(item.title, item.domain);
+
+    return (
+      <div
+        key={idx}
+        onClick={() => handleOpenItem(item, idx)}
+        className="group relative flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors cursor-pointer select-none"
+        title={item.url || displayTitle}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center shrink-0 pb-1.5">
-          <div className="h-1 w-16 rounded-full bg-black/20 dark:bg-[#666666]" />
+        {/* Leading icon */}
+        <div className="w-4 h-4 flex items-center justify-center shrink-0 text-[#8e8b86] dark:text-[#908e89] group-hover:text-black dark:group-hover:text-white transition-colors">
+          {getItemIcon(item)}
         </div>
 
-        {/* Sources list panel */}
-        <div className="rounded-t-[37px] rounded-b-[28px] bg-white dark:bg-[#353535] overflow-hidden flex flex-col">
-          <div className="overflow-y-auto overscroll-contain custom-scrollbar flex-1 max-h-[260px]">
-            {sources.map((item, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  setOpeningIndex(idx);
-                  if (item.isWeb && item.url) {
-                    const targetUrl = item.url.startsWith('http://') || item.url.startsWith('https://')
-                      ? item.url
-                      : `https://${item.url}`;
-                    window.open(targetUrl, '_blank', 'noopener,noreferrer');
-                    setTimeout(() => {
-                      setOpeningIndex(null);
-                      onClose();
-                    }, 120);
-                  } else {
-                    const targetPageId = item.pageId || item._id || item.id;
-                    if (targetPageId) {
-                      navigate(`/dashboard/page/${targetPageId}`);
-                      setTimeout(() => {
-                        setOpeningIndex(null);
-                        onClose();
-                      }, 120);
-                    } else {
-                      setOpeningIndex(null);
-                      onClose();
-                    }
-                  }
-                }}
-                className="group relative flex items-center gap-3 px-4 py-3.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors cursor-pointer select-none"
-              >
-                {/* Leading icon */}
-                <div className="w-6 h-6 flex items-center justify-center shrink-0 text-neutral-500 dark:text-[#b3b3b3]">
-                  {item.isWeb ? (
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=64`}
-                      alt=""
-                      className="w-[22px] h-[22px] rounded-[4px] object-contain"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        if (e.target.nextSibling) {
-                          e.target.nextSibling.style.display = 'block';
-                        }
-                      }}
-                    />
-                  ) : (
-                    <span className="material-symbols-outlined text-[22px] leading-none select-none">
-                      description
-                    </span>
-                  )}
-                  {item.isWeb && (
-                    <span
-                      style={{ display: 'none' }}
-                      className="material-symbols-outlined text-[22px] leading-none select-none"
-                    >
-                      language
-                    </span>
-                  )}
-                </div>
+        {/* Title / Query */}
+        <span className="min-w-0 flex-1 truncate text-[13.5px] font-normal text-[#1a1918] dark:text-[#edece8] group-hover:underline underline-offset-2 transition-colors">
+          {displayTitle}
+        </span>
 
-                <span className="min-w-0 flex-1 truncate text-[15.5px] font-normal leading-snug text-gray-900 dark:text-[#dadada] transition-colors">
-                  {item.title}
-                </span>
+        {/* Loading Spinner */}
+        {openingIndex === idx && (
+          <div className="shrink-0 w-3 h-3 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
+        )}
+      </div>
+    );
+  };
 
-                {openingIndex === idx && (
-                  <div className="shrink-0 w-4 h-4 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
-                )}
-
-                {/* Inset hairline divider */}
-                {idx < sources.length - 1 && (
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-black/[0.06] dark:bg-white/[0.12]"
-                  />
-                )}
-              </div>
-            ))}
+  // Docked window / right-panel mode: slide-over within container below top header
+  if (isRightPanel) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Used in this session"
+        className="absolute top-[44px] sm:top-[46px] bottom-0 left-0 right-0 z-[160] flex flex-col justify-end pointer-events-auto bg-black/40 dark:bg-black/60 backdrop-blur-[2px]"
+      >
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+          className="relative z-10 w-full h-[75%] max-h-[500px] bg-white dark:bg-[#1a1a1a] rounded-t-[20px] shadow-2xl flex flex-col overflow-hidden border-t border-black/[0.08] dark:border-white/[0.08]"
+        >
+          {/* Header */}
+          <div className="h-[48px] px-4.5 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06] shrink-0">
+            <span className="text-[14px] font-medium text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]">
+              Used in this session
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={2} />
+            </button>
           </div>
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-0.5">
+            {sources.map(renderItemRow)}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Full Screen view: In-flow right sidebar on desktop (md+), smooth overlay drawer on mobile (< md)
+  return (
+    <>
+      {/* 1. Desktop In-Flow Sidebar (md and up) */}
+      <motion.aside
+        initial={{ width: 0, opacity: 0 }}
+        animate={{ width: 340, opacity: 1 }}
+        exit={{ width: 0, opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="hidden md:flex flex-col h-full shrink-0 border-l border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[var(--color-dark-bg)] z-30 overflow-hidden select-none"
+        style={{ width: 340 }}
+      >
+        {/* Header */}
+        <div className="h-[48px] px-4.5 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06] shrink-0">
+          <span className="text-[14px] font-medium text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]">
+            Used in this session
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close"
+            aria-label="Close"
+          >
+            <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={2} />
+          </button>
         </div>
-      </motion.div>
-    </div>
+
+        {/* Content list */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-0.5">
+          {sources.map(renderItemRow)}
+        </div>
+      </motion.aside>
+
+      {/* 2. Mobile Optimized Slide-over Drawer (< md, below top header) */}
+      <div className="md:hidden fixed top-[44px] sm:top-[46px] bottom-0 left-0 right-0 z-[160] flex justify-end pointer-events-auto">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-[2px]"
+        />
+
+        {/* Right Drawer */}
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          className="relative z-10 w-[85%] max-w-[340px] h-full bg-white dark:bg-[#1a1a1a] border-l border-black/[0.08] dark:border-white/[0.08] shadow-2xl flex flex-col overflow-hidden"
+        >
+          {/* Header */}
+          <div className="h-[48px] px-4.5 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06] shrink-0">
+            <span className="text-[14px] font-medium text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]">
+              Used in this session
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-0.5">
+            {sources.map(renderItemRow)}
+          </div>
+        </motion.div>
+      </div>
+    </>
   );
 };
 
@@ -2421,6 +2512,30 @@ const AIChat = ({ isRightPanel = false }) => {
   const [dismissedChoiceId, setDismissedChoiceId] = useState(null);
   const [activeSources, setActiveSources] = useState(null);
 
+  const sessionSources = useMemo(() => {
+    const list = [];
+    if (Array.isArray(messages)) {
+      messages.forEach((m) => {
+        if (m.role === 'assistant') {
+          if (Array.isArray(m.sources)) list.push(...m.sources);
+          if (Array.isArray(m.researchData?.sources)) list.push(...m.researchData.sources);
+          if (Array.isArray(m.workingSteps)) {
+            m.workingSteps.forEach((s) => {
+              if (s && (s.url || s.domain)) list.push({ url: s.url, title: s.text, domain: s.domain });
+            });
+          }
+        }
+      });
+    }
+    const seen = new Set();
+    return list.filter((s) => {
+      const key = s.url || s.pageId || s.title;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(formatSource);
+  }, [messages]);
+
   const handleDockToSidebar = () => {
     setIsRightChatOpen(true);
     const lastPage = localStorage.getItem('noema-last-page-route');
@@ -2545,8 +2660,24 @@ const AIChat = ({ isRightPanel = false }) => {
               </span>
             </div>
 
-            {/* Right: New Chat + Expand to full chat */}
+            {/* Right: Sources Toggle + New Chat + Expand to full chat */}
             <div className="flex items-center gap-1 shrink-0">
+              {sessionSources.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSources((prev) => (prev ? null : sessionSources))}
+                  className={`w-8 h-8 flex items-center justify-center rounded-[7px] transition-colors cursor-pointer ${
+                    activeSources
+                      ? 'bg-black/10 dark:bg-white/15 text-black dark:text-white'
+                      : 'text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                  }`}
+                  title={activeSources ? "Hide sources" : "View sources used in this session"}
+                  aria-label="Toggle sources"
+                >
+                  <HugeiconsIcon icon={BookOpen02Icon} size={17} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                </button>
+              )}
+
               <button
                 onClick={() => clearChat()}
                 className="w-8 h-8 flex items-center justify-center rounded-[7px] text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
@@ -2662,10 +2793,10 @@ const AIChat = ({ isRightPanel = false }) => {
             />
           </div>
 
-          {/* Full-width bottom sheet sources in window mode */}
+          {/* Sources slide-over drawer in window mode */}
           <AnimatePresence>
             {activeSources && (
-              <SourcesBottomSheet
+              <SourcesSidebar
                 sources={activeSources}
                 onClose={() => setActiveSources(null)}
                 isRightPanel={true}
@@ -2681,10 +2812,9 @@ const AIChat = ({ isRightPanel = false }) => {
   // Full Screen View (/dashboard/chat)
   return (
     <SourcesSheetContext.Provider value={{ openSources: setActiveSources }}>
-      <div className="flex flex-row w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
-        <div className="chat-container flex-1">
-          {/* Top Navbar */}
-          <div className="chat-navbar h-[44px] sm:h-[46px] w-full px-3 sm:px-4 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-40 shrink-0">
+      <div className="flex flex-col w-full h-full relative bg-white dark:bg-[var(--color-dark-bg)] overflow-hidden">
+        {/* Top Navbar carrying icons - spans across top */}
+        <div className="chat-navbar h-[44px] sm:h-[46px] w-full px-3 sm:px-4 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[var(--color-dark-bg)]/80 backdrop-blur-md z-40 shrink-0">
             {/* Left: Sidebar Toggle + Chat Title Dropdown */}
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               {(!isMobileSidebarOpen || isSidebarCollapsed) && (
@@ -2774,8 +2904,24 @@ const AIChat = ({ isRightPanel = false }) => {
               </div>
             </div>
 
-            {/* Right: Dock to Sidebar + New Chat */}
+            {/* Right: Sources Toggle + Dock to Sidebar + New Chat */}
             <div className="flex items-center gap-1 shrink-0">
+              {sessionSources.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSources((prev) => (prev ? null : sessionSources))}
+                  className={`w-8 h-8 flex items-center justify-center rounded-[7px] transition-colors cursor-pointer ${
+                    activeSources
+                      ? 'bg-black/10 dark:bg-white/15 text-black dark:text-white'
+                      : 'text-gray-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                  }`}
+                  title={activeSources ? "Hide sources" : "View sources used in this session"}
+                  aria-label="Toggle sources"
+                >
+                  <HugeiconsIcon icon={BookOpen02Icon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleDockToSidebar}
@@ -2798,7 +2944,10 @@ const AIChat = ({ isRightPanel = false }) => {
             </div>
           </div>
 
-          {messages.length === 0 && !streamingMessage ? (
+          {/* Content area BELOW top header */}
+          <div className="flex flex-row flex-1 w-full min-h-0 relative overflow-hidden">
+            <div className="chat-container flex-1 min-w-0 flex flex-col h-full relative overflow-hidden">
+              {messages.length === 0 && !streamingMessage ? (
             <>
               <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[770px] mx-auto px-3 sm:px-4 mt-[-6vh] sm:mt-[-10vh] z-10 relative">
                 {/* Logo Doodle */}
@@ -2936,18 +3085,20 @@ const AIChat = ({ isRightPanel = false }) => {
             </>
           )}
 
-          {/* Bottom-middle floating sheet on full chat page */}
-          <AnimatePresence>
-            {activeSources && (
-              <SourcesBottomSheet
-                sources={activeSources}
-                onClose={() => setActiveSources(null)}
-                isRightPanel={false}
-              />
-            )}
-          </AnimatePresence>
+            </div>
+
+            {/* Sources Sidebar (Desktop In-Flow / Mobile Slide-over) */}
+            <AnimatePresence>
+              {activeSources && (
+                <SourcesSidebar
+                  sources={activeSources}
+                  onClose={() => setActiveSources(null)}
+                  isRightPanel={false}
+                />
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
     </SourcesSheetContext.Provider>
   );
 };
