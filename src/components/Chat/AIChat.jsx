@@ -153,16 +153,16 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
 
   const getItemIcon = (item) => {
     if (item.isUpload || item.type === 'upload' || item.type === 'attachment') {
-      return <HugeiconsIcon icon={Attachment01Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+      return <HugeiconsIcon icon={Attachment01Icon} size={18} strokeWidth={1.8} className="select-none text-current" />;
     }
     if (item.domain === 'memory' || item.type === 'memory' || item.stateType === 'memory') {
-      return <HugeiconsIcon icon={Brain03Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+      return <HugeiconsIcon icon={Brain03Icon} size={18} strokeWidth={1.8} className="select-none text-current" />;
     }
     if (!item.isWeb && (item.domain === 'workspace' || item.pageId || item.type === 'note')) {
-      return <HugeiconsIcon icon={File02Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+      return <HugeiconsIcon icon={File02Icon} size={18} strokeWidth={1.8} className="select-none text-current" />;
     }
     // Web search: Clean web globe icon
-    return <HugeiconsIcon icon={Globe02Icon} size={15} strokeWidth={1.8} className="select-none text-current" />;
+    return <HugeiconsIcon icon={Globe02Icon} size={18} strokeWidth={1.8} className="select-none text-current" />;
   };
 
   const renderItemRow = (item, idx) => {
@@ -172,11 +172,11 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
       <div
         key={idx}
         onClick={() => handleOpenItem(item, idx)}
-        className="group relative flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors cursor-pointer select-none"
+        className="group relative flex items-center gap-3 px-3 py-2 rounded-[8px] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors cursor-pointer select-none"
         title={item.url || displayTitle}
       >
         {/* Leading icon */}
-        <div className="w-4 h-4 flex items-center justify-center shrink-0 text-[#8e8b86] dark:text-[#908e89] group-hover:text-black dark:group-hover:text-white transition-colors">
+        <div className="w-5 h-5 flex items-center justify-center shrink-0 text-[#8e8b86] dark:text-[#908e89] group-hover:text-black dark:group-hover:text-white transition-colors">
           {getItemIcon(item)}
         </div>
 
@@ -187,7 +187,7 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
 
         {/* Loading Spinner */}
         {openingIndex === idx && (
-          <div className="shrink-0 w-3 h-3 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
+          <div className="shrink-0 w-3.5 h-3.5 border-2 border-neutral-300 dark:border-neutral-600 border-t-neutral-800 dark:border-t-white rounded-full animate-spin" />
         )}
       </div>
     );
@@ -217,11 +217,11 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
             <button
               type="button"
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="w-7.5 h-7.5 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Close"
               aria-label="Close"
             >
-              <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={2} />
+              <HugeiconsIcon icon={Cancel01Icon} size={17} strokeWidth={2} />
             </button>
           </div>
 
@@ -254,11 +254,11 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            className="w-7.5 h-7.5 flex items-center justify-center rounded-[6px] text-[#8e8b86] hover:text-[#1a1918] dark:text-[#908e89] dark:hover:text-[#ededed] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Close"
             aria-label="Close"
           >
-            <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={2} />
+            <HugeiconsIcon icon={Cancel01Icon} size={17} strokeWidth={2} />
           </button>
         </div>
 
