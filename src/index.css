@@ -1,6 +1,61 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------- Kag_Z Self-Hosted Variable Brand Fonts ---------- */
+@font-face {
+  font-family: 'Kag_Z Sans';
+  src: url('/fonts/Kag_Z-Sans-Regular.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Sans-Regular.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kag_Z Sans';
+  src: url('/fonts/Kag_Z-Sans-Italic.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Sans-Italic.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kag_Z Serif';
+  src: url('/fonts/Kag_Z-Serif-Regular.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Serif-Regular.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kag_Z Serif';
+  src: url('/fonts/Kag_Z-Serif-Italic.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Serif-Italic.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kag_Z Mono';
+  src: url('/fonts/Kag_Z-Mono-Regular.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Mono-Regular.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kag_Z Mono';
+  src: url('/fonts/Kag_Z-Mono-Italic.woff2') format('woff2-variations'),
+       url('/fonts/Kag_Z-Mono-Italic.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
   --font-sans: var(--ui-font);
   --font-mono: var(--font-mono);
@@ -56,10 +111,10 @@
 
 :root,
 .light {
-  --ui-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: "Source Serif 4", "Lyon Text", Georgia, serif;
-  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  --font-quote: "Lora", "Source Serif 4", Georgia, serif;
+  --ui-font: "Kag_Z Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Kag_Z Serif", "Times New Roman", Georgia, serif;
+  --font-mono: "Kag_Z Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-quote: "Kag_Z Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Brand */
   --c-brand: #2383e2;
@@ -212,6 +267,21 @@ html {
     transition: font-size 0.15s ease;
     margin: 0;
   }
+}
+
+/* KagZ Font System: 300 weight for buttons, sidebar, and general UI */
+:root[data-font-system="kagz"] body,
+:root:not([data-font-system]) body,
+:root[data-font-system="kagz"] button,
+:root:not([data-font-system]) button,
+:root[data-font-system="kagz"] input,
+:root:not([data-font-system]) input,
+:root[data-font-system="kagz"] textarea,
+:root:not([data-font-system]) textarea,
+:root[data-font-system="kagz"] select,
+:root:not([data-font-system]) select {
+  font-family: var(--ui-font);
+  font-weight: 300;
 }
 
 /* High Contrast Mode */
@@ -559,6 +629,20 @@ html.noema-high-contrast :where(.dark, .dark *) .text-gray-400 {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Kag_Z Specimen Copy */
+.specimen-copy {
+  font-family: "Kag_Z Serif", "Times New Roman", Georgia, serif;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.55;
+  font-optical-sizing: auto;
+}
+
+.specimen-copy em {
+  font-style: italic;
+  color: #d97757;
 }
 
 

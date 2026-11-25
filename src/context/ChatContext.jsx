@@ -175,6 +175,8 @@ export const ChatProvider = ({ children }) => {
       stateType: 'thinking',
       startedAt: Date.now(),
       workingSteps: [],
+      thoughts: [],
+      thinkingContent: '',
     };
     streamingMessageRef.current = initialStreamMsg;
     setStreamingMessage(initialStreamMsg);
@@ -242,100 +244,97 @@ export const ChatProvider = ({ children }) => {
               updateStreamingMessage((prev) => {
                 if (!prev) return prev;
                 const incomingSources = Array.isArray(event.data) ? event.data : [];
-                const prevSteps = Array.isArray(prev.workingSteps) ? prev.workingSteps : [];
-                const sourceSteps = incomingSources.map((s) => ({
-                  text: s.domain ? `Read ${s.domain}${s.url ? '/' + s.url.replace(/^https?:\/\/[^/]+\/?/, '') : ''}` : `Read ${s.title || s.url}`,
-                  domain: s.domain || (s.url ? (() => { try { return new URL(s.url).hostname; } catch { return ''; } })() : ''),
-                  url: s.url,
-                  stateType: 'web_search',
-                  timestamp: Date.now(),
-                }));
+                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
+                
+                // Attach source sub-steps to the active or latest search tool
+                const updatedSteps = prevSteps.map((s, idx) => {
+                  const isMatch = s.isLive || idx === prevSteps.length - 1;
+                  if (isMatch && (s.tool === 'search_workspace' || s.tool === 'web_search' || s.tool === 'deep_research')) {
+                    const existingTexts = new Set((s.subSteps || []).map(st => st.text));
+                    const newSubSteps = [...(s.subSteps || [])];
+                    incomingSources.forEach((src) => {
+                      const title = src.domain ? `Read ${src.domain}` : `Read ${src.title || src.url}`;
+                      if (!existingTexts.has(title)) {
+                        existingTexts.add(title);
+                        newSubSteps.push({
+                          text: title,
+                          title: src.title,
+                          domain: src.domain,
+                          url: src.url,
+                          stateType: s.tool === 'search_workspace' ? 'workspace_search' : 'web_search',
+                          timestamp: Date.now(),
+                        });
+                      }
+                    });
+                    return {
+                      ...s,
+                      subSteps: newSubSteps,
+                    };
+                  }
+                  return s;
+                });
+
                 return {
                   ...prev,
                   sources: incomingSources,
-                  workingSteps: [...prevSteps, ...sourceSteps],
+                  workingSteps: updatedSteps,
                 };
               });
             } else if (event.type === 'tool_start') {
               updateStreamingMessage((prev) => {
                 if (!prev) return prev;
                 const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
-                const newSteps = [];
+                
+                // Single dedicated entry per tool call with human event narration
+                const eventText = typeof event.event === 'string' ? event.event.trim() : '';
+                const msgText = typeof event.message === 'string' ? event.message.trim() : '';
+                const isMonologue = /^(?:the\s+user|i\s+need\s+to|let\s+me|things\s+in\s+one\s+turn)\b/i.test(eventText);
+                const cleanEvent = (!isMonologue && eventText) ? eventText : '';
+                const runningText = cleanEvent || msgText || `Running ${event.tool}...`;
 
-                // 1. Humanly Thought (if event.event exists)
-                const thoughtText = typeof event.event === 'string' ? event.event.trim() : '';
-                if (thoughtText && !prevSteps.some((s) => s.text === thoughtText)) {
-                  newSteps.push({
-                    type: 'thought',
-                    text: thoughtText,
-                    tool: event.tool,
-                    timestamp: Date.now(),
-                  });
-                }
+                const execText = (event.query && event.tool === 'search_workspace')
+                  ? `Searching notes for "${event.query}"...`
+                  : (event.query && event.tool === 'web_search')
+                    ? `Searching for "${event.query}"`
+                    : (msgText || `Running ${event.tool}...`);
 
-                // 2. Concrete Execution Step (always record for tool execution)
-                let execText = typeof event.message === 'string' ? event.message.trim() : '';
-                if (!execText) {
-                  if (event.tool === 'user_memory') {
-                    const action = event.action || 'recall';
-                    execText = action === 'save'
-                      ? 'Updating user memory'
-                      : action === 'forget'
-                        ? 'Clearing user memory'
-                        : 'Recalled memory & context';
-                  } else if (event.tool === 'web_search' && event.query) {
-                    execText = `Searching web for "${event.query}"...`;
-                  } else if (event.tool === 'search_workspace' && event.query) {
-                    execText = `Searching notes for "${event.query}"...`;
-                  } else if (event.tool === 'manage_tasks') {
-                    execText = 'Updating tasks & kanban board...';
-                  } else if (!thoughtText) {
-                    execText = `Running ${event.tool}...`;
-                  }
-                }
-
-                if (execText && !prevSteps.some((s) => s.text === execText)) {
-                  newSteps.push({
-                    type: 'execution',
+                const subSteps = [];
+                if (execText && execText !== cleanEvent) {
+                  subSteps.push({
                     text: execText,
                     tool: event.tool,
                     query: event.query,
                     action: event.action,
-                    stateType: event.tool === 'user_memory'
-                      ? (event.action === 'save' ? 'memory' : 'remembering')
-                      : (event.tool || event.stateType || 'action'),
-                    status: 'running',
-                    isLive: true,
-                    timestamp: Date.now(),
+                    stateType: event.tool === 'user_memory' ? 'memory' : event.tool,
                   });
                 }
 
-                // Order Guarantee: Ensure thought always comes before execution steps
-                let combinedSteps;
-                const thoughtStep = newSteps.find((s) => s.type === 'thought');
-                const otherNewSteps = newSteps.filter((s) => s.type !== 'thought');
-
-                if (thoughtStep && prevSteps.length > 0) {
-                  const lastPrev = prevSteps[prevSteps.length - 1];
-                  if (lastPrev.type === 'execution' && (lastPrev.tool === event.tool || !lastPrev.tool)) {
-                    combinedSteps = [
-                      ...prevSteps.slice(0, prevSteps.length - 1),
-                      thoughtStep,
-                      lastPrev,
-                      ...otherNewSteps,
-                    ];
-                  } else {
-                    combinedSteps = [...prevSteps, ...newSteps];
-                  }
-                } else {
-                  combinedSteps = [...prevSteps, ...newSteps];
-                }
+                const newStep = {
+                  id: `tool-${event.tool}-${Date.now()}-${prevSteps.length}`,
+                  type: 'tool_call',
+                  event: cleanEvent || runningText,
+                  tool: event.tool,
+                  text: runningText,
+                  runningLabel: runningText,
+                  execMessage: execText,
+                  subSteps,
+                  query: event.query,
+                  action: event.action,
+                  domain: event.domain,
+                  url: event.url,
+                  stateType: event.tool === 'user_memory'
+                    ? (event.action === 'save' ? 'memory' : 'remembering')
+                    : (event.tool || event.stateType || 'action'),
+                  status: 'running',
+                  isLive: true,
+                  timestamp: Date.now(),
+                };
 
                 return {
                   ...prev,
-                  status: thoughtText || execText || prev.status,
+                  status: runningText,
                   stateType: event.tool || prev.stateType,
-                  workingSteps: combinedSteps,
+                  workingSteps: [...prevSteps, newStep],
                 };
               });
             } else if (event.type === 'tool_end') {
@@ -346,8 +345,11 @@ export const ChatProvider = ({ children }) => {
 
                 const updatedSteps = prevSteps.map((s) => {
                   if (s.tool === event.tool && s.isLive) {
+                    const resolvedText = completionEvent || s.runningLabel || s.text;
                     return {
                       ...s,
+                      text: resolvedText,
+                      resolvedLabel: resolvedText,
                       isLive: false,
                       status: event.status || 'success',
                       error: event.error,
@@ -356,23 +358,6 @@ export const ChatProvider = ({ children }) => {
                   }
                   return s;
                 });
-
-                // Attach completionEvent to the last step of this tool if not already attached
-                if (completionEvent) {
-                  const lastToolStep = [...updatedSteps].reverse().find((s) => s.tool === event.tool);
-                  if (lastToolStep && !lastToolStep.completionEvent) {
-                    lastToolStep.completionEvent = completionEvent;
-                  }
-                  if (!updatedSteps.some((s) => s.text === completionEvent)) {
-                    updatedSteps.push({
-                      type: 'tool_completion',
-                      text: completionEvent,
-                      tool: event.tool,
-                      status: event.status || 'success',
-                      timestamp: Date.now(),
-                    });
-                  }
-                }
 
                 return {
                   ...prev,
@@ -386,32 +371,6 @@ export const ChatProvider = ({ children }) => {
               }
               updateStreamingMessage((prev) => {
                 if (!prev) return prev;
-                const stepText = typeof event.data === 'string' ? event.data.trim() : '';
-
-                // Generic thinking stays with native ThinkingOrb, NOT in working steps
-                const isGenericThinking = (!event.stateType || event.stateType === 'thinking') &&
-                  (!stepText || /^thinking(\.{1,3})?$/i.test(stepText) || /^reasoning(\.{1,3})?$/i.test(stepText));
-
-                const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
-                const alreadyExists = prevSteps.some((s) => s.text === stepText);
-
-                // Recognize companion thoughts (e.g. first-person sentences emitted during research or planning)
-                const isCompanionThought = /^(?:I am|Main|We are)\b/i.test(stepText) || event.stateType === 'thought';
-
-                let updatedSteps = prevSteps;
-                if (!isGenericThinking && stepText && !alreadyExists) {
-                  updatedSteps = [
-                    ...prevSteps,
-                    {
-                      type: isCompanionThought ? 'thought' : 'execution',
-                      text: stepText,
-                      stateType: event.stateType || (prev.stateType === 'deep_research' ? 'deep_research' : 'action'),
-                      timestamp: Date.now(),
-                    },
-                  ];
-                }
-
-                // If currently in deep_research, do not downgrade stateType to generic 'thinking'
                 const nextStateType = (prev.stateType === 'deep_research' && (!event.stateType || event.stateType === 'thinking'))
                   ? 'deep_research'
                   : (event.stateType || prev.stateType || 'thinking');
@@ -420,26 +379,10 @@ export const ChatProvider = ({ children }) => {
                   ...prev,
                   status: event.data,
                   stateType: nextStateType,
-                  workingSteps: updatedSteps,
                 };
               });
-            } else if (event.type === 'thinking') {
-              const text = typeof event.data === 'string' ? event.data.trim() : '';
-              if (text && !/^thinking(\.{1,3})?$/i.test(text) && !/^reasoning(\.{1,3})?$/i.test(text)) {
-                updateStreamingMessage((prev) => {
-                  if (!prev) return prev;
-                  const prevSteps = Array.isArray(prev.workingSteps) ? [...prev.workingSteps] : [];
-                  const alreadyExists = prevSteps.some((s) => s.text === text);
-                  if (alreadyExists) return prev;
-                  return {
-                    ...prev,
-                    workingSteps: [
-                      ...prevSteps,
-                      { type: 'thought', text, timestamp: Date.now() },
-                    ],
-                  };
-                });
-              }
+            } else if (event.type === 'thinking' || event.type === 'thought') {
+              // Completely ignored. User explicitly does NOT want internal thinking rendered on UI.
             } else if (event.type === 'research_update' || event.type === 'research_start') {
               updateStreamingMessage((prev) => {
                 if (!prev) return prev;
@@ -655,8 +598,9 @@ export const ChatProvider = ({ children }) => {
               setMessages((prev) => [...prev, { ...finalMsg, workingDuration: duration, stoppedByUser: true }]);
             }
           } else if (completedSuccessfully) {
-            // If stream completed successfully without text tokens, use status or safe fallback
-            const fallbackContent = finalMsg.status || "Completed.";
+            // If stream completed successfully without text tokens, use a clean non-thought fallback
+            const isStatusAThought = finalMsg.status && /^(?:the\s+user|i\s+am|main\b|we\s+are)\b/i.test(finalMsg.status.trim());
+            const fallbackContent = (!isStatusAThought && finalMsg.status) ? finalMsg.status : "Completed.";
             setMessages((prev) => [...prev, { ...finalMsg, content: fallbackContent, workingDuration: duration }]);
           } else {
             if (!streamError && !signal.aborted) {

@@ -3,18 +3,52 @@
    Supports Light & Dark mode with zero font blur and native sizing
    ================================================================ */
 
-.markdown-content {
+/* KagZ Font System: Chat response uses Kag_Z Serif (specimen configuration) */
+:root[data-font-system="kagz"] .markdown-content,
+:root:not([data-font-system]) .markdown-content,
+.specimen-copy {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   color: var(--c-text-primary, #f5f5f5);
-  font-family: var(--ui-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: "Kag_Z Serif", "Times New Roman", Georgia, serif;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.55;
+  font-optical-sizing: auto;
+}
+
+@media (max-width: 768px) {
+  :root[data-font-system="kagz"] .markdown-content,
+  :root:not([data-font-system]) .markdown-content,
+  .specimen-copy {
+    font-size: 18px;
+    line-height: 1.55;
+  }
+}
+
+:root[data-font-system="kagz"] .markdown-content em,
+:root:not([data-font-system]) .markdown-content em,
+.specimen-copy em {
+  font-style: italic;
+  color: #d97757;
+}
+
+/* Fallback for other font systems (Inter, Source Serif 4, System Default) */
+:root:not([data-font-system="kagz"]):not(:not([data-font-system])) .markdown-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--c-text-primary, #f5f5f5);
+  font-family: var(--ui-font);
   font-size: 15px;
   line-height: 1.68;
 }
 
 :root:not(.dark) .markdown-content,
-.light .markdown-content {
+.light .markdown-content,
+:root:not(.dark) .specimen-copy,
+.light .specimen-copy {
   color: #1a1a1a;
 }
 
@@ -202,12 +236,15 @@
 }
 
 .codeContent pre,
-.codeContent code {
+.codeContent code,
+.markdown-content pre,
+.markdown-content code,
+code {
   color: #e4e4e7;
   text-shadow: none !important;
   filter: none !important;
   backdrop-filter: none !important;
-  font-family: var(--font-mono, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  font-family: "Kag_Z Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -219,4 +256,21 @@
 .codeBlockLight .codeContent pre,
 .codeBlockLight .codeContent code {
   color: #24292e;
+}
+
+/* ================================================================
+   KagZ Block Typography
+   Tables, callouts, and collapsible blocks use Kag_Z Sans at 300.
+   Code keeps Kag_Z Mono.
+   ================================================================ */
+
+.markdown-content table,
+.markdown-content th,
+.markdown-content blockquote,
+.markdown-content details,
+.markdown-content summary,
+.markdown-content .questionCard,
+.markdown-content .questionText {
+  font-family: var(--ui-font);
+  font-weight: 300;
 }

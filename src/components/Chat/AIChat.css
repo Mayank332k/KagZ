@@ -244,13 +244,17 @@
   border-radius: 20px;
   background-color: var(--user-bubble-bg);
   color: var(--user-bubble-text);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
-  font-weight: 400;
+  font-family: var(--ui-font);
+  font-weight: 300;
 }
 
-.message-bubble-user p {
+.message-bubble-user p,
+.message-bubble-user span {
   margin-bottom: 0;
+  font-family: var(--ui-font);
+  font-weight: 300;
 }
 
 .message-bubble-assistant {
@@ -438,43 +442,100 @@
   0% {
     background-position: 200% 0;
   }
+  32% {
+    background-position: -50% 0;
+  }
   100% {
-    background-position: -200% 0;
+    background-position: -50% 0;
   }
 }
 
 .active-tool-shimmer {
   background: linear-gradient(
     90deg,
-    #7a7a80 0%,
-    #7a7a80 20%,
-    #e4e4e7 50%,
-    #7a7a80 80%,
-    #7a7a80 100%
+    rgba(255, 255, 255, 0.30) 0%,
+    rgba(255, 255, 255, 0.30) 35%,
+    rgba(255, 255, 255, 1.0) 50%,
+    rgba(255, 255, 255, 0.30) 65%,
+    rgba(255, 255, 255, 0.30) 100%
   );
   background-size: 250% 100%;
   color: transparent !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   display: inline-block;
-  animation: tool-shimmer-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: tool-shimmer-sweep 4.4s infinite ease-in-out;
+  font-weight: 300;
+  text-shadow: none !important;
+  filter: none !important;
 }
 
 :root:not(.dark) .active-tool-shimmer {
   background: linear-gradient(
     90deg,
-    #8e8e93 0%,
-    #8e8e93 20%,
-    #1c1c1e 50%,
-    #8e8e93 80%,
-    #8e8e93 100%
+    rgba(0, 0, 0, 0.30) 0%,
+    rgba(0, 0, 0, 0.30) 35%,
+    rgba(0, 0, 0, 1.0) 50%,
+    rgba(0, 0, 0, 0.30) 65%,
+    rgba(0, 0, 0, 0.30) 100%
   );
   background-size: 250% 100%;
   color: transparent !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   display: inline-block;
-  animation: tool-shimmer-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: tool-shimmer-sweep 4.4s infinite ease-in-out;
+  font-weight: 300;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+/* Per-Character Smooth Shimmer with Line-Length-Optimized Speed and Zero Glow */
+.shimmer-char {
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.30);
+  animation: charWave var(--anim-duration, 3.4s) infinite ease-in-out;
+  animation-delay: calc(var(--char-index) * var(--char-delay, 0.02s));
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+:root:not(.dark) .shimmer-char {
+  color: rgba(0, 0, 0, 0.30);
+  animation: charWaveLight var(--anim-duration, 3.4s) infinite ease-in-out;
+  animation-delay: calc(var(--char-index) * var(--char-delay, 0.02s));
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+@keyframes charWave {
+  0% {
+    color: rgba(255, 255, 255, 0.30);
+  }
+  6% {
+    color: #ffffff;
+  }
+  14% {
+    color: rgba(255, 255, 255, 0.30);
+  }
+  100% {
+    color: rgba(255, 255, 255, 0.30);
+  }
+}
+
+@keyframes charWaveLight {
+  0% {
+    color: rgba(0, 0, 0, 0.30);
+  }
+  6% {
+    color: #000000;
+  }
+  14% {
+    color: rgba(0, 0, 0, 0.30);
+  }
+  100% {
+    color: rgba(0, 0, 0, 0.30);
+  }
 }
 
 .trailing-dark-shade {

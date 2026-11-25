@@ -9,10 +9,10 @@
 function sliceWords(str, count) {
   if (!str) return '';
 
-  // If str has a newline within the first 60 chars, prioritize breaking at the newline
-  const newlineIdx = str.indexOf('\n');
-  if (newlineIdx !== -1 && newlineIdx <= 60) {
-    return str.slice(0, newlineIdx + 1);
+  // If str has a paragraph break within the first 80 chars, prioritize breaking at the paragraph
+  const paraIdx = str.indexOf('\n\n');
+  if (paraIdx !== -1 && paraIdx <= 80) {
+    return str.slice(0, paraIdx + 2);
   }
 
   let wordsFound = 0;

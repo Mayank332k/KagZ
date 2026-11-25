@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  ArrowRight01Icon,
   BookOpen01Icon,
   BookOpen02Icon,
   QuillWrite02Icon,
@@ -65,6 +65,44 @@ export const ThoughtBubbleIcon = [
     },
   ],
 ];
+
+/**
+ * PerCharShimmer: Smooth character-by-character light sweep with dynamic speed scaling
+ * - Fast on short lines (~0.35s total sweep)
+ * - Brisk & fluid on long sentences (~0.85s - 1.15s total sweep, never sluggish)
+ * - 2.8s clean rest period, zero glow
+ */
+export const PerCharShimmer = ({ text, className = '' }) => {
+  if (!text) return null;
+  const chars = Array.from(text);
+  const total = chars.length;
+
+  // Dynamically optimize sweep speed according to length of the line (calm, smooth cadence):
+  const sweepDuration = Math.min(1.4, Math.max(0.48, 0.40 + total * 0.009));
+  const charDelay = total > 1 ? Number((sweepDuration / (total - 1)).toFixed(5)) : 0;
+  const restDuration = 2.8;
+  const cycleDuration = Number((sweepDuration + restDuration).toFixed(3));
+
+  return (
+    <span
+      className={`char-shimmer-container inline-flex flex-nowrap whitespace-nowrap select-none overflow-hidden ${className}`}
+      style={{
+        '--anim-duration': `${cycleDuration}s`,
+        '--char-delay': `${charDelay}s`,
+      }}
+    >
+      {chars.map((ch, idx) => (
+        <span
+          key={idx}
+          className="shimmer-char shrink-0"
+          style={{ '--char-index': idx }}
+        >
+          {ch === ' ' ? '\u00A0' : ch}
+        </span>
+      ))}
+    </span>
+  );
+};
 
 /**
  * Checks whether text or domain is an actual web URL/domain vs workspace note
@@ -307,10 +345,15 @@ const StepIcon = ({ step, isLive, size = 15 }) => {
     );
   }
 
-  // Deep Research / Research step
+  // Web search / Deep Research / Search queries (Magnifying glass icon)
   if (
+    stateType === 'web_search' ||
+    step?.tool === 'web_search' ||
     stateType === 'deep_research' ||
     stateType === 'research' ||
+    lower.startsWith('searching') ||
+    lower.includes('search for') ||
+    lower.includes('searching for') ||
     lower.includes('research') ||
     lower.includes('analyzing') ||
     lower.includes('synthesizing')
@@ -489,106 +532,21 @@ export function getPhaseToolSummary(tools = [], isLive = false) {
 export function getPhaseActiveToolMeta(phase, isPhaseLive = false) {
   if (!phase || !phase.tools || phase.tools.length === 0) return null;
 
-  if (isPhaseLive) {
-    const runningStep = phase.tools.find((s) => s?.isLive || s?.status === 'running');
-    const active = runningStep || phase.tools[phase.tools.length - 1];
+  const active = phase.tools[0];
+  const isLive = isPhaseLive || Boolean(active?.isLive || active?.status === 'running');
 
-    if (active) {
-      const rawText = typeof active === 'string' ? active : (active.text || '');
-      const lower = rawText.toLowerCase();
-
-      // 1. Reconnecting
-      if (active.stateType === 'reconnecting' || lower.includes('reconnect') || lower.includes('trying to reconnect')) {
-        return {
-          key: 'reconnecting',
-          label: 'Trying to reconnect...',
-          icon: <HugeiconsIcon icon={WifiDisconnected01Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 2. Reading specific web domain or URL (e.g. "Reading linkedin.com")
-      if (active.domain || (lower.startsWith('read ') && !lower.includes('notes') && !lower.includes('memory'))) {
-        const domain = active.domain || extractDomain(rawText);
-        return {
-          key: `reading-${domain || 'page'}`,
-          label: domain ? `Reading ${domain}` : 'Reading a page',
-          icon: domain ? <FaviconIcon domain={domain} /> : <HugeiconsIcon icon={BookOpen02Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 3. Workspace notes
-      if (isWorkspaceNote(active, rawText) || lower.includes('notes')) {
-        const query = active.query || (/Searching notes for "(.*?)"/i.exec(rawText)?.[1]);
-        return {
-          key: `notes-${query || 'workspace'}`,
-          label: query ? `Searching notes for "${query}"` : 'Reading notes',
-          icon: <HugeiconsIcon icon={BookOpen02Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 4. Memory update
-      if (active.stateType === 'memory' || lower.includes('saving memory') || lower.includes('saved to memory') || lower.includes('updating memory')) {
-        return {
-          key: 'memory-update',
-          label: 'Updating memory',
-          icon: <HugeiconsIcon icon={QuillWrite02Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 5. Memory recall
-      if (active.stateType === 'remembering' || lower.includes('recalled memory') || lower.includes('memory') || lower.includes('remember') || lower.includes('yaad')) {
-        return {
-          key: 'memory-recall',
-          label: 'Reading memory',
-          icon: <HugeiconsIcon icon={BookOpen01Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 6. Tasks
-      if (active.stateType === 'task_management' || lower.includes('task') || lower.includes('kanban')) {
-        return {
-          key: 'tasks',
-          label: 'Updating tasks',
-          icon: <HugeiconsIcon icon={Quiz04Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 7. Web Search query (e.g. "Searching for \"recent jobs\"")
-      const webQueryMatch = active.query || (/Searching web for "(.*?)"/i.exec(rawText)?.[1]) || (/Search web for "(.*?)"/i.exec(rawText)?.[1]);
-      if (webQueryMatch) {
-        return {
-          key: `searching-${webQueryMatch}`,
-          label: `Searching for "${webQueryMatch}"`,
-          icon: <HugeiconsIcon icon={Search01Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 8. Deep Research step (e.g. "Conducting deep research", "Refining research query", etc.)
-      if (
-        active.stateType === 'deep_research' ||
-        active.tool === 'deep_research' ||
-        lower.includes('research') ||
-        lower.includes('analyzing') ||
-        lower.includes('synthesizing')
-      ) {
-        return {
-          key: `deep-research-${active.id || rawText}`,
-          label: rawText.replace(/>\s*$/, '').trim() || 'Conducting deep research',
-          icon: <HugeiconsIcon icon={Search01Icon} size={14.5} strokeWidth={1.8} />,
-        };
-      }
-
-      // 9. General search
-      return {
-        key: `searching-${rawText}`,
-        label: rawText.replace(/>\s*$/, '').trim() || 'Searching the web',
-        icon: <HugeiconsIcon icon={Search01Icon} size={14.5} strokeWidth={1.8} />,
-      };
-    }
+  if (isLive) {
+    const rawText = active?.runningLabel || active?.text || '';
+    return {
+      key: `live-${phase.id}-${rawText}`,
+      label: rawText.replace(/>\s*$/, '').trim() || 'Working...',
+      icon: null,
+    };
   }
 
-  // Completed phase: show natural compound summary
-  const summary = getPhaseToolSummary(phase.tools, false);
+  // Completed phase: show natural compound summary or completion event
+  const completedLabel = active?.resolvedLabel || active?.completionEvent;
+  const summary = completedLabel || getPhaseToolSummary(phase.tools, false);
   if (!summary) return null;
 
   return {
@@ -647,18 +605,32 @@ const WorkingProcessAccordion = ({
   const visibleSteps = useMemo(() => {
     let list = Array.isArray(steps) ? [...steps] : [];
 
+    // Filter out raw planning fragments, numberings, or leaked monologues
+    list = list.filter((s) => {
+      if (!s) return false;
+      // Completely reject any thought items - user explicitly wants NO internal thinking
+      if (s.type === 'thought' || s.isThought) return false;
+
+      const text = typeof s === 'string' ? s : (s.event || s.text || s.runningLabel || '');
+      // Strip leaked monologue prefixes or numbering lines
+      if (/^\s*(?:the\s+user|user\s+(?:wants|asked|needs)|things\s+in\s+one\s+turn|list\s+all\s+pending|this\s+down|profile\s+info|\b\d+[\.\)]|\.\s+|,\s*then\s+list|\bfor\s+(?:memory|listing|"launch|launch)|stack\s+and\s+project|them\s+in\s+parallel|list['"]?\s+i\s+need|and\s+my\s+main|with\s+status\s+todo|launch\s+checklist['"]?\s*\d)/i.test(text.trim())) {
+        return false;
+      }
+
+      // Must be a valid tool call or research step
+      const isToolStep = s.type === 'tool_call' || Boolean(s.tool) || s.stateType === 'deep_research' || (Array.isArray(s.subSteps) && s.subSteps.length > 0);
+      return isToolStep;
+    });
+
     // Fallback: If steps are empty (e.g. loaded from session/DB) but researchData exists
     if (list.length === 0 && researchData) {
       if (Array.isArray(researchData.steps) && researchData.steps.length > 0) {
-        if (researchData.topic) {
-          list.push({
-            type: 'thought',
-            text: `Researching: ${researchData.topic}`,
-          });
-        }
         researchData.steps.forEach((st) => {
           list.push({
-            type: 'execution',
+            id: st.id,
+            type: 'tool_call',
+            tool: 'deep_research',
+            event: st.title,
             text: st.title,
             stateType: 'deep_research',
             isLive: st.status === 'in_progress',
@@ -667,7 +639,9 @@ const WorkingProcessAccordion = ({
         });
       } else if (researchData.currentAction) {
         list.push({
-          type: 'execution',
+          type: 'tool_call',
+          tool: 'deep_research',
+          event: researchData.currentAction,
           text: researchData.currentAction,
           stateType: 'deep_research',
           isLive: isStreaming,
@@ -675,38 +649,8 @@ const WorkingProcessAccordion = ({
       }
     }
 
-    // Merge sources if present: ensure all verified URLs exist in the step breakdown alongside memory & task steps
-    if (Array.isArray(sources) && sources.length > 0) {
-      sources.forEach((s) => {
-        const url = s.url || '';
-        const domain = s.domain || (url ? (() => { try { return new URL(url).hostname; } catch { return ''; } })() : '');
-        const alreadyInList = list.some((st) => st.url === url || (domain && st.domain === domain));
-        if (!alreadyInList) {
-          const title = s.title || (url ? url.replace(/^https?:\/\/[^/]+\/?/, '') : '') || domain || 'Source';
-          list.push({
-            type: 'execution',
-            text: domain ? `Read ${domain}` : `Read ${title}`,
-            domain,
-            url,
-            stateType: s.type === 'workspace' ? 'workspace_search' : 'web_search',
-            isLive: false,
-          });
-        }
-      });
-    }
-
-    // Only include status if it is a specific action status (not generic thinking)
-    if (
-      list.length === 0 &&
-      status &&
-      !/^thinking(\.{1,3})?$/i.test(status.trim()) &&
-      !/^reasoning(\.{1,3})?$/i.test(status.trim())
-    ) {
-      list.push({ text: status, stateType: stateType || 'action', isLive: isStreaming });
-    }
-
     return list;
-  }, [steps, sources, researchData, status, stateType, isStreaming]);
+  }, [steps, researchData, isStreaming]);
 
   const hasActiveRunningStep = useMemo(() => {
     return visibleSteps.some((s) => s?.isLive || s?.status === 'running');
@@ -741,105 +685,26 @@ const WorkingProcessAccordion = ({
     );
   }, [stateType, researchData, visibleSteps]);
 
-  // Group steps and thoughts into chronological narrative phases
+  // Each tool call creates its own distinct row:
+  // - Shimmers while live with PerCharShimmer
+  // - Resolves on completion to its summary with chevron >
   const narrativePhases = useMemo(() => {
     const phases = [];
-    let currentPhase = null;
 
-    const startPhase = (thoughtText = null) => {
-      if (currentPhase && (currentPhase.thought || currentPhase.tools.length > 0)) {
-        phases.push(currentPhase);
+    visibleSteps.forEach((step, idx) => {
+      if (!step) return;
+      const text = typeof step === 'string' ? step : (step.text || step.runningLabel || '');
+      // Strip any raw monologue / planning fragments
+      if (/^\s*(?:the\s+user|user\s+wants|i\s+need\s+to|let\s+me|things\s+in\s+one\s+turn)\b/i.test(text.trim())) {
+        return;
       }
-      currentPhase = {
-        id: `phase-${phases.length}`,
-        thought: thoughtText,
-        tools: [],
-      };
-    };
 
-    visibleSteps.forEach((step) => {
-      if (step?.type === 'thought' || step?.isThought) {
-        const text = typeof step.text === 'string' ? step.text.trim() : '';
-        if (!text) return;
-
-        // Check if this step is actually a tool completion event
-        const isToolCompletion =
-          step?.type === 'tool_completion' ||
-          step?.completionEvent ||
-          /^Reviewed\s+\d+\s+live\s+web\s+source/i.test(text) ||
-          /^Reviewed\s+relevant\s+workspace\s+notes/i.test(text) ||
-          /^Context\s+updated\s+in\s+memory/i.test(text) ||
-          /^Updated\s+tasks\s+&\s+Kanban\s+board/i.test(text) ||
-          /^Deep\s+research\s+synthesis\s+ready/i.test(text) ||
-          /^Web\s+search\s+complete/i.test(text);
-
-        if (isToolCompletion) {
-          if (!currentPhase) {
-            currentPhase = { id: `phase-0`, thought: null, tools: [] };
-          }
-          currentPhase.tools.push({
-            ...step,
-            type: 'tool_completion',
-            completionEvent: step.completionEvent || text,
-          });
-          return;
-        }
-
-        // If current phase already executed tools, start a new phase with this thought
-        if (currentPhase && currentPhase.tools.length > 0) {
-          startPhase(text);
-        } else {
-          // If current phase has no tools, update or initialize with this thought
-          if (!currentPhase) {
-            currentPhase = { id: `phase-0`, thought: text, tools: [] };
-          } else if (!currentPhase.thought) {
-            currentPhase.thought = text;
-          } else if (currentPhase.thought !== text) {
-            if (/^(?:I am|Main|We are)\b/i.test(text) && !/^(?:I am|Main|We are)\b/i.test(currentPhase.thought)) {
-              currentPhase.thought = text;
-            } else if (!/^(?:I am|Main|We are)\b/i.test(text) && /^(?:I am|Main|We are)\b/i.test(currentPhase.thought)) {
-              // Keep existing rich companion thought
-            } else {
-              startPhase(text);
-            }
-          }
-        }
-      } else {
-        // Concrete execution step
-        if (!currentPhase) {
-          currentPhase = { id: `phase-0`, thought: null, tools: [] };
-        }
-        currentPhase.tools.push(step);
-      }
+      phases.push({
+        id: step.id || `phase-${idx}`,
+        thought: null,
+        tools: [step],
+      });
     });
-
-    if (currentPhase && (currentPhase.thought || currentPhase.tools.length > 0)) {
-      phases.push(currentPhase);
-    }
-
-    // Merge thoughts from <think> tag if visibleSteps had no explicit thought steps
-    if (Array.isArray(thoughts) && thoughts.length > 0) {
-      const cleanThoughts = thoughts
-        .map((t) => (typeof t === 'string' ? t.trim() : ''))
-        .filter((t) => t && !t.startsWith('```'));
-
-      if (cleanThoughts.length > 0) {
-        if (phases.length === 0) {
-          cleanThoughts.forEach((th, i) => {
-            phases.push({ id: `phase-th-${i}`, thought: th, tools: [] });
-          });
-        } else if (!phases[0].thought) {
-          phases[0].thought = cleanThoughts[0];
-          for (let i = 1; i < cleanThoughts.length; i++) {
-            if (phases[i]) {
-              if (!phases[i].thought) phases[i].thought = cleanThoughts[i];
-            } else {
-              phases.push({ id: `phase-th-${i}`, thought: cleanThoughts[i], tools: [] });
-            }
-          }
-        }
-      }
-    }
 
     // Fallback: If no phases were formed, but status exists
     if (phases.length === 0 && status && !/^thinking(\.{1,3})?$/i.test(status.trim())) {
@@ -851,7 +716,7 @@ const WorkingProcessAccordion = ({
     }
 
     return phases;
-  }, [visibleSteps, thoughts, status, stateType, isStreaming]);
+  }, [visibleSteps, status, stateType, isStreaming]);
 
   const handleStepClick = (e, action) => {
     if (!action) return;
@@ -870,165 +735,66 @@ const WorkingProcessAccordion = ({
     }
   };
 
-  const togglePhase = (phaseId) => {
+  const togglePhase = (stepId) => {
     setOpenPhases((prev) => ({
       ...prev,
-      [phaseId]: !prev[phaseId],
+      [stepId]: !prev[stepId],
     }));
   };
 
-  // If there are no phases to display, do not render
-  if (narrativePhases.length === 0) return null;
+  // Active running event during live streaming
+  const runningStep = useMemo(() => {
+    return visibleSteps.find((s) => s?.isLive || s?.status === 'running') || visibleSteps[visibleSteps.length - 1];
+  }, [visibleSteps]);
 
-  // Renders the narrative phases list
-  const renderNarrativePhases = (isLiveContext = false) => {
-    return narrativePhases.map((phase, pIdx) => {
-      const isPhaseLive = isLiveContext && isStreaming && pIdx === narrativePhases.length - 1 && hasActiveRunningStep;
-      const toolMeta = getPhaseActiveToolMeta(phase, isPhaseLive);
-      const isOpen = Boolean(openPhases[phase.id]);
-      const concreteSteps = phase.tools.filter((step) => step?.type !== 'tool_completion');
-      const hasTools = concreteSteps.length > 0;
+  const activeLiveEvent = useMemo(() => {
+    const raw = runningStep?.event || runningStep?.runningLabel || runningStep?.text || (status && !/^thinking(\.{1,3})?$/i.test(status.trim()) && !/^reasoning(\.{1,3})?$/i.test(status.trim()) ? status : null);
+    if (!raw) return 'Working';
+    const isMonologue = /^\s*(?:the\s+user|user\s+wants|i\s+need\s+to|let\s+me|things\s+in\s+one\s+turn)\b/i.test(raw.trim());
+    return isMonologue ? 'Working' : raw.replace(/>\s*$/, '').trim();
+  }, [runningStep, status]);
 
-      return (
-        <motion.div
-          key={phase.id}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full"
-        >
-          {/* 1. Thought in Serif font (Lora / Georgia), upright regular weight */}
-          {phase.thought && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="mb-2 select-text"
-            >
-              <span
-                style={{ fontFamily: 'var(--font-quote)' }}
-                className="inline-block text-neutral-800 dark:text-[#e4e2dd] text-[15px] sm:text-[15.5px] leading-relaxed select-text"
-              >
-                {phase.thought}
-              </span>
-            </motion.div>
-          )}
-
-          {/* 2. Tool State: Sleek single-line with smooth instant cross-fade */}
-          {toolMeta && (
-            <div className="my-1 select-none flex items-center max-w-full">
-              <button
-                type="button"
-                onClick={hasTools ? () => togglePhase(phase.id) : undefined}
-                className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none max-w-full min-w-0"
-                title={hasTools ? (isOpen ? 'Click to collapse steps' : 'Click to expand steps') : (toolMeta.label || undefined)}
-              >
-                {/* Left Tool Icon (Only present during live tools; null on completed summary) */}
-                {toolMeta.icon && (
-                  <span className="shrink-0 mr-2 flex items-center justify-center text-[#8e8e93] dark:text-[#98989f]">
-                    {toolMeta.icon}
-                  </span>
-                )}
-
-                {/* Text with active-tool-shimmer during streaming, muted grey when completed */}
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.span
-                    key={toolMeta.key}
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -3 }}
-                    transition={{ duration: 0.16, ease: 'easeOut' }}
-                    className={`truncate max-w-[calc(100vw-130px)] sm:max-w-[560px] md:max-w-[660px] font-normal tracking-[-0.01em] ${
-                      isPhaseLive
-                        ? 'active-tool-shimmer'
-                        : 'text-[#8e8e93] dark:text-[#8e8e93] group-hover/toggle:text-[#636366] dark:group-hover/toggle:text-[#aeaeb2]'
-                    }`}
-                    title={toolMeta.label}
-                  >
-                    {toolMeta.label}
-                  </motion.span>
-                </AnimatePresence>
-
-                {/* Dynamic '>' arrow (visible on hover or when expanded) */}
-                {hasTools && (
-                  <ChevronRight
-                    size={14}
-                    className={`ml-1.5 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#5a5a5e] dark:text-[#8e8e93] dark:group-hover/toggle:text-[#d1d1d6] transition-all duration-150 ease-out ${
-                      isOpen
-                        ? 'opacity-100 rotate-90'
-                        : 'opacity-0 group-hover/toggle:opacity-100'
-                    }`}
-                  />
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* 3. Expanded step breakdown for this phase */}
-          <AnimatePresence initial={false}>
-            {isOpen && hasTools && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden mt-2 mb-2"
-              >
-                <div className="border-l border-black/[0.06] dark:border-white/[0.08] ml-1 pl-3 py-1 flex flex-col gap-2 max-h-[220px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar text-[13px]">
-                  {concreteSteps.map((step, sIdx) => {
-                    const text = typeof step === 'string' ? step : step?.text || '';
-                    const action = getStepAction(step);
-                    const isClickable = Boolean(action);
-                    const isStepLive = isPhaseLive && sIdx === concreteSteps.length - 1 && step?.isLive !== false;
-                    return (
-                      <div
-                        key={step?.id ? `${step.id}-${sIdx}` : `${step?.url || step?.query || step?.text || 'step'}-${sIdx}`}
-                        onClick={isClickable ? (e) => handleStepClick(e, action) : undefined}
-                        className={`flex items-center gap-2 text-neutral-600 dark:text-neutral-400 ${
-                          isClickable ? 'cursor-pointer hover:text-black dark:hover:text-white group' : ''
-                        }`}
-                        title={action?.tooltip}
-                      >
-                        <div className="shrink-0">
-                          <StepIcon step={step} isLive={isStepLive} />
-                        </div>
-                        <span className={`truncate ${isClickable ? 'group-hover:underline underline-offset-2' : ''}`}>
-                          {text}
-                        </span>
-                        {isClickable && (
-                          <span className="text-[10px] text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      );
-    });
-  };
+  // Action text for running tool line when expanded during live execution (Image match!)
+  const runningToolActionText = useMemo(() => {
+    if (!runningStep) return null;
+    if (runningStep.execMessage && runningStep.execMessage !== activeLiveEvent) {
+      return runningStep.execMessage;
+    }
+    if (runningStep.query) {
+      return runningStep.tool === 'web_search'
+        ? `Searching for "${runningStep.query}"`
+        : `Searching notes for "${runningStep.query}"`;
+    }
+    if (runningStep.runningLabel && runningStep.runningLabel !== activeLiveEvent) {
+      return runningStep.runningLabel;
+    }
+    if (runningStep.tool) {
+      return `Running ${runningStep.tool}...`;
+    }
+    return null;
+  }, [runningStep, activeLiveEvent]);
 
   return (
-    <div className="w-full my-1.5 select-none font-sans text-left">
+    <div className="w-full my-1.5 select-none font-sans text-left" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
       {hasResponseArrived ? (
         <div className="w-full">
           <button
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
-            className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6]"
+            className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-light transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6]"
             title={isExpanded ? 'Click to collapse' : 'Click to expand'}
           >
-            <span className="font-normal tracking-[-0.01em]">
+            <span className="font-light tracking-[-0.01em]" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
               {stoppedByUser
                 ? "You stopped KagZ's response"
                 : isResearch
                 ? `Researched for ${formatDuration(displaySeconds)}`
                 : `Worked for ${formatDuration(displaySeconds)}`}
             </span>
-            <ChevronRight
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
               size={14}
+              strokeWidth={1.8}
               className={`ml-1.5 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#5a5a5e] dark:text-[#8e8e93] dark:group-hover/toggle:text-[#d1d1d6] transition-transform duration-150 ease-out ${
                 isExpanded ? 'rotate-90' : ''
               }`}
@@ -1042,16 +808,252 @@ const WorkingProcessAccordion = ({
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden mt-2.5 space-y-3.5"
+                className="overflow-hidden mt-3 space-y-4"
               >
-                {renderNarrativePhases(false)}
+                {visibleSteps.map((step, idx) => {
+                  const eventText = step.event || step.runningLabel || step.text;
+                  const completionSummary = step.resolvedLabel || step.completionEvent || step.execMessage || step.tool;
+                  const isDetailOpen = Boolean(openPhases[step.id || idx]);
+                  const action = getStepAction(step);
+                  
+                  // Concrete sub-steps for this tool (e.g. searching query, read files/sources)
+                  let subItems = Array.isArray(step.subSteps) ? [...step.subSteps] : [];
+                  if (subItems.length === 0) {
+                    if (step.execMessage && step.execMessage !== eventText && step.execMessage !== completionSummary) {
+                      subItems.push({ text: step.execMessage, stateType: step.stateType });
+                    }
+                    if (Array.isArray(sources) && (step.tool === 'search_workspace' || step.tool === 'web_search')) {
+                      sources.forEach((s) => {
+                        subItems.push({
+                          text: s.domain ? `Read ${s.domain}` : `Read ${s.title || s.url}`,
+                          url: s.url,
+                          domain: s.domain,
+                          title: s.title,
+                          stateType: step.stateType,
+                        });
+                      });
+                    }
+                  }
+
+                  const hasSubItems = subItems.length > 0;
+
+                  return (
+                    <div key={step.id || idx} className="flex flex-col gap-1.5 text-left select-text">
+                      {/* 1. Human Event Narration (Serif, upright regular, off-white #ededed) */}
+                      <div
+                        style={{ fontFamily: 'var(--font-quote)' }}
+                        className="text-[15px] sm:text-[15.5px] leading-relaxed text-[#ededed] dark:text-[#edece8] select-text"
+                      >
+                        {eventText}
+                      </div>
+
+                      {/* 2. Tool Completion Summary with chevron (Muted #8e8e93, sans-serif) */}
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={hasSubItems ? () => togglePhase(step.id || idx) : (action ? (e) => handleStepClick(e, action) : undefined)}
+                          className="group/toggle inline-flex items-center text-left text-[14px] sm:text-[14.5px] font-light transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6] select-none"
+                          title={hasSubItems ? (isDetailOpen ? 'Click to collapse steps' : 'Click to expand steps') : undefined}
+                        >
+                          <span className="font-light tracking-[-0.01em]">
+                            {completionSummary}
+                          </span>
+                          {hasSubItems && (
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              size={13}
+                              strokeWidth={1.8}
+                              className={`ml-1 text-[#8e8e93] group-hover/toggle:text-[#d1d1d6] transition-transform duration-150 ease-out ${
+                                isDetailOpen ? 'rotate-90' : ''
+                              }`}
+                            />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* 3. Expanded concrete sub-steps breakdown with icons (Image 2) */}
+                      <AnimatePresence initial={false}>
+                        {isDetailOpen && hasSubItems && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden mt-1 mb-2"
+                          >
+                            <div className="border-l border-white/[0.08] ml-1 pl-3.5 py-1 flex flex-col gap-2 max-h-[240px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar text-[13px]">
+                              {subItems.map((sub, sIdx) => {
+                                const subText = typeof sub === 'string' ? sub : sub?.text || '';
+                                const subAction = getStepAction(sub);
+                                const isClickable = Boolean(subAction);
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    onClick={isClickable ? (e) => handleStepClick(e, subAction) : undefined}
+                                    className={`flex items-center gap-2 text-neutral-600 dark:text-[#9c9a95] ${
+                                      isClickable ? 'cursor-pointer hover:text-black dark:hover:text-white group' : ''
+                                    }`}
+                                    title={subAction?.tooltip}
+                                  >
+                                    <div className="shrink-0">
+                                      <StepIcon step={sub} isLive={false} />
+                                    </div>
+                                    <span className={`truncate ${isClickable ? 'group-hover:underline underline-offset-2' : ''}`}>
+                                      {subText}
+                                    </span>
+                                    {isClickable && (
+                                      <span className="text-[10px] text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       ) : (
-        <div className="w-full space-y-3.5">
-          {renderNarrativePhases(true)}
+        /* Live execution: Collapsed shows single line with smooth fade + chevron gliding on length changes; Expanded opens with shimmer shifted to tool line (Image match!) */
+        <div className="w-full my-1.5 select-none text-left">
+          {!isExpanded ? (
+            <div className="w-full flex items-center max-w-full">
+              <LayoutGroup id="live-process-accordion">
+                <motion.button
+                  layout="position"
+                  type="button"
+                  onClick={() => setIsExpanded(true)}
+                  transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
+                  className="group/live inline-flex items-center text-left text-[14px] sm:text-[14.5px] font-light transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#d1d1d6] select-none max-w-full min-w-0"
+                  title="Click to expand"
+                >
+                  <motion.span
+                    key={activeLiveEvent}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    className="inline-flex items-center truncate whitespace-nowrap min-w-0 max-w-[calc(100vw-130px)] sm:max-w-[560px] md:max-w-[660px]"
+                  >
+                    <PerCharShimmer
+                      text={activeLiveEvent}
+                      className="font-light tracking-[-0.01em]"
+                    />
+                  </motion.span>
+                  <motion.span
+                    layout="position"
+                    transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
+                    className="inline-flex items-center ml-1.5 shrink-0 text-[#8e8e93] group-hover/live:text-[#d1d1d6]"
+                  >
+                    <HugeiconsIcon
+                      icon={ArrowRight01Icon}
+                      size={14}
+                      strokeWidth={1.8}
+                      className="transition-transform duration-150 ease-out"
+                    />
+                  </motion.span>
+                </motion.button>
+              </LayoutGroup>
+            </div>
+          ) : (
+            <div className="w-full">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="group/toggle inline-flex items-center text-left text-[14.5px] sm:text-[15px] font-light transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6]"
+                title="Click to collapse"
+              >
+                <span className="font-light tracking-[-0.01em]" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
+                  {isResearch ? `Researched for ${formatDuration(elapsed)}` : `Worked for ${formatDuration(elapsed)}`}
+                </span>
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  size={14}
+                  strokeWidth={1.8}
+                  className="ml-1.5 shrink-0 text-[#8e8e93] group-hover/toggle:text-[#d1d1d6] rotate-90 transition-transform duration-150 ease-out"
+                />
+              </button>
+
+              <div className="overflow-hidden mt-3 space-y-4">
+                {/* Any completed steps before the current running step */}
+                {visibleSteps.filter(s => !s.isLive && s.status !== 'running').map((step, idx) => {
+                  const eventText = step.event || step.runningLabel || step.text;
+                  const completionSummary = step.resolvedLabel || step.completionEvent || step.execMessage || step.tool;
+                  const isDetailOpen = Boolean(openPhases[step.id || idx]);
+                  const action = getStepAction(step);
+                  const subItems = Array.isArray(step.subSteps) ? step.subSteps : [];
+                  const hasSubItems = subItems.length > 0;
+
+                  return (
+                    <div key={step.id || idx} className="flex flex-col gap-1.5 text-left select-text">
+                      <div
+                        style={{ fontFamily: 'var(--font-quote)' }}
+                        className="text-[15px] sm:text-[15.5px] leading-relaxed text-[#ededed] dark:text-[#edece8] select-text"
+                      >
+                        {eventText}
+                      </div>
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={hasSubItems ? () => togglePhase(step.id || idx) : (action ? (e) => handleStepClick(e, action) : undefined)}
+                          className="group/toggle inline-flex items-center text-left text-[14px] sm:text-[14.5px] font-light transition-colors cursor-pointer bg-transparent border-0 p-0 m-0 outline-none text-[#8e8e93] hover:text-[#5a5a5e] dark:text-[#8e8e93] dark:hover:text-[#d1d1d6] select-none"
+                        >
+                          <span className="font-light tracking-[-0.01em]">{completionSummary}</span>
+                          {hasSubItems && (
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              size={13}
+                              strokeWidth={1.8}
+                              className={`ml-1 text-[#8e8e93] group-hover/toggle:text-[#d1d1d6] transition-transform duration-150 ease-out ${
+                                isDetailOpen ? 'rotate-90' : ''
+                              }`}
+                            />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Active Running Step: Event on Line 1, Shimmer shifted on Tool on Line 2 (Exact match to uploaded image) */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeLiveEvent}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -3 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-col gap-1.5 text-left select-text"
+                  >
+                    {/* Line 1: Human Event Narration (Serif, upright regular, #ededed) */}
+                    <div
+                      style={{ fontFamily: 'var(--font-quote)' }}
+                      className="text-[15px] sm:text-[15.5px] leading-relaxed text-[#ededed] dark:text-[#edece8] select-text"
+                    >
+                      {activeLiveEvent}
+                    </div>
+
+                    {/* Line 2: Tool with Shimmer Effect (Shimmer shifted on tool!) */}
+                    {runningToolActionText && runningToolActionText !== activeLiveEvent && (
+                      <div className="flex items-center gap-2 text-[14px] sm:text-[14.5px] text-neutral-400 dark:text-[#9c9a95]">
+                        <div className="shrink-0">
+                          <StepIcon step={runningStep || { tool: 'web_search' }} isLive={true} />
+                        </div>
+                        <PerCharShimmer
+                          text={runningToolActionText}
+                          className="font-light tracking-[-0.01em]"
+                        />
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

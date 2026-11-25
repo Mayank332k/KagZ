@@ -423,25 +423,44 @@ const Sidebar = () => {
   // Apply font family to document
   useEffect(() => {
     localStorage.setItem("noema-font-family", fontFamily);
-    if (fontFamily === "serif") {
+    if (fontFamily === "inter") {
+      document.documentElement.setAttribute("data-font-system", "inter");
       document.documentElement.style.setProperty(
         "--font-sans",
-        '"Source Serif 4", "Lyon Text", Georgia, serif',
+        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       );
       document.documentElement.style.setProperty(
         "--ui-font",
-        '"Source Serif 4", "Lyon Text", Georgia, serif',
+        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       );
-    } else if (fontFamily === "mono") {
+      document.documentElement.style.setProperty(
+        "--font-serif",
+        '"Source Serif 4", Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-mono",
+        '"JetBrains Mono", monospace',
+      );
+    } else if (fontFamily === "source-serif") {
+      document.documentElement.setAttribute("data-font-system", "source-serif");
       document.documentElement.style.setProperty(
         "--font-sans",
-        '"JetBrains Mono", "SF Mono", Menlo, monospace',
+        '"Source Serif 4", Georgia, serif',
       );
       document.documentElement.style.setProperty(
         "--ui-font",
-        '"JetBrains Mono", "SF Mono", Menlo, monospace',
+        '"Source Serif 4", Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-serif",
+        '"Source Serif 4", Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-mono",
+        '"JetBrains Mono", monospace',
       );
     } else if (fontFamily === "system") {
+      document.documentElement.setAttribute("data-font-system", "system");
       document.documentElement.style.setProperty(
         "--font-sans",
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -449,15 +468,37 @@ const Sidebar = () => {
       document.documentElement.style.setProperty(
         "--ui-font",
         'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-serif",
+        'Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-mono",
+        'ui-monospace, monospace',
       );
     } else {
+      // KagZ Font System (default)
+      document.documentElement.setAttribute("data-font-system", "kagz");
       document.documentElement.style.setProperty(
         "--font-sans",
-        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        '"Kag_Z Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       );
       document.documentElement.style.setProperty(
         "--ui-font",
-        '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        '"Kag_Z Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-serif",
+        '"Kag_Z Serif", "Times New Roman", Georgia, serif',
+      );
+      document.documentElement.style.setProperty(
+        "--font-mono",
+        '"Kag_Z Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+      );
+      document.documentElement.style.setProperty(
+        "--font-quote",
+        '"Kag_Z Sans", sans-serif',
       );
     }
   }, [fontFamily]);
@@ -2186,13 +2227,13 @@ const Sidebar = () => {
                           className="flex items-center justify-between gap-1.5 min-w-[150px] h-8 px-2.5 text-[13px] rounded-[6px] border border-[var(--c-border)] bg-transparent hover:bg-[var(--ca-hover)] text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer select-none font-normal max-md:w-full max-md:h-11 max-md:min-w-0 max-md:rounded-[14px] max-md:border-0 max-md:bg-[var(--c-surface-input)] max-md:px-3.5 max-md:text-[14px] max-md:font-medium"
                         >
                           <span className="capitalize">
-                            {fontFamily === "sans"
-                              ? "Inter (Default)"
-                              : fontFamily === "serif"
-                                ? "Source Serif 4 (Serif)"
+                            {fontFamily === "inter"
+                              ? "Inter"
+                              : fontFamily === "source-serif"
+                                ? "Source Serif 4"
                                 : fontFamily === "system"
                                   ? "System Default"
-                                  : "JetBrains Mono (Monospace)"}
+                                  : "KagZ"}
                           </span>
                           <span
                             className={`material-symbols-outlined text-[15px] max-md:text-[19px] text-[var(--c-icon-secondary)] select-none transition-transform duration-100 ${showFontDropdown ? "rotate-180" : ""}`}
@@ -2207,28 +2248,33 @@ const Sidebar = () => {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {[
-                              { id: "sans", label: "Inter (Default)" },
-                              { id: "serif", label: "Source Serif 4 (Serif)" },
-                              { id: "mono", label: "JetBrains Mono (Monospace)" },
+                              { id: "kagz", label: "KagZ" },
+                              { id: "inter", label: "Inter" },
+                              { id: "source-serif", label: "Source Serif 4" },
                               { id: "system", label: "System Default" },
-                            ].map((f) => (
-                              <button
-                                key={f.id}
-                                type="button"
-                                onClick={() => {
-                                  setFontFamily(f.id);
-                                  setShowFontDropdown(false);
-                                }}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-11 max-md:rounded-[10px] max-md:px-3"
-                              >
-                                <span>{f.label}</span>
-                                {fontFamily === f.id && (
-                                  <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none">
-                                    check
-                                  </span>
-                                )}
-                              </button>
-                            ))}
+                            ].map((f) => {
+                              const isSelected = f.id === "kagz"
+                                ? (fontFamily === "kagz" || fontFamily === "sans" || fontFamily === "serif" || fontFamily === "mono")
+                                : fontFamily === f.id;
+                              return (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFontFamily(f.id);
+                                    setShowFontDropdown(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-1.5 text-[var(--c-text-secondary)] hover:bg-[var(--ca-hover)] hover:text-[var(--c-text-primary)] transition-colors duration-100 cursor-pointer text-left max-md:h-11 max-md:rounded-[10px] max-md:px-3"
+                                >
+                                  <span>{f.label}</span>
+                                  {isSelected && (
+                                    <span className="material-symbols-outlined text-[15px] max-md:text-[18px] text-[var(--c-brand)] select-none">
+                                      check
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

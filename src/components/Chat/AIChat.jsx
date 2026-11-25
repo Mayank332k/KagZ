@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext, useLayoutEffect, useMemo, useCallback } from 'react';
 import { ChevronRight, ChevronDown, Plus, Brain } from 'lucide-react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon, Attachment01Icon, Globe02Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, Copy01Icon, File02Icon, Cancel01Icon, Brain03Icon, AddCircleHalfDotIcon, ExpandIcon, SidebarRightIcon, LayoutAlignLeftIcon, LimitationIcon, Add01Icon, LeftToRightListBulletIcon, BookOpen02Icon, ArrowDown01Icon, QuillWrite01Icon, Attachment01Icon, Globe02Icon } from '@hugeicons/core-free-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChatContext, ChatStreamContext } from '../../context/ChatContextDefinition';
@@ -12,7 +12,7 @@ import { chatAPI } from '../../services/api';
 import { useChatScroll } from '../../hooks/useChatScroll';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import InteractiveChoiceCard, { parseInlineMarkdown } from './InteractiveChoiceCard';
-import WorkingProcessAccordion, { formatDuration } from './WorkingProcessAccordion';
+import WorkingProcessAccordion, { formatDuration, PerCharShimmer } from './WorkingProcessAccordion';
 import { parseThoughtAndContent } from '../../utils/thoughtParser';
 import ToolMentionMenu, { AVAILABLE_TOOLS } from './ToolMentionMenu';
 import MemoryUpdateIcon from './MemoryUpdateIcon';
@@ -181,7 +181,10 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
         </div>
 
         {/* Title / Query */}
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-normal text-[#1a1918] dark:text-[#edece8] group-hover:underline underline-offset-2 transition-colors">
+        <span
+          style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}
+          className="min-w-0 flex-1 truncate text-[13.5px] font-light text-[#1a1918] dark:text-[#edece8] group-hover:underline underline-offset-2 transition-colors"
+        >
           {displayTitle}
         </span>
 
@@ -211,7 +214,10 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
         >
           {/* Header */}
           <div className="h-[48px] px-4.5 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06] shrink-0">
-            <span className="text-[14px] font-medium text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]">
+            <span
+              style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}
+              className="text-[14px] font-normal text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]"
+            >
               Used in this session
             </span>
             <button
@@ -290,7 +296,10 @@ const SourcesSidebar = ({ sources, onClose, isRightPanel = false }) => {
         >
           {/* Header */}
           <div className="h-[48px] px-4.5 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06] shrink-0">
-            <span className="text-[14px] font-medium text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]">
+            <span
+              style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}
+              className="text-[14px] font-normal text-[#1a1918] dark:text-[#ededed] tracking-[-0.01em]"
+            >
               Used in this session
             </span>
             <button
@@ -618,13 +627,11 @@ const ThinkingAnimation = ({ status, stateType = 'thinking', startedAt }) => {
 
   const displayLabel = status && !/^thinking(\.{1,3})?$/i.test(status.trim()) && !/^reasoning(\.{1,3})?$/i.test(status.trim())
     ? status
-    : `Working for ${formatDuration(elapsed)}`;
+    : 'Working';
 
   return (
-    <div className="flex items-center text-neutral-500 dark:text-[#8e8b86] font-normal py-0.5 min-h-[30px] select-none">
-      <span className="active-tool-shimmer text-[14.5px] font-normal tracking-[-0.01em]">
-        {displayLabel}
-      </span>
+    <div className="flex items-center text-neutral-500 dark:text-[#8e8b86] py-0.5 min-h-[30px] select-none" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
+      <PerCharShimmer text={displayLabel} className="text-[14px] sm:text-[14.5px] font-light tracking-[-0.01em]" />
     </div>
   );
 };
@@ -854,14 +861,14 @@ const ThoughtHeader = ({ duration, startedAt, thoughts = [], isStreaming = false
   if (!hasThoughts) return null;
 
   return (
-    <div className="mb-2 text-[14px] text-neutral-500 dark:text-[#8e8b86] select-none font-sans">
+    <div className="mb-2 text-[14px] text-neutral-500 dark:text-[#8e8b86] select-none" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="inline-flex items-center gap-1.5 py-0.5 px-0 text-neutral-500 dark:text-[#8e8b86] hover:text-neutral-800 dark:hover:text-[#f7f6f4] transition-colors border-0 bg-transparent outline-none cursor-pointer"
         title={isOpen ? 'Collapse thoughts' : 'Expand thoughts'}
       >
-        <span className="font-normal">Thought for {formatDuration(displaySeconds)}</span>
+        <span className="font-light" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>Thought for {formatDuration(displaySeconds)}</span>
         <ChevronRight
           size={13}
           className={`transition-transform duration-200 text-neutral-400 dark:text-[#8e8b86] ${isOpen ? 'rotate-90' : ''}`}
@@ -869,7 +876,7 @@ const ThoughtHeader = ({ duration, startedAt, thoughts = [], isStreaming = false
       </button>
 
       {isOpen && (
-        <div className="mt-1.5 pl-3 border-l-2 border-neutral-300 dark:border-white/15 text-[13.5px] text-neutral-600 dark:text-[#a09d96] font-normal leading-relaxed whitespace-pre-wrap">
+        <div className="mt-1.5 pl-3 border-l-2 border-neutral-300 dark:border-white/15 text-[13.5px] text-neutral-600 dark:text-[#a09d96] font-light leading-relaxed whitespace-pre-wrap" style={{ fontFamily: '"Kag_Z Sans", sans-serif', fontWeight: 300 }}>
           {thoughts.join('\n\n')}
         </div>
       )}
@@ -894,8 +901,21 @@ const ChatMessageItem = React.memo(({
   const { openSources } = useContext(SourcesSheetContext);
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
-    () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
-    [msg.content, msg.role]
+    () => {
+      if (msg.role !== 'assistant') return { thoughts: [], finalContent: msg.content, isThinkingTagActive: false };
+      const parsed = parseThoughtAndContent(msg.content);
+      const combined = [
+        ...(Array.isArray(msg.thoughts) ? msg.thoughts : []),
+        ...(parsed.thoughts || []),
+      ];
+      const uniqueThoughts = Array.from(new Set(combined.map((t) => (typeof t === 'string' ? t.trim() : '')).filter(Boolean)));
+      return {
+        thoughts: uniqueThoughts,
+        finalContent: parsed.finalContent,
+        isThinkingTagActive: parsed.isThinkingTagActive || Boolean(msg.isThinkingActive),
+      };
+    },
+    [msg.content, msg.role, msg.thoughts, msg.isThinkingActive]
   );
 
   const hasWorkingProcess = Boolean(
@@ -903,9 +923,7 @@ const ChatMessageItem = React.memo(({
     (
       (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
       (Array.isArray(msg.sources) && msg.sources.length > 0) ||
-      Boolean(msg.researchData) ||
-      (msg.stateType && msg.stateType !== 'thinking') ||
-      (Array.isArray(thoughts) && thoughts.length > 0)
+      Boolean(msg.researchData)
     )
   );
 
@@ -1033,19 +1051,9 @@ const ChatMessageItem = React.memo(({
         </AnimatePresence>
 
         {finalContent && (
-          <>
-            {!hasWorkingProcess && thoughts.length > 0 && (
-              <ThoughtHeader
-                duration={msg.workingDuration}
-                startedAt={msg.startedAt}
-                thoughts={thoughts}
-                isStreaming={isLatestStreaming && isThinkingTagActive}
-              />
-            )}
-            <div className="text-[15px] leading-relaxed">
-              <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
-            </div>
-          </>
+          <div className="text-[15px] leading-relaxed">
+            <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
+          </div>
         )}
 
         {/* Inline Resolved Choice */}
@@ -1101,8 +1109,21 @@ const RightPanelMessageItem = React.memo(({
   const { openSources } = useContext(SourcesSheetContext);
 
   const { thoughts, finalContent, isThinkingTagActive } = useMemo(
-    () => (msg.role === 'assistant' ? parseThoughtAndContent(msg.content) : { thoughts: [], finalContent: msg.content, isThinkingTagActive: false }),
-    [msg.content, msg.role]
+    () => {
+      if (msg.role !== 'assistant') return { thoughts: [], finalContent: msg.content, isThinkingTagActive: false };
+      const parsed = parseThoughtAndContent(msg.content);
+      const combined = [
+        ...(Array.isArray(msg.thoughts) ? msg.thoughts : []),
+        ...(parsed.thoughts || []),
+      ];
+      const uniqueThoughts = Array.from(new Set(combined.map((t) => (typeof t === 'string' ? t.trim() : '')).filter(Boolean)));
+      return {
+        thoughts: uniqueThoughts,
+        finalContent: parsed.finalContent,
+        isThinkingTagActive: parsed.isThinkingTagActive || Boolean(msg.isThinkingActive),
+      };
+    },
+    [msg.content, msg.role, msg.thoughts, msg.isThinkingActive]
   );
 
   const hasWorkingProcess = Boolean(
@@ -1110,9 +1131,7 @@ const RightPanelMessageItem = React.memo(({
     (
       (Array.isArray(msg.workingSteps) && msg.workingSteps.length > 0) ||
       (Array.isArray(msg.sources) && msg.sources.length > 0) ||
-      Boolean(msg.researchData) ||
-      (msg.stateType && msg.stateType !== 'thinking') ||
-      (Array.isArray(thoughts) && thoughts.length > 0)
+      Boolean(msg.researchData)
     )
   );
 
@@ -1241,17 +1260,7 @@ const RightPanelMessageItem = React.memo(({
 
         <div className="markdown-content">
           {finalContent && (
-            <>
-              {!hasWorkingProcess && thoughts.length > 0 && (
-                <ThoughtHeader
-                  duration={msg.workingDuration}
-                  startedAt={msg.startedAt}
-                  thoughts={thoughts}
-                  isStreaming={isLatestStreaming && isThinkingTagActive}
-                />
-              )}
-              <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
-            </>
+            <MarkdownRenderer content={finalContent} isStreaming={isLatestStreaming && !isThinkingTagActive} />
           )}
         </div>
 
@@ -2516,16 +2525,28 @@ const AIChat = ({ isRightPanel = false }) => {
     const list = [];
     if (Array.isArray(messages)) {
       messages.forEach((m) => {
+        if (m.pageContext?.title) {
+          list.push({ title: m.pageContext.title, pageId: m.pageContext.id, domain: 'workspace' });
+        }
         if (m.role === 'assistant') {
           if (Array.isArray(m.sources)) list.push(...m.sources);
           if (Array.isArray(m.researchData?.sources)) list.push(...m.researchData.sources);
           if (Array.isArray(m.workingSteps)) {
             m.workingSteps.forEach((s) => {
-              if (s && (s.url || s.domain)) list.push({ url: s.url, title: s.text, domain: s.domain });
+              if (s && (s.url || s.domain)) list.push({ url: s.url, title: s.text || s.query, domain: s.domain });
             });
           }
         }
       });
+    }
+    if (streamingMessage) {
+      if (Array.isArray(streamingMessage.sources)) list.push(...streamingMessage.sources);
+      if (Array.isArray(streamingMessage.researchData?.sources)) list.push(...streamingMessage.researchData.sources);
+      if (Array.isArray(streamingMessage.workingSteps)) {
+        streamingMessage.workingSteps.forEach((s) => {
+          if (s && (s.url || s.domain)) list.push({ url: s.url, title: s.text || s.query, domain: s.domain });
+        });
+      }
     }
     const seen = new Set();
     return list.filter((s) => {
@@ -2534,7 +2555,7 @@ const AIChat = ({ isRightPanel = false }) => {
       seen.add(key);
       return true;
     }).map(formatSource);
-  }, [messages]);
+  }, [messages, streamingMessage]);
 
   const handleDockToSidebar = () => {
     setIsRightChatOpen(true);
@@ -2674,7 +2695,7 @@ const AIChat = ({ isRightPanel = false }) => {
                   title={activeSources ? "Hide sources" : "View sources used in this session"}
                   aria-label="Toggle sources"
                 >
-                  <HugeiconsIcon icon={BookOpen02Icon} size={17} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                  <HugeiconsIcon icon={LeftToRightListBulletIcon} size={17} strokeWidth={1.8} className="shrink-0 select-none text-current" />
                 </button>
               )}
 
@@ -2918,7 +2939,7 @@ const AIChat = ({ isRightPanel = false }) => {
                   title={activeSources ? "Hide sources" : "View sources used in this session"}
                   aria-label="Toggle sources"
                 >
-                  <HugeiconsIcon icon={BookOpen02Icon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
+                  <HugeiconsIcon icon={LeftToRightListBulletIcon} size={18} strokeWidth={1.8} className="shrink-0 select-none text-current" />
                 </button>
               )}
 
