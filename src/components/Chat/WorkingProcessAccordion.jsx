@@ -67,39 +67,16 @@ export const ThoughtBubbleIcon = [
 ];
 
 /**
- * PerCharShimmer: Smooth character-by-character light sweep with dynamic speed scaling
- * - Fast on short lines (~0.35s total sweep)
- * - Brisk & fluid on long sentences (~0.85s - 1.15s total sweep, never sluggish)
- * - 2.8s clean rest period, zero glow
+ * PerCharShimmer: Smooth continuous shimmer sweep with zero glare and clean rest period.
+ * Does not unmount characters, ensuring seamless continuity across text changes.
  */
 export const PerCharShimmer = ({ text, className = '' }) => {
   if (!text) return null;
-  const chars = Array.from(text);
-  const total = chars.length;
-
-  // Dynamically optimize sweep speed according to length of the line (calm, smooth cadence):
-  const sweepDuration = Math.min(1.4, Math.max(0.48, 0.40 + total * 0.009));
-  const charDelay = total > 1 ? Number((sweepDuration / (total - 1)).toFixed(5)) : 0;
-  const restDuration = 2.8;
-  const cycleDuration = Number((sweepDuration + restDuration).toFixed(3));
-
   return (
     <span
-      className={`char-shimmer-container inline-flex flex-nowrap whitespace-nowrap select-none overflow-hidden ${className}`}
-      style={{
-        '--anim-duration': `${cycleDuration}s`,
-        '--char-delay': `${charDelay}s`,
-      }}
+      className={`text-shimmer-continuous select-none whitespace-nowrap overflow-hidden truncate ${className}`}
     >
-      {chars.map((ch, idx) => (
-        <span
-          key={idx}
-          className="shimmer-char shrink-0"
-          style={{ '--char-index': idx }}
-        >
-          {ch === ' ' ? '\u00A0' : ch}
-        </span>
-      ))}
+      {text}
     </span>
   );
 };
@@ -933,10 +910,8 @@ const WorkingProcessAccordion = ({
                   title="Click to expand"
                 >
                   <motion.span
-                    key={activeLiveEvent}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    layout="position"
+                    transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
                     className="inline-flex items-center truncate whitespace-nowrap min-w-0 max-w-[calc(100vw-130px)] sm:max-w-[560px] md:max-w-[660px]"
                   >
                     <PerCharShimmer
@@ -1015,42 +990,74 @@ const WorkingProcessAccordion = ({
                           )}
                         </button>
                       </div>
+
+                      {/* Expanded concrete sub-steps breakdown with icons (matching Image 2) */}
+                      <AnimatePresence initial={false}>
+                        {isDetailOpen && hasSubItems && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden mt-1 mb-2"
+                          >
+                            <div className="border-l border-white/[0.08] ml-1 pl-3.5 py-1 flex flex-col gap-2 max-h-[240px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar text-[13px]">
+                              {subItems.map((sub, sIdx) => {
+                                const subText = typeof sub === 'string' ? sub : sub?.text || '';
+                                const subAction = getStepAction(sub);
+                                const isClickable = Boolean(subAction);
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    onClick={isClickable ? (e) => handleStepClick(e, subAction) : undefined}
+                                    className={`flex items-center gap-2 text-neutral-600 dark:text-[#9c9a95] ${
+                                      isClickable ? 'cursor-pointer hover:text-black dark:hover:text-white group' : ''
+                                    }`}
+                                    title={subAction?.tooltip}
+                                  >
+                                    <div className="shrink-0">
+                                      <StepIcon step={sub} isLive={false} />
+                                    </div>
+                                    <span className={`truncate ${isClickable ? 'group-hover:underline underline-offset-2' : ''}`}>
+                                      {subText}
+                                    </span>
+                                    {isClickable && (
+                                      <span className="text-[10px] text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
 
                 {/* Active Running Step: Event on Line 1, Shimmer shifted on Tool on Line 2 (Exact match to uploaded image) */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeLiveEvent}
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -3 }}
-                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col gap-1.5 text-left select-text"
+                <div className="flex flex-col gap-1.5 text-left select-text">
+                  {/* Line 1: Human Event Narration (Serif, upright regular, #ededed) */}
+                  <div
+                    style={{ fontFamily: 'var(--font-quote)' }}
+                    className="text-[15px] sm:text-[15.5px] leading-relaxed text-[#ededed] dark:text-[#edece8] select-text"
                   >
-                    {/* Line 1: Human Event Narration (Serif, upright regular, #ededed) */}
-                    <div
-                      style={{ fontFamily: 'var(--font-quote)' }}
-                      className="text-[15px] sm:text-[15.5px] leading-relaxed text-[#ededed] dark:text-[#edece8] select-text"
-                    >
-                      {activeLiveEvent}
-                    </div>
+                    {activeLiveEvent}
+                  </div>
 
-                    {/* Line 2: Tool with Shimmer Effect (Shimmer shifted on tool!) */}
-                    {runningToolActionText && runningToolActionText !== activeLiveEvent && (
-                      <div className="flex items-center gap-2 text-[14px] sm:text-[14.5px] text-neutral-400 dark:text-[#9c9a95]">
-                        <div className="shrink-0">
-                          <StepIcon step={runningStep || { tool: 'web_search' }} isLive={true} />
-                        </div>
-                        <PerCharShimmer
-                          text={runningToolActionText}
-                          className="font-light tracking-[-0.01em]"
-                        />
+                  {/* Line 2: Tool with Shimmer Effect (Shimmer shifted on tool!) */}
+                  {runningToolActionText && runningToolActionText !== activeLiveEvent && (
+                    <div className="flex items-center gap-2 text-[14px] sm:text-[14.5px] text-neutral-400 dark:text-[#9c9a95]">
+                      <div className="shrink-0">
+                        <StepIcon step={runningStep || { tool: 'web_search' }} isLive={true} />
                       </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+                      <PerCharShimmer
+                        text={runningToolActionText}
+                        className="font-light tracking-[-0.01em]"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

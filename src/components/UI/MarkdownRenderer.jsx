@@ -152,19 +152,19 @@ const MarkdownComponents = {
   h1: (props) =>
     renderHeadingOrQuestion(
       'h1',
-      'text-[21px] font-bold mt-4 mb-2 tracking-tight text-gray-900 dark:text-white',
+      'text-[21px] font-[650] mt-4 mb-2 tracking-tight text-gray-900 dark:text-white',
       props
     ),
   h2: (props) =>
     renderHeadingOrQuestion(
       'h2',
-      'text-[18px] font-semibold mt-3.5 mb-1.5 tracking-tight text-gray-900 dark:text-white',
+      'text-[18px] font-[500] mt-3.5 mb-1.5 tracking-tight text-gray-900 dark:text-white',
       props
     ),
   h3: (props) =>
     renderHeadingOrQuestion(
       'h3',
-      'text-[16px] font-semibold mt-2.5 mb-1 tracking-tight text-gray-900 dark:text-white',
+      'text-[16px] font-[400] mt-2.5 mb-1 tracking-tight text-gray-900 dark:text-white',
       props
     ),
   h4: (props) =>

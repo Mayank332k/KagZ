@@ -42,11 +42,11 @@ const CodeBlock = React.memo(({ language, value }) => {
   return (
     <div className={`codeBlockContainer ${isLight ? "codeBlockLight" : ""}`}>
       <div className="codeHeader">
-        <div className="codeLang">
+        <div className="codeLang" style={{ fontFamily: "var(--ui-font)" }}>
           <span style={{ opacity: 0.8, fontSize: "17px", color: headerTextColor, fontWeight: "500" }}>
             {"{/}"}
           </span>
-          <span style={{ opacity: 0.8, fontSize: "14px", color: headerTextColor, fontWeight: "500" }}>
+          <span style={{ opacity: 0.8, fontSize: "13.5px", color: headerTextColor, fontWeight: "400", fontFamily: "var(--ui-font)" }}>
             {language || "code"}
           </span>
         </div>
